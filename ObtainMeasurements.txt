@@ -2,6 +2,7 @@ cat /sys/bus/w1/devices/28-000005eac50a/w1_slave
 cat /sys/bus/w1/devices/28-000005eaddc2/w1_slave
 
 https://www.modmypi.com/blog/ds18b20-one-wire-digital-temperature-sensor-and-the-raspberry-pi
+Описание формата вывода - https://www.kernel.org/doc/Documentation/w1/slaves/w1_ds2423
 
 import os
 import time
