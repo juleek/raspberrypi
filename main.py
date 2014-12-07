@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import datetime
 import urllib.request
 
@@ -8,6 +9,8 @@ os.system('modprobe w1-therm')
 
 # Constants:
 TempPath = '/sys/bus/w1/devices/28-000005eac50a/w1_slave'
+MinPossibleTemperature = 15
+RegularSendingHour = 22 # hours of every day
 
 MinDurationBetweenSMSSends = 20 # minutes
 SMSPassword = ""
@@ -68,6 +71,43 @@ def Usage():
 
 
 
+FirstTime = True
+MinT = 0
+MaxT = 0
+
+def UpdateStats(Temperature):
+    global FirstTime
+    global MinT
+    global MaxT
+
+    if FirstTime == True:
+        MinT = Temperature
+        MaxT = Temperature
+        FirstTime = False
+        return
+
+    if MinT > Temperature:
+        MinT = Temperature
+
+    if MaxT < Temperature:
+        MaxT = Temperature
+
+
+
+
+AlreadySent = False
+def SendSMSWhithStats(CurrentTemperature):
+    global AlreadySent
+    global RegularSendingHour
+    Now = datetime.datetime.now()
+    if Now.hour == RegularSendingHour and AlreadySent == False:
+        SendSMS("T = " + str(CurrentTemperature) + ", Min = " + str(MinT) + ", Max = " + str(MaxT))
+        AlreadySent = True
+
+    if Now.hour == RegularSendingHour + 1:
+        AlreadySent = False
+
+
 # ======================================================== Main() ========================================================
 
 # Parse command-line arguments:
@@ -78,11 +118,19 @@ if len(sys.argv) != 2:
     exit
 SMSPassword = sys.argv[1]
 
-SendSMS("Zarazina, chto delaesh'?")
+#SendSMS("Zarazina, chto delaesh'?")
 
 while True:
     time.sleep(1)
     ParseResult = ParseTemp()
+    print(ParseResult)
     if ParseResult[1] == False:
         SendSMS("ERROR AAAAA!!!!!!!!!!!!")
         continue
+
+    if ParseResult[0] < MinPossibleTemperature:
+        SendSMS("Current Temperature: " + str(ParseResult[0]) + ". MinPossibleTemperature: " + str(MinPossibleTemperature))
+
+    UpdateStats(ParseResult[0])
+    SendSMSWhithStats(ParseResult[0])
+
