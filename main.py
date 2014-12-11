@@ -102,6 +102,7 @@ def SendSMSWhithStats(CurrentTemperature):
     Now = datetime.datetime.now()
     if Now.hour == RegularSendingHour and AlreadySent == False:
         SendSMS("T = " + str(CurrentTemperature) + ", Min = " + str(MinT) + ", Max = " + str(MaxT))
+        FirstTime = True
         AlreadySent = True
 
     if Now.hour == RegularSendingHour + 1:
