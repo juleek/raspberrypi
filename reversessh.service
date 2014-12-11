@@ -1,0 +1,16 @@
+[Unit]
+Description=reverse ssh tunnel
+Requires=network-online.target
+After=network-online.target
+
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/usr/bin/ssh  -v -N -R 79.120.10.98:32003:localhost:22 tarpi@79.120.10.98
+Restart=always
+RestartSec=30
+
+
+[Install]
+WantedBy=multi-user.target
