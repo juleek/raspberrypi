@@ -5,7 +5,7 @@ THIS_DIR=$(cd "$(dirname "$0")"; pwd)
 cd "$THIS_DIR"
 
 PROJECT_PATH="/home/pi/raspberrypi/"
-PREFIX_FOR_LOGS="asdf update_thermo:"
+PREFIX_FOR_LOGS="update_thermo:"
 
 
 function RunVerbosely() { echo "$PREFIX_FOR_LOGS $@" ; "$@" ; }
@@ -42,3 +42,4 @@ git pull
 InstallIfNeeded reversessh.service true
 InstallIfNeeded thermo.service true
 InstallIfNeeded update_thermo.service
+InstallIfNeeded update_thermo.timer
