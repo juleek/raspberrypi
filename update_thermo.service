@@ -1,0 +1,14 @@
+[Unit]
+Description=service for updating repo with thermo project and installing it in the system
+Requires=network-online.target
+After=network-online.target
+
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /home/pi/raspberrypi/install.sh
+Restart=no
+
+
+[Install]
+WantedBy=multi-user.target
