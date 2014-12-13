@@ -6,6 +6,8 @@ set -e
 PROJECT_PATH="/home/pi/raspberrypi/"
 
 
+function RunVerbosely() { echo "$@" ; "$@" ; }
+
 function InstallIfNeeded {
    local SERVICE="$1"
    local INSTALLED="`md5sum /etc/systemd/system/$SERVICE | cut -d ' ' -f 1`"
@@ -19,6 +21,11 @@ function InstallIfNeeded {
       echo "$SERVICE not changed => skipping it"
    else 
       echo "$SERVICE changed => installing it"
+      RunVerbosely sudo systemctl stop $SERVICE
+      RunVerbosely cp $SERVICE /etc/systemd/system/$SERVICE
+      RunVerbosely sudo systemctl daemon-reload
+      RunVerbosely sudo systemctl enable $SERVICE
+      RunVerbosely sudo systemctl start $SERVICE
    fi
 }
 
