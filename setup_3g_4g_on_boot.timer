@@ -1,0 +1,9 @@
+[Unit]
+Description=timer unit for updating repo with thermo project and installing it in the system
+
+[Timer]
+OnBootSec=60
+Unit=setup_3g_4g.service
+
+[Install]
+WantedBy=multi-user.target

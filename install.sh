@@ -47,3 +47,4 @@ InstallIfNeeded update_thermo.timer true
 
 InstallIfNeeded setup_3g_4g.service
 InstallIfNeeded setup_3g_4g.timer true
+InstallIfNeeded setup_3g_4g_on_boot.timer true
