@@ -74,6 +74,8 @@ def Usage():
 FirstTime = True
 MinT = 0
 MaxT = 0
+TimeOfMinT = datetime.time()
+TimeOfMaxT = datetime.time()
 
 def UpdateStats(Temperature):
     global FirstTime
@@ -83,14 +85,18 @@ def UpdateStats(Temperature):
     if FirstTime == True:
         MinT = Temperature
         MaxT = Temperature
+        TimeOfMinT = datetime.datetime.now().time()
+        TimeOfMaxT = datetime.datetime.now().time()
         FirstTime = False
         return
 
     if MinT > Temperature:
         MinT = Temperature
+        TimeOfMinT = datetime.datetime.now().time()
 
     if MaxT < Temperature:
         MaxT = Temperature
+        TimeOfMaxT = datetime.datetime.now().time()
 
 
 
@@ -101,7 +107,7 @@ def SendSMSWhithStats(CurrentTemperature):
     global RegularSendingHour
     Now = datetime.datetime.now()
     if Now.hour == RegularSendingHour and AlreadySent == False:
-        SendSMS("T = " + str(CurrentTemperature) + ", Min = " + str(MinT) + ", Max = " + str(MaxT))
+        SendSMS("T = " + str(CurrentTemperature) + ", Min = " + str(MinT) + ", TimeOfMinT = " + str(TimeOfMinT) + ", Max = " + str(MaxT) + ", TimeOfMaxT = " + str(TimeOfMaxT))
         FirstTime = True
         AlreadySent = True
 
