@@ -79,7 +79,7 @@ class TSensor:
     TempPath = ""
     CurrentTemperature = 0
 
-    def _init_(self, TempPath):
+    def __init__(self, TempPath):
         self.TempPath = TempPath
 
 
