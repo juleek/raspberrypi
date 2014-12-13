@@ -1,5 +1,5 @@
 [Unit]
-Description=timer unit for updating repo with thermo project and installing it in the system
+Description=timer unit for updating network periodically
 Requires=network-online.target
 After=network-online.target
 

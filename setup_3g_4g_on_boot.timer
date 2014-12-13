@@ -1,5 +1,5 @@
 [Unit]
-Description=timer unit for updating repo with thermo project and installing it in the system
+Description=timer unit for enabling network only on boot
 
 [Timer]
 OnBootSec=60
