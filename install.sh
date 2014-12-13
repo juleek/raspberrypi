@@ -39,6 +39,11 @@ function InstallIfNeeded {
 git pull
 
 InstallIfNeeded reversessh.service true
+
 InstallIfNeeded thermo.service true
+
 InstallIfNeeded update_thermo.service
 InstallIfNeeded update_thermo.timer true
+
+InstallIfNeeded setup_3g_4g.service
+InstallIfNeeded setup_3g_4g.timer true

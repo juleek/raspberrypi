@@ -1,0 +1,11 @@
+[Unit]
+Description=timer unit for updating repo with thermo project and installing it in the system
+Requires=network-online.target
+After=network-online.target
+
+[Timer]
+OnCalendar=*-*-* 0/1:00:00
+Unit=setup_3g_4g.service
+
+[Install]
+WantedBy=multi-user.target
