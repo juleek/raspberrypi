@@ -7,7 +7,7 @@ After=network-online.target
 [Service]
 Type=simple
 User=pi
-ExecStart=/usr/bin/ssh  -v -N -R 79.120.10.98:32003:localhost:22 tarpi@79.120.10.98 -o ExitOnForwardFailure=yes
+ExecStart=/usr/bin/ssh -v -N -R 79.120.10.98:32003:localhost:22 tarpi@79.120.10.98 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2
 Restart=always
 RestartSec=30
 
