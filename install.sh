@@ -42,4 +42,4 @@ git pull
 InstallIfNeeded reversessh.service true
 InstallIfNeeded thermo.service true
 InstallIfNeeded update_thermo.service
-InstallIfNeeded update_thermo.timer
+InstallIfNeeded update_thermo.timer true
