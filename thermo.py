@@ -11,7 +11,7 @@ os.system('modprobe w1-therm')
 TempPath1 = '/sys/bus/w1/devices/28-000005eac50a/w1_slave'
 TempPath2 = '/sys/bus/w1/devices/28-000005eaddc2/w1_slave'
 MinPossibleTemperature = 15
-RegularSendingHour = 22 # hours of every day
+RegularSendingHour = 2 # hours of every day
 
 MinDurationBetweenSMSSends = 20 # minutes
 SMSPassword = ""
@@ -102,7 +102,7 @@ class TSensor:
 
     def ParseAndUpdate(self):
         ParseResult = ParseTemp(self.TempPath)
-        print(ParseResult)
+        print(TempPath + " " + ParseResult)
         if ParseResult[1] == False:
             SendSMS("ERROR AAAAA!!!!!!!!!!!!")
             return
