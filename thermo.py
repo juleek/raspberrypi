@@ -8,7 +8,8 @@ os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
 
 # Constants:
-TempPath = '/sys/bus/w1/devices/28-000005eac50a/w1_slave'
+TempPath1 = '/sys/bus/w1/devices/28-000005eac50a/w1_slave'
+TempPath2 = '/sys/bus/w1/devices/28-000005eaddc2/w1_slave'
 MinPossibleTemperature = 15
 RegularSendingHour = 22 # hours of every day
 
@@ -46,14 +47,14 @@ def SendSMS(MessageToSend, Receivers = None):
     #print(LastSendSMSTime)
 
 
-def ReadFile():
+def ReadFile(TempPath):
     File = open(TempPath, 'r')
     Lines = File.readlines()
     File.close()
     return Lines
 
-def ParseTemp():
-    Lines = ReadFile()
+def ParseTemp(TempPath):
+    Lines = ReadFile(TempPath)
     if Lines[0].strip()[-3:] != 'YES':
         return 0, False
     PosOfT = Lines[1].find('t=')
@@ -69,34 +70,50 @@ def Usage():
     print("Usage: main.py <sms_path>")
 
 
+class TSensor:
+    FirstTime = True
+    MinT = 0
+    MaxT = 0
+    TimeOfMinT = datetime.time()
+    TimeOfMaxT = datetime.time()
+    TempPath = ""
+    CurrentTemperature = 0
+
+    def _init_(self, TempPath):
+        self.TempPath = TempPath
 
 
-FirstTime = True
-MinT = 0
-MaxT = 0
-TimeOfMinT = datetime.time()
-TimeOfMaxT = datetime.time()
+    def UpdateStats(Temperature):
+        if FirstTime == True:
+            self.MinT = Temperature
+            self.MaxT = Temperature
+            self.TimeOfMinT = datetime.datetime.now().time()
+            self.TimeOfMaxT = datetime.datetime.now().time()
+            self.FirstTime = False
+            return
 
-def UpdateStats(Temperature):
-    global FirstTime
-    global MinT
-    global MaxT
+        if self.MinT > Temperature:
+            self.MinT = Temperature
+            self.TimeOfMinT = datetime.datetime.now().time()
 
-    if FirstTime == True:
-        MinT = Temperature
-        MaxT = Temperature
-        TimeOfMinT = datetime.datetime.now().time()
-        TimeOfMaxT = datetime.datetime.now().time()
-        FirstTime = False
-        return
+        if self.MaxT < Temperature:
+            self.MaxT = Temperature
+            self.TimeOfMaxT = datetime.datetime.now().time()
 
-    if MinT > Temperature:
-        MinT = Temperature
-        TimeOfMinT = datetime.datetime.now().time()
+    def ParseAndUpdate():
+        ParseResult = ParseTemp(self.TempPath)
+        print(ParseResult)
+        if ParseResult[1] == False:
+            SendSMS("ERROR AAAAA!!!!!!!!!!!!")
+            return
 
-    if MaxT < Temperature:
-        MaxT = Temperature
-        TimeOfMaxT = datetime.datetime.now().time()
+        self.CurrentTemperature = ParseResult[0]
+
+        if ParseResult[0] < MinPossibleTemperature:
+            SendSMS("Current Temperature: " + str(ParseResult[0]) + ". MinPossibleTemperature: " + str(MinPossibleTemperature))
+
+        self.UpdateStats(ParseResult[0])
+
 
 
 
@@ -107,7 +124,17 @@ def SendSMSWhithStats(CurrentTemperature):
     global RegularSendingHour
     Now = datetime.datetime.now()
     if Now.hour == RegularSendingHour and AlreadySent == False:
-        SendSMS("T = " + str(CurrentTemperature) + ", Min = " + str(MinT) + ", TimeOfMinT = " + str(TimeOfMinT) + ", Max = " + str(MaxT) + ", TimeOfMaxT = " + str(TimeOfMaxT))
+        SendSMS("Sensor1 T = "    + str(Sensor1.CurrentTemperature) +
+                ", Min = "        + str(Sensor1.MinT) +
+                ", TimeOfMinT = " + str(Sensor1.TimeOfMinT) +
+                ", Max = "        + str(Sensor1.MaxT) +
+                ", TimeOfMaxT = " + str(Sensor1.TimeOfMaxT) + "."
+                " Sensor2 T = "   + str(Sensor2.CurrentTemperature) +
+                ", Min = "        + str(Sensor2.MinT) +
+                ", TimeOfMinT = " + str(Sensor2.TimeOfMinT) +
+                ", Max = "        + str(Sensor2.MaxT) +
+                ", TimeOfMaxT = " + str(Sensor2.TimeOfMaxT)
+                )
         FirstTime = True
         AlreadySent = True
 
@@ -125,19 +152,12 @@ if len(sys.argv) != 2:
     exit
 SMSPassword = sys.argv[1]
 
-#SendSMS("Zarazina, chto delaesh'?")
+Sensor1 = TSensor(TempPath1)
+Sensor2 = TSensor(TempPath2)
 
 while True:
     time.sleep(1)
-    ParseResult = ParseTemp()
-    print(ParseResult)
-    if ParseResult[1] == False:
-        SendSMS("ERROR AAAAA!!!!!!!!!!!!")
-        continue
-
-    if ParseResult[0] < MinPossibleTemperature:
-        SendSMS("Current Temperature: " + str(ParseResult[0]) + ". MinPossibleTemperature: " + str(MinPossibleTemperature))
-
-    UpdateStats(ParseResult[0])
-    SendSMSWhithStats(ParseResult[0])
+    Sensor1.ParseAndUpdate()
+    Sensor2.ParseAndUpdate()
+    SendSMSWhithStats()
 
