@@ -102,7 +102,7 @@ class TSensor:
 
     def ParseAndUpdate(self):
         ParseResult = ParseTemp(self.TempPath)
-        print(TempPath + " " + ParseResult)
+        print(self.TempPath + " " + ParseResult)
         if ParseResult[1] == False:
             SendSMS("ERROR AAAAA!!!!!!!!!!!!")
             return
