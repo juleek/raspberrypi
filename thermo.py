@@ -84,7 +84,7 @@ class TSensor:
 
 
     def UpdateStats(self, Temperature):
-        if FirstTime == True:
+        if self.FirstTime == True:
             self.MinT = Temperature
             self.MaxT = Temperature
             self.TimeOfMinT = datetime.datetime.now().time()
