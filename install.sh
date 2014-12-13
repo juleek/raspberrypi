@@ -36,7 +36,6 @@ function InstallIfNeeded {
 }
 
 
-cd $PROJECT_PATH
 git pull
 
 InstallIfNeeded reversessh.service true
