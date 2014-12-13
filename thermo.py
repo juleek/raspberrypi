@@ -83,7 +83,7 @@ class TSensor:
         self.TempPath = TempPath
 
 
-    def UpdateStats(Temperature):
+    def UpdateStats(self, Temperature):
         if FirstTime == True:
             self.MinT = Temperature
             self.MaxT = Temperature
@@ -100,7 +100,7 @@ class TSensor:
             self.MaxT = Temperature
             self.TimeOfMaxT = datetime.datetime.now().time()
 
-    def ParseAndUpdate():
+    def ParseAndUpdate(self):
         ParseResult = ParseTemp(self.TempPath)
         print(ParseResult)
         if ParseResult[1] == False:
