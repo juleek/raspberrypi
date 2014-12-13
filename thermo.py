@@ -119,7 +119,7 @@ class TSensor:
 
 
 AlreadySent = False
-def SendSMSWhithStats(CurrentTemperature):
+def SendSMSWhithStats():
     global AlreadySent
     global RegularSendingHour
     Now = datetime.datetime.now()
