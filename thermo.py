@@ -74,8 +74,8 @@ class TSensor:
     FirstTime = True
     MinT = 0
     MaxT = 0
-    TimeOfMinT = datetime.time()
-    TimeOfMaxT = datetime.time()
+    TimeOfMinT = ""
+    TimeOfMaxT = ""
     TempPath = ""
     CurrentTemperature = 0
 
@@ -84,21 +84,22 @@ class TSensor:
 
 
     def UpdateStats(self, Temperature):
+        Now = datetime.datetime.now().strftime("%H:%M:%S")
         if self.FirstTime == True:
             self.MinT = Temperature
             self.MaxT = Temperature
-            self.TimeOfMinT = datetime.datetime.now().time()
-            self.TimeOfMaxT = datetime.datetime.now().time()
+            self.TimeOfMinT = Now
+            self.TimeOfMaxT = Now
             self.FirstTime = False
             return
 
         if self.MinT > Temperature:
             self.MinT = Temperature
-            self.TimeOfMinT = datetime.datetime.now().time()
+            self.TimeOfMinT = Now
 
         if self.MaxT < Temperature:
             self.MaxT = Temperature
-            self.TimeOfMaxT = datetime.datetime.now().time()
+            self.TimeOfMaxT = Now
 
     def ParseAndUpdate(self):
         ParseResult = ParseTemp(self.TempPath)
@@ -125,15 +126,11 @@ def SendSMSWhithStats():
     Now = datetime.datetime.now()
     if Now.hour == RegularSendingHour and AlreadySent == False:
         SendSMS("Sensor1 T = "    + str(Sensor1.CurrentTemperature) +
-                ", Min = "        + str(Sensor1.MinT) +
-                ", TimeOfMinT = " + str(Sensor1.TimeOfMinT) +
-                ", Max = "        + str(Sensor1.MaxT) +
-                ", TimeOfMaxT = " + str(Sensor1.TimeOfMaxT) + "."
+                ", Min = "        + str(Sensor1.MinT) + "(" + str(Sensor1.TimeOfMinT) + ")" +
+                ", Max = "        + str(Sensor1.MaxT) + "(" + str(Sensor1.TimeOfMaxT) + ")."
                 " Sensor2 T = "   + str(Sensor2.CurrentTemperature) +
-                ", Min = "        + str(Sensor2.MinT) +
-                ", TimeOfMinT = " + str(Sensor2.TimeOfMinT) +
-                ", Max = "        + str(Sensor2.MaxT) +
-                ", TimeOfMaxT = " + str(Sensor2.TimeOfMaxT)
+                ", Min = "        + str(Sensor2.MinT) + "(" + str(Sensor2.TimeOfMinT) + ")" +
+                ", Max = "        + str(Sensor2.MaxT) + "(" + str(Sensor2.TimeOfMaxT) + ")"
                 )
         FirstTime = True
         AlreadySent = True
