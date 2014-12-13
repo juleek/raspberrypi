@@ -16,14 +16,14 @@ function InstallIfNeeded {
    local INSTALLED="`md5sum /etc/systemd/system/$SERVICE | cut -d ' ' -f 1`"
    local NEW="`md5sum $THIS_DIR/$SERVICE | cut -d ' ' -f 1`"
    
-   echo "$PREFIX_FOR_LOGS  INSTALLED $INSTALLED"
-   echo "$PREFIX_FOR_LOGS  NEW $NEW"
+   echo "$PREFIX_FOR_LOGS INSTALLED $INSTALLED"
+   echo "$PREFIX_FOR_LOGS NEW $NEW"
 
    if [ "$INSTALLED" = "$NEW" ]
    then
-      echo "$PREFIX_FOR_LOGS  $SERVICE not changed => skipping it"
+      echo "$PREFIX_FOR_LOGS $SERVICE not changed => skipping it"
    else 
-      echo "$PREFIX_FOR_LOGS  $SERVICE changed => installing it"
+      echo "$PREFIX_FOR_LOGS $SERVICE changed => installing it"
       RunVerbosely cp $SERVICE /etc/systemd/system/$SERVICE
       RunVerbosely systemctl daemon-reload
       RunVerbosely systemctl enable $SERVICE
