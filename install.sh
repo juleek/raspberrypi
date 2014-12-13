@@ -15,14 +15,14 @@ function InstallIfNeeded {
    local INSTALLED="`md5sum /etc/systemd/system/$SERVICE | cut -d ' ' -f 1`"
    local NEW="`md5sum $THIS_DIR/$SERVICE | cut -d ' ' -f 1`"
    
-   echo "INSTALLED $INSTALLED"
-   echo "NEW $NEW"
+   echo "update_thermo: INSTALLED $INSTALLED"
+   echo "update_thermo: NEW $NEW"
 
    if [ "$INSTALLED" = "$NEW" ]
    then
-      echo "$SERVICE not changed => skipping it"
+      echo "update_thermo: $SERVICE not changed => skipping it"
    else 
-      echo "$SERVICE changed => installing it"
+      echo "update_thermo: $SERVICE changed => installing it"
       RunVerbosely cp $SERVICE /etc/systemd/system/$SERVICE
       RunVerbosely systemctl daemon-reload
       RunVerbosely systemctl enable $SERVICE
