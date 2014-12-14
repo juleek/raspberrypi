@@ -12,7 +12,7 @@ os.system('modprobe w1-therm')
 TempPath1 = '/sys/bus/w1/devices/28-000005eac50a/w1_slave'
 TempPath2 = '/sys/bus/w1/devices/28-000005eaddc2/w1_slave'
 MinPossibleTemperature = 15
-RegularSendingHour = 2 # hours of every day
+RegularSendingHour = 19 # hours of every day
 
 MinDurationBetweenSMSSends = 20 # minutes
 SMSPassword = ""
@@ -125,7 +125,8 @@ def SendSMSWhithStats():
     global AlreadySent
     global RegularSendingHour
     Now = datetime.datetime.now()
-    if Now.hour == RegularSendingHour and AlreadySent == False:
+    if (Now.hour == 15 or Now.hour == 17 or Now.hour == 19 or Now.hour == 21) and AlreadySent == False:
+    #if Now.hour == RegularSendingHour and AlreadySent == False:
         SendSMS("Sensor1 T = "    + str(Sensor1.CurrentTemperature) +
                 ", Min = "        + str(Sensor1.MinT) + "(" + str(Sensor1.TimeOfMinT) + ")" +
                 ", Max = "        + str(Sensor1.MaxT) + "(" + str(Sensor1.TimeOfMaxT) + ")."
@@ -136,7 +137,8 @@ def SendSMSWhithStats():
         FirstTime = True
         AlreadySent = True
 
-    if Now.hour == RegularSendingHour + 1:
+    if Now.hour == 16 or Now.hour == 18 or Now.hour == 20:
+    #if Now.hour == RegularSendingHour + 1:
         AlreadySent = False
 
 
