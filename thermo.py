@@ -142,7 +142,8 @@ def SendSMSWhithStats():
         AlreadySent = False
 
 
-def Debug(sig, frame):
+
+def Debug():
     print("\n\nDebug Dump")
     pprint.pprint(globals())
 
@@ -153,8 +154,12 @@ def Debug(sig, frame):
     pprint.pprint(vars(Sensor2))
 
 
+def SignalHandler(sig, frame):
+    Debug()
+
+
 def ListenToSignal():
-    signal.signal(signal.SIGUSR1, Debug)  # Register handler
+    signal.signal(signal.SIGUSR1, SignalHandler)  # Register handler
 
 
 
@@ -179,3 +184,4 @@ while True:
     Sensor2.ParseAndUpdate()
     SendSMSWhithStats()
 
+Debug()
