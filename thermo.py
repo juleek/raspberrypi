@@ -171,7 +171,7 @@ class TOpenSensorData:
     PeriodOfUploading = 1 # in minutes, once in PeriodOfUploading minutes
 
 
-    #def __init__(self):
+    def __init__(self):
         #first autheticate using the open api device serial and it's coresponding key
         #autheticate will return the server and an auth_token for all subsequent reguests
         self.Server, self.AuthToken = authenticate_key(self.DeviceId, self.Key)
