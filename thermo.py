@@ -217,8 +217,8 @@ def authenticate_key(device_id, key):
         return server, auth_token
 
 class TOpenSensorData:
-    Key = sys.argv[1]
-    DeviceId = sys.argv[2]
+    Key = sys.argv[2]
+    DeviceId = sys.argv[3]
     Server = None
     AuthToken = None
     LastUpload = datetime.datetime.now()
