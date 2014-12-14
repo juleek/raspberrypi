@@ -72,17 +72,15 @@ def Usage():
 
 
 class TSensor:
-    FirstTime = True
-    MinT = 0
-    MaxT = 0
-    TimeOfMinT = ""
-    TimeOfMaxT = ""
-    TempPath = ""
-    CurrentTemperature = 0
-    ListOfTemperatures = []
-
     def __init__(self, TempPath):
+        self.FirstTime = True
+        self.MinT = 0
+        self.MaxT = 0
+        self.TimeOfMinT = ""
+        self.TimeOfMaxT = ""
         self.TempPath = TempPath
+        self.CurrentTemperature = 0
+        self.ListOfTemperatures = list()
 
 
     def UpdateStats(self, Temperature):
