@@ -216,6 +216,70 @@ def authenticate_key(device_id, key):
 
         return server, auth_token
 
+def addSensor(server, auth_token, device_id, sensor_name, sensor_type="", sensor_label="", sensor_desc=""):
+    """
+    Add a sensor to the device. type, label, and description are optional.
+    """
+
+    conn = http.client.HTTPSConnection(server)
+
+    url="/SensorCloud/devices/%s/sensors/%s/?version=1&auth_token=%s"%(device_id, sensor_name, auth_token)
+
+    headers = {"Content-type" : "application/xdr"}
+
+    #addSensor allows you to set the sensor type label and description.  All fileds are strings.
+    #we need to pack these strings into an xdr structure
+    packer = xdrlib.Packer()
+    packer.pack_int(1)  #version 1
+    packer.pack_string(sensor_type.encode('utf-8'))
+    packer.pack_string(sensor_label.encode('utf-8'))
+    packer.pack_string(sensor_desc.encode('utf-8'))
+    data = packer.get_buffer()
+
+    print("adding sensor...")
+    conn.request('PUT', url=url, body=data, headers=headers)
+    response =conn.getresponse()
+    print(response.status , response.reason)
+
+    #if response is 201 created then we know the sensor was added
+    if response.status is http.client.CREATED:
+        print("Sensor added")
+    else:
+        print("Error adding sensor. Error:", response.read())
+
+
+
+def addChannel(server, auth_token, device_id, sensor_name, channel_name, channel_label="", channel_desc=""):
+    """
+    Add a channel to the sensor.  label and description are optional.
+    """
+
+    conn = http.client.HTTPSConnection(server)
+
+    url="/SensorCloud/devices/%s/sensors/%s/channels/%s/?version=1&auth_token=%s"%(device_id, sensor_name, channel_name, auth_token)
+
+    headers = {"Content-type" : "application/xdr"}
+
+    #addChannel allows you to set the channel label and description.  All fileds are strings.
+    #we need to pack these strings into an xdr structure
+    packer = xdrlib.Packer()
+    packer.pack_int(1)  #version 1
+    packer.pack_string(channel_label.encode('utf-8'))
+    packer.pack_string(channel_desc.encode('utf-8'))
+    data = packer.get_buffer()
+
+    print("adding channel...")
+    conn.request('PUT', url=url, body=data, headers=headers)
+    response =conn.getresponse()
+    print(response.status , response.reason)
+
+    #if response is 201 created then we know the channel was added
+    if response.status is http.client.CREATED:
+        print("Channel successfuly added")
+    else:
+        print("Error adding channel.  Error:", response.read())
+
+
 class TOpenSensorData:
     Key = sys.argv[2]
     DeviceId = sys.argv[3]
