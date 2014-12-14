@@ -4,7 +4,6 @@ import time
 import datetime
 import urllib.request
 import traceback, signal, pprint
-import sensorcloud
 
 os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
@@ -162,6 +161,60 @@ def SignalHandler(sig, frame):
 def ListenToSignal():
     signal.signal(signal.SIGUSR1, SignalHandler)  # Register handler
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+import sys
+import http.client
+import xdrlib
+import time
+
+AUTH_SERVER = "sensorcloud.microstrain.com"
+
+#samplerate types
+HERTZ = 1
+SECONDS = 0
+
+def authenticate_key(device_id, key):
+    """
+    authenticate with sensorcloud and get the server and auth_key for all subsequent api requests
+    """
+    conn = http.client.HTTPSConnection(AUTH_SERVER)
+
+    headers = {"Accept": "application/xdr"}
+    url = "/SensorCloud/devices/%s/authenticate/?version=1&key=%s"%(device_id, key)
+
+    print("authenticating...")
+    conn.request('GET', url=url, headers=headers)
+    response =conn.getresponse()
+    print(response.status, response.reason)
+
+    #if response is 200 ok then we can parse the response to get the auth token and server
+    if response.status is http.client.OK:
+        print("Credential are correct")
+
+        #read the body of the response
+        data = response.read()
+
+        #response will be in xdr format. Create an XDR unpacker and extract the token and server as strings
+        unpacker = xdrlib.Unpacker(data)
+        auth_token = unpacker.unpack_string().decode('utf-8')
+        server = unpacker.unpack_string().decode('utf-8')
+
+        print("unpacked xdr.  server:%s  token:%s"%(server, auth_token))
+        print("server type", type(server))
+
+        return server, auth_token
 
 class TOpenSensorData:
     Key = sys.argv[1]
