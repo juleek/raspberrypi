@@ -175,7 +175,7 @@ class TOpenSensorData:
     def __init__(self):
         #first autheticate using the open api device serial and it's coresponding key
         #autheticate will return the server and an auth_token for all subsequent reguests
-        self.Server, self.AuthToken = authenticate_key(self.DeviceId, self.Key)
+        self.Server, self.AuthToken = sensorcloud.authenticate_key(self.DeviceId, self.Key)
 
         #add a new sensor to the device
         addSensor(Server, AuthToken, DeviceId, sensor_name="S1", sensor_desc="Tube (50a)")
