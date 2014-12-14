@@ -204,9 +204,9 @@ class TOpenSensorData:
 #print("Argument List: " + str(sys.argv))
 ListenToSignal()
 
-if len(sys.argv) != 2:
-    Usage()
-    exit
+#if len(sys.argv) != 2:
+#    Usage()
+#    exit
 SMSPassword = sys.argv[1]
 
 Sensor1 = TSensor(TempPath1)
