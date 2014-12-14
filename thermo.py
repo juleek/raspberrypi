@@ -79,6 +79,7 @@ class TSensor:
     TimeOfMaxT = ""
     TempPath = ""
     CurrentTemperature = 0
+    ListOfTemperatures = list()
 
     def __init__(self, TempPath):
         self.TempPath = TempPath
@@ -105,6 +106,7 @@ class TSensor:
     def ParseAndUpdate(self):
         ParseResult = ParseTemp(self.TempPath)
         print(self.TempPath + " " + str(ParseResult))
+        ListOfTemperatures.append(ParseResult[0])
         if ParseResult[1] == False:
             SendSMS("ERROR AAAAA!!!!!!!!!!!!")
             return
@@ -162,6 +164,38 @@ def ListenToSignal():
     signal.signal(signal.SIGUSR1, SignalHandler)  # Register handler
 
 
+class TOpenSensorData:
+    Key = sys.argv[1]
+    DeviceId = sys.argv[2]
+    Server
+    AuthToken
+    LastUpload = datetime.datetime.now()
+    PeriodOfUploading = 1 # in minutes, once in PeriodOfUploading minutes
+
+
+    def __init__(self):
+#        #first autheticate using the open api device serial and it's coresponding key
+#        #autheticate will return the server and an auth_token for all subsequent reguests
+#        self.Server, self.AuthToken = authenticate_key(self.DeviceId, self.Key)
+
+#        #add a new sensor to the device
+#        addSensor(Server, AuthToken, DeviceId, sensor_name="S1", sensor_desc="Tube (50a)")
+#        #now add a channel to the sensor
+#        addChannel(Server, AuthToken, DeviceId, sensor_name="S1", channel_name="Temp")
+
+#        #add a new sensor to the device
+#        addSensor(Server, AuthToken, DeviceId, sensor_name="S2", sensor_desc="Tube (dc2)")
+#        #now add a channel to the sensor
+#        addChannel(Server, AuthToken, DeviceId, sensor_name="S2", channel_name="Temp")
+
+    def OnMeasurement(self):
+        Now = datetime.datetime.now()
+        if Now - self.LastUpload < datetime.timedelta(0, 0, 0, 0, PeriodOfUploading):
+            return;
+        print("OnMeasurement: Sensor1: " + str(Sensor1.ListOfTemperatures)
+        print("OnMeasurement: Sensor2: " + str(Sensor2.ListOfTemperatures)
+
+
 
 # ======================================================== Main() ========================================================
 
@@ -177,11 +211,13 @@ SMSPassword = sys.argv[1]
 
 Sensor1 = TSensor(TempPath1)
 Sensor2 = TSensor(TempPath2)
+OpenSensorData = TOpenSensorData()
 
 while True:
     time.sleep(1)
     Sensor1.ParseAndUpdate()
     Sensor2.ParseAndUpdate()
     SendSMSWhithStats()
+    OpenSensorData.OnMeasurement()
 
 Debug()
