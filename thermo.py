@@ -194,7 +194,7 @@ class TOpenSensorData:
             return;
         #print("OnMeasurement: Sensor1: " + str(Sensor1.ListOfTemperatures))
         #print("OnMeasurement: Sensor2: " + str(Sensor2.ListOfTemperatures))
-        Size = length(Sensor1.ListOfTemperatures)
+        Size = len(Sensor1.ListOfTemperatures)
         Seconds = (Now - self.LastUpload).total_seconds()
         Freq = int(Size / Seconds)
         print("OnMeasurement: Size: " + str(Size) + ", Seconds: " + str(Seconds) + ", Freq: " + str(Freq))
