@@ -192,8 +192,8 @@ class TOpenSensorData:
         Now = datetime.datetime.now()
         if Now - self.LastUpload < datetime.timedelta(0, 0, 0, 0, self.PeriodOfUploading):
             return;
-        UploadSensor(Sensor1, "S1")
-        UploadSensor(Sensor2, "S2")
+        self.UploadSensor(Sensor1, "S1")
+        #self.UploadSensor(Sensor2, "S2")
 
         self.LastUpload = Now
 
