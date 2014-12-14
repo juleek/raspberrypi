@@ -179,8 +179,6 @@ import http.client
 import xdrlib
 import time
 
-AUTH_SERVER = "sensorcloud.microstrain.com"
-
 #samplerate types
 HERTZ = 1
 SECONDS = 0
@@ -283,7 +281,7 @@ def addChannel(server, auth_token, device_id, sensor_name, channel_name, channel
 class TOpenSensorData:
     Key = sys.argv[2]
     DeviceId = sys.argv[3]
-    Server = None
+    Server = "sensorcloud.microstrain.com"
     AuthToken = None
     LastUpload = datetime.datetime.now()
     PeriodOfUploading = 1 # in minutes, once in PeriodOfUploading minutes
