@@ -206,7 +206,7 @@ class TOpenSensorData:
         k = Size / Seconds
         Freq = 1
 
-        for i in range(0, Seconds):
+        for i in range(0, int(Seconds)):
             print(Sensor.ListOfTemperatures[i * k])
 
         Sensor.ListOfTemperatures = list()
