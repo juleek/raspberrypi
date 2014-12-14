@@ -192,8 +192,8 @@ class TOpenSensorData:
         Now = datetime.datetime.now()
         if Now - self.LastUpload < datetime.timedelta(0, 0, 0, 0, PeriodOfUploading):
             return;
-        print("OnMeasurement: Sensor1: " + str(Sensor1.ListOfTemperatures)
-        print("OnMeasurement: Sensor2: " + str(Sensor2.ListOfTemperatures)
+        print("OnMeasurement: Sensor1: " + str(Sensor1.ListOfTemperatures))
+        print("OnMeasurement: Sensor2: " + str(Sensor2.ListOfTemperatures))
 
 
 
