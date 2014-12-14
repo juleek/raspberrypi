@@ -141,6 +141,7 @@ def SendSMSWhithStats():
 
 
 def Debug(sig, frame):
+    print("adfadfadfasfasdfasdf")
     """Interrupt running process, and provide a python prompt for interactive debugging."""
     d={'_frame':frame}         # Allow access to frame object.
     d.update(frame.f_globals)  # Unless shadowed by global
