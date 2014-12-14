@@ -326,6 +326,8 @@ class TOpenSensorData:
 
         conn = http.client.HTTPSConnection(self.Server)
         url="/SensorCloud/devices/%s/sensors/%s/channels/%s/streams/timeseries/data/?version=1&auth_token=%s"%(self.DeviceId, Sensor, "Temp", self.AuthToken)
+        print(url)
+        print(self.Server)
 
         #we need to pack these strings into an xdr structure
         packer = xdrlib.Packer()
@@ -333,7 +335,7 @@ class TOpenSensorData:
 
         #set samplerate to 10 Hz
         packer.pack_enum(HERTZ)
-        packer.pack_int(Freq)
+        packer.pack_int(1)
 
         #Total number of datapoints.  6000 points is 10 minutes of data sampled at 10 Hz
         packer.pack_int(int(Seconds))
