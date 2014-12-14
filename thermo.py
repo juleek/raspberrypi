@@ -286,7 +286,7 @@ class TOpenSensorData:
     Server = None
     AuthToken = None
     LastUpload = datetime.datetime.now()
-    PeriodOfUploading = 1 # in minutes, once in PeriodOfUploading minutes
+    PeriodOfUploading = 3 # in minutes, once in PeriodOfUploading minutes
 
 
     def __init__(self):
@@ -311,7 +311,7 @@ class TOpenSensorData:
 
         Seconds = (Now - self.LastUpload).total_seconds()
         self.UploadSensor(Sensor1, "S1", Seconds)
-        #self.UploadSensor(Sensor2, "S2", Seconds)
+        self.UploadSensor(Sensor2, "S2", Seconds)
 
         self.LastUpload = Now
 
@@ -326,8 +326,8 @@ class TOpenSensorData:
 
         conn = http.client.HTTPSConnection(self.Server)
         url="/SensorCloud/devices/%s/sensors/%s/channels/%s/streams/timeseries/data/?version=1&auth_token=%s"%(self.DeviceId, Name, "Temp", self.AuthToken)
-        print(url)
-        print(self.Server)
+        #print(url)
+        #print(self.Server)
 
         #we need to pack these strings into an xdr structure
         packer = xdrlib.Packer()
