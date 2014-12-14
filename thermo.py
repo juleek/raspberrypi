@@ -172,19 +172,19 @@ class TOpenSensorData:
 
 
     #def __init__(self):
-#        #first autheticate using the open api device serial and it's coresponding key
-#        #autheticate will return the server and an auth_token for all subsequent reguests
-#        self.Server, self.AuthToken = authenticate_key(self.DeviceId, self.Key)
+        #first autheticate using the open api device serial and it's coresponding key
+        #autheticate will return the server and an auth_token for all subsequent reguests
+        self.Server, self.AuthToken = authenticate_key(self.DeviceId, self.Key)
 
-#        #add a new sensor to the device
-#        addSensor(Server, AuthToken, DeviceId, sensor_name="S1", sensor_desc="Tube (50a)")
-#        #now add a channel to the sensor
-#        addChannel(Server, AuthToken, DeviceId, sensor_name="S1", channel_name="Temp")
+        #add a new sensor to the device
+        addSensor(Server, AuthToken, DeviceId, sensor_name="S1", sensor_desc="Tube (50a)")
+        #now add a channel to the sensor
+        addChannel(Server, AuthToken, DeviceId, sensor_name="S1", channel_name="Temp")
 
-#        #add a new sensor to the device
-#        addSensor(Server, AuthToken, DeviceId, sensor_name="S2", sensor_desc="Tube (dc2)")
-#        #now add a channel to the sensor
-#        addChannel(Server, AuthToken, DeviceId, sensor_name="S2", channel_name="Temp")
+        #add a new sensor to the device
+        addSensor(Server, AuthToken, DeviceId, sensor_name="S2", sensor_desc="Tube (dc2)")
+        #now add a channel to the sensor
+        addChannel(Server, AuthToken, DeviceId, sensor_name="S2", channel_name="Temp")
 
     def OnMeasurement(self):
         Now = datetime.datetime.now()
@@ -204,10 +204,43 @@ class TOpenSensorData:
         k = Size / Seconds
         Freq = 1
 
-        print(Sensor.ListOfTemperatures)
+        #print(Sensor.ListOfTemperatures)
+
+        #we need to pack these strings into an xdr structure
+        packer = xdrlib.Packer()
+        packer.pack_int(1)  #version 1
+
+        #set samplerate to 10 Hz
+        packer.pack_enum(HERTZ)
+        packer.pack_int(Freq)
+
+        #Total number of datapoints.  6000 points is 10 minutes of data sampled at 10 Hz
+        packer.pack_int(int(Seconds))
+
+        #now pack each datapoint, we'll use a sin wave function to generate fake data.  we'll use the current time as the starting point
+        timestamp_nanoseconds = int(time.time()*1000000000)  #start time in nanoseconds
+        sampleInterval_nanoseconds = 1000000000  #number of nanoseconds between 2 datapoints when sampling at 1 Hz // 1s
 
         for i in range(0, int(Seconds)):
-            print(str(i) + ", index: " + str(int(i * k)) + ", " + str(Sensor.ListOfTemperatures[int(i * k)]))
+            packer.pack_hyper(timestamp_nanoseconds)
+            packer.pack_float(Sensor.ListOfTemperatures[int(i * k)])  #generate value as a function of time
+            #increment the timestamp for the next datapoint
+            timestamp_nanoseconds += sampleInterval_nanoseconds
+
+        data = packer.get_buffer()
+        print("adding data...")
+        headers = {"Content-type" : "application/xdr"}
+        conn.request('POST', url=url, body=data, headers=headers)
+        response =conn.getresponse()
+        print(response.status , response.reason)
+        #if response is 201 created then we know the channel was added
+        if response.status is http.client.CREATED:
+            print("data successfuly added")
+        else:
+            print("Error adding data.  Error:", response.read())
+
+#        for i in range(0, int(Seconds)):
+#            print(str(i) + ", index: " + str(int(i * k)) + ", " + str())
 
         Sensor.ListOfTemperatures = list()
 
