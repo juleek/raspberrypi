@@ -125,8 +125,8 @@ def SendSMSWhithStats():
     global AlreadySent
     global RegularSendingHour
     Now = datetime.datetime.now()
-    if (Now.hour == 15 or Now.hour == 17 or Now.hour == 19 or Now.hour == 21) and AlreadySent == False:
-    #if Now.hour == RegularSendingHour and AlreadySent == False:
+    #if (Now.hour == 15 or Now.hour == 17 or Now.hour == 19 or Now.hour == 21) and AlreadySent == False:
+    if Now.hour == RegularSendingHour and AlreadySent == False:
         SendSMS("Sensor1 T = "    + str(Sensor1.CurrentTemperature) +
                 ", Min = "        + str(Sensor1.MinT) + "(" + str(Sensor1.TimeOfMinT) + ")" +
                 ", Max = "        + str(Sensor1.MaxT) + "(" + str(Sensor1.TimeOfMaxT) + ")."
@@ -137,8 +137,8 @@ def SendSMSWhithStats():
         FirstTime = True
         AlreadySent = True
 
-    if Now.hour == 16 or Now.hour == 18 or Now.hour == 20:
-    #if Now.hour == RegularSendingHour + 1:
+    #if Now.hour == 16 or Now.hour == 18 or Now.hour == 20:
+    if Now.hour == RegularSendingHour + 1:
         AlreadySent = False
 
 
