@@ -324,7 +324,7 @@ class TOpenSensorData:
 
         #print(Sensor.ListOfTemperatures)
 
-        conn = http.client.HTTPSConnection(server)
+        conn = http.client.HTTPSConnection(self.Server)
         url="/SensorCloud/devices/%s/sensors/%s/channels/%s/streams/timeseries/data/?version=1&auth_token=%s"%(self.device_id, Sensor, "Temp", self.AuthToken)
 
         #we need to pack these strings into an xdr structure
