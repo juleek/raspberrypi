@@ -167,8 +167,8 @@ def ListenToSignal():
 class TOpenSensorData:
     Key = sys.argv[1]
     DeviceId = sys.argv[2]
-    Server
-    AuthToken
+    Server = None
+    AuthToken = None
     LastUpload = datetime.datetime.now()
     PeriodOfUploading = 1 # in minutes, once in PeriodOfUploading minutes
 
