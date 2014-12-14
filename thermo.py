@@ -79,7 +79,7 @@ class TSensor:
     TimeOfMaxT = ""
     TempPath = ""
     CurrentTemperature = 0
-    ListOfTemperatures = list()
+    ListOfTemperatures = []
 
     def __init__(self, TempPath):
         self.TempPath = TempPath
