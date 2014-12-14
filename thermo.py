@@ -106,7 +106,7 @@ class TSensor:
     def ParseAndUpdate(self):
         ParseResult = ParseTemp(self.TempPath)
         print(self.TempPath + " " + str(ParseResult))
-        ListOfTemperatures.append(ParseResult[0])
+        self.ListOfTemperatures.append(ParseResult[0])
         if ParseResult[1] == False:
             SendSMS("ERROR AAAAA!!!!!!!!!!!!")
             return
