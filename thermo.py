@@ -161,6 +161,8 @@ def ListenToSignal():
 # Parse command-line arguments:
 #print("Number of arguments: " + str(len(sys.argv)) + " arguments.")
 #print("Argument List: " + str(sys.argv))
+ListenToSignal()
+
 if len(sys.argv) != 2:
     Usage()
     exit
