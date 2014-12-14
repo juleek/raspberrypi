@@ -4,6 +4,7 @@ import time
 import datetime
 import urllib.request
 import traceback, signal, pprint
+import sensorcloud
 
 os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
