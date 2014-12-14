@@ -179,6 +179,8 @@ import http.client
 import xdrlib
 import time
 
+AUTH_SERVER = "sensorcloud.microstrain.com"
+
 #samplerate types
 HERTZ = 1
 SECONDS = 0
@@ -281,7 +283,7 @@ def addChannel(server, auth_token, device_id, sensor_name, channel_name, channel
 class TOpenSensorData:
     Key = sys.argv[2]
     DeviceId = sys.argv[3]
-    Server = "sensorcloud.microstrain.com"
+    Server = None
     AuthToken = None
     LastUpload = datetime.datetime.now()
     PeriodOfUploading = 1 # in minutes, once in PeriodOfUploading minutes
@@ -293,14 +295,14 @@ class TOpenSensorData:
         self.Server, self.AuthToken = authenticate_key(self.DeviceId, self.Key)
 
         #add a new sensor to the device
-        addSensor(Server, AuthToken, DeviceId, sensor_name="S1", sensor_desc="Tube (50a)")
+        addSensor(self.Server, self.AuthToken, self.DeviceId, sensor_name="S1", sensor_desc="Tube (50a)")
         #now add a channel to the sensor
-        addChannel(Server, AuthToken, DeviceId, sensor_name="S1", channel_name="Temp")
+        addChannel(self.Server, self.AuthToken, self.DeviceId, sensor_name="S1", channel_name="Temp")
 
         #add a new sensor to the device
-        addSensor(Server, AuthToken, DeviceId, sensor_name="S2", sensor_desc="Tube (dc2)")
+        addSensor(self.Server, self.AuthToken, self.DeviceId, sensor_name="S2", sensor_desc="Tube (dc2)")
         #now add a channel to the sensor
-        addChannel(Server, AuthToken, DeviceId, sensor_name="S2", channel_name="Temp")
+        addChannel(self.Server, self.AuthToken, self.DeviceId, sensor_name="S2", channel_name="Temp")
 
     def OnMeasurement(self):
         Now = datetime.datetime.now()
