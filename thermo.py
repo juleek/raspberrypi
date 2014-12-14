@@ -192,16 +192,17 @@ class TOpenSensorData:
         Now = datetime.datetime.now()
         if Now - self.LastUpload < datetime.timedelta(0, 0, 0, 0, self.PeriodOfUploading):
             return;
-        self.UploadSensor(Sensor1, "S1")
-        #self.UploadSensor(Sensor2, "S2")
+
+        Seconds = (Now - self.LastUpload).total_seconds()
+        self.UploadSensor(Sensor1, "S1", Seconds)
+        #self.UploadSensor(Sensor2, "S2", Seconds)
 
         self.LastUpload = Now
 
 
-    def UploadSensor(self, Sensor, Name):
-        #print("OnMeasurement: Sensor1: " + str(Sensor1.ListOfTemperatures))
-        Size = len(Sensor1.ListOfTemperatures)
-        Seconds = (Now - self.LastUpload).total_seconds()
+    def UploadSensor(self, Sensor, Name, Seconds):
+        #print("OnMeasurement: Sensor: " + str(Sensor.ListOfTemperatures))
+        Size = len(Sensor.ListOfTemperatures)
         k = Size / Seconds
         Freq = 1
 
