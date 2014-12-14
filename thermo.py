@@ -3,6 +3,7 @@ import sys
 import time
 import datetime
 import urllib.request
+import code, traceback, signal
 
 os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
@@ -137,6 +138,22 @@ def SendSMSWhithStats():
 
     if Now.hour == RegularSendingHour + 1:
         AlreadySent = False
+
+
+def Debug(sig, frame):
+    """Interrupt running process, and provide a python prompt for interactive debugging."""
+    d={'_frame':frame}         # Allow access to frame object.
+    d.update(frame.f_globals)  # Unless shadowed by global
+    d.update(frame.f_locals)
+
+    i = code.InteractiveConsole(d)
+    message  = "Signal received : entering python shell.\nTraceback:\n"
+    message += ''.join(traceback.format_stack(frame))
+    i.interact(message)
+
+def ListenToSignal():
+    signal.signal(signal.SIGUSR1, Debug)  # Register handler
+
 
 
 # ======================================================== Main() ========================================================
