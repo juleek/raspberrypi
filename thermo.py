@@ -286,7 +286,9 @@ class TOpenSensorData:
     Server = None
     AuthToken = None
     LastUpload = datetime.datetime.now()
+    LastAuthTime = datetime.datetime.now()
     PeriodOfUploading = 3 # in minutes, once in PeriodOfUploading minutes
+    PeriodOfAuthing = 1 # in hours, once in PeriodOfAuthing hours
 
 
     def __init__(self):
@@ -308,6 +310,10 @@ class TOpenSensorData:
         Now = datetime.datetime.now()
         if Now - self.LastUpload < datetime.timedelta(0, 0, 0, 0, self.PeriodOfUploading):
             return;
+        if Now - self.LastAuthTime > datetime.timedelta(0, 0, 0, 0, 0, self.PeriodOfAuthing):
+            self.Server, self.AuthToken = authenticate_key(self.DeviceId, self.Key)
+            self.LastAuthTime = Now
+
 
         Seconds = (Now - self.LastUpload).total_seconds()
         self.UploadSensor(Sensor1, "S1", Seconds)
