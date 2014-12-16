@@ -14,7 +14,7 @@ TempPath2 = '/sys/bus/w1/devices/28-000005eaddc2/w1_slave'
 MinPossibleTemperature = 15
 RegularSendingHour = 19 # hours of every day
 
-MinDurationBetweenSMSSends = 20 # minutes
+MinDurationBetweenSMSSends = 120 # minutes
 SMSPassword = ""
 RegularReceivers = ["+79647088442", "+79037081325"]
 AdditionalReceivers = ["+79647088442", "+79037081325"]
