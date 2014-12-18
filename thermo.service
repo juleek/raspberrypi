@@ -7,7 +7,7 @@ After=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=/home/pi/keyinfo.txt
-ExecStart=/usr/bin/python3 /home/pi/raspberrypi/thermo.py ${SMS_PASS} ${DEVICE_KEY} ${DEVICE_ID}
+ExecStart=/usr/bin/python3 /home/pi/thermo.py ${SMS_PASS} ${DEVICE_KEY} ${DEVICE_ID}
 Restart=always
 RestartSec=30
 

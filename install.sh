@@ -4,32 +4,32 @@ set -e
 THIS_DIR=$(cd "$(dirname "$0")"; pwd)
 cd "$THIS_DIR"
 
-PROJECT_PATH="/home/pi/raspberrypi/"
 PREFIX_FOR_LOGS="update_thermo:"
 
 
 function RunVerbosely() { echo "$PREFIX_FOR_LOGS $@" ; "$@" ; }
 
 function InstallIfNeeded {
-   local SERVICE="$1"
-   local RESTART="$2"
-   local INSTALLED="`md5sum /etc/systemd/system/$SERVICE | cut -d ' ' -f 1`"
+   local INSTALL_PATH="$1"
+   local SERVICE="$2"
+   local RESTART="$3"
+   local INSTALLED="`md5sum $INSTALL_PATH/$SERVICE | cut -d ' ' -f 1`"
    local NEW="`md5sum $THIS_DIR/$SERVICE | cut -d ' ' -f 1`"
    
-   echo "$PREFIX_FOR_LOGS INSTALLED $INSTALLED"
-   echo "$PREFIX_FOR_LOGS NEW $NEW"
+   echo "$PREFIX_FOR_LOGS $SERVICE INSTALLED $INSTALLED"
+   echo "$PREFIX_FOR_LOGS $SERVICE NEW       $NEW"
 
    if [ "$INSTALLED" = "$NEW" ]
    then
       echo "$PREFIX_FOR_LOGS $SERVICE not changed => skipping it"
    else 
       echo "$PREFIX_FOR_LOGS $SERVICE changed => installing it"
-      RunVerbosely cp $SERVICE /etc/systemd/system/$SERVICE
+      RunVerbosely cp $SERVICE $INSTALL_PATH/$SERVICE
       RunVerbosely systemctl daemon-reload
-      RunVerbosely systemctl enable $SERVICE
 
       if [ "$RESTART" = "true" ]
       then
+         RunVerbosely systemctl enable $SERVICE
          RunVerbosely systemctl restart $SERVICE
       fi
    fi
@@ -38,13 +38,14 @@ function InstallIfNeeded {
 
 git pull
 
-InstallIfNeeded reversessh.service true
+#InstallIfNeeded reversessh.service true
 
-InstallIfNeeded thermo.service true
+InstallIfNeeded /home/pi thermo.py
+InstallIfNeeded /etc/systemd/system thermo.service true
 
-InstallIfNeeded update_thermo.service
-InstallIfNeeded update_thermo.timer true
+InstallIfNeeded /etc/systemd/system update_thermo.service
+InstallIfNeeded /etc/systemd/system update_thermo.timer true
 
-InstallIfNeeded setup_3g_4g.service
-InstallIfNeeded setup_3g_4g.timer true
-InstallIfNeeded setup_3g_4g_on_boot.timer true
+InstallIfNeeded /etc/systemd/system setup_3g_4g.service
+InstallIfNeeded /etc/systemd/system setup_3g_4g.timer true
+InstallIfNeeded /etc/systemd/system setup_3g_4g_on_boot.timer true
