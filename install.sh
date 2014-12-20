@@ -5,7 +5,7 @@ THIS_DIR=$(cd "$(dirname "$0")"; pwd)
 cd "$THIS_DIR"
 
 PREFIX_FOR_LOGS="update_thermo:"
-
+THERMO_PY_WAS_CHANGED=""
 
 function RunVerbosely() { echo "$PREFIX_FOR_LOGS $@" ; "$@" ; }
 
@@ -26,6 +26,12 @@ function InstallIfNeeded {
       echo "$PREFIX_FOR_LOGS $SERVICE changed => installing it"
       RunVerbosely cp $SERVICE $INSTALL_PATH/$SERVICE
       RunVerbosely systemctl daemon-reload
+
+      if [ "$SERVICE" = "thermo.py" ]
+      then
+         RunVerbosely systemctl enable thermo.service
+         RunVerbosely systemctl restart thermo.service
+      fi
 
       if [ "$RESTART" = "true" ]
       then
