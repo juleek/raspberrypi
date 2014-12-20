@@ -11,7 +11,6 @@ os.system('modprobe w1-therm')
 # Constants:
 TempPath1 = '/sys/bus/w1/devices/28-000005eac50a/w1_slave'
 TempPath2 = '/sys/bus/w1/devices/28-000005eaddc2/w1_slave'
-MinPossibleTemperature = 15
 RegularSendingHour = 19 # hours of every day
 
 MinDurationBetweenSMSSends = 120 # minutes
@@ -57,13 +56,13 @@ def ReadFile(TempPath):
 def ParseTemp(TempPath):
     Lines = ReadFile(TempPath)
     if Lines[0].strip()[-3:] != 'YES':
-        return 0, False
+        return 0, False, Lines
     PosOfT = Lines[1].find('t=')
     if PosOfT == -1:
-        return 0, False
+        return 0, False, Lines
     TemporString = Lines[1].strip()[PosOfT + 2:]
     Result = float(TemporString) / 1000.0
-    return Result, True
+    return Result, True, None
 
 
 
@@ -72,7 +71,7 @@ def Usage():
 
 
 class TSensor:
-    def __init__(self, TempPath):
+    def __init__(self, TempPath, NameForSMS, MinPossibleTemperature):
         self.FirstTime = True
         self.MinT = 0
         self.MaxT = 0
@@ -81,6 +80,8 @@ class TSensor:
         self.TempPath = TempPath
         self.CurrentTemperature = 0
         self.ListOfTemperatures = list()
+        self.NameForSMS = NameForSMS
+        self.MinPossibleTemperature = MinPossibleTemperature
 
 
     def UpdateStats(self, Temperature):
@@ -106,14 +107,10 @@ class TSensor:
         print(self.TempPath + " " + str(ParseResult))
         self.ListOfTemperatures.append(ParseResult[0])
         if ParseResult[1] == False:
+            print("Sensor " + self.NameForSMS + ": Parsing error!" + str(ParseResult[2]))
             SendSMS("ERROR AAAAA!!!!!!!!!!!!")
             return
-
         self.CurrentTemperature = ParseResult[0]
-
-        if ParseResult[0] < MinPossibleTemperature:
-            SendSMS("Current Temperature: " + str(ParseResult[0]) + ". MinPossibleTemperature: " + str(MinPossibleTemperature))
-
         self.UpdateStats(ParseResult[0])
 
 
@@ -127,12 +124,12 @@ def SendSMSWhithStats():
     Now = datetime.datetime.now()
     #if (Now.hour == 15 or Now.hour == 17 or Now.hour == 19 or Now.hour == 21) and AlreadySent == False:
     if Now.hour == RegularSendingHour and AlreadySent == False:
-        SendSMS("Sensor1 T = "    + str(Sensor1.CurrentTemperature) +
-                ", Min = "        + str(Sensor1.MinT) + "(" + str(Sensor1.TimeOfMinT) + ")" +
-                ", Max = "        + str(Sensor1.MaxT) + "(" + str(Sensor1.TimeOfMaxT) + ")."
-                " Sensor2 T = "   + str(Sensor2.CurrentTemperature) +
-                ", Min = "        + str(Sensor2.MinT) + "(" + str(Sensor2.TimeOfMinT) + ")" +
-                ", Max = "        + str(Sensor2.MaxT) + "(" + str(Sensor2.TimeOfMaxT) + ")"
+        SendSMS(str(Sensor1.NameForSMS)       + " T = "    + str(Sensor1.CurrentTemperature) +
+                ", Min = "                    + str(Sensor1.MinT) + "(" + str(Sensor1.TimeOfMinT) + ")" +
+                ", Max = "                    + str(Sensor1.MaxT) + "(" + str(Sensor1.TimeOfMaxT) + ")."
+                " " + str(Sensor2.NameForSMS) + " T = "   + str(Sensor2.CurrentTemperature) +
+                ", Min = "                    + str(Sensor2.MinT) + "(" + str(Sensor2.TimeOfMinT) + ")" +
+                ", Max = "                    + str(Sensor2.MaxT) + "(" + str(Sensor2.TimeOfMaxT) + ")"
                 )
         FirstTime = True
         AlreadySent = True
@@ -140,6 +137,24 @@ def SendSMSWhithStats():
     #if Now.hour == 16 or Now.hour == 18 or Now.hour == 20:
     if Now.hour == RegularSendingHour + 1:
         AlreadySent = False
+
+
+
+
+def SendEmergencySMS():
+    Text = ""
+    if Sensor1.CurrentTemperature < Sensor1.MinPossibleTemperature:
+        Text = Text + "Current Temperature at sensor " + Sensor1.NameForSMS  + ": " + str(Sensor1.CurrentTemperature) +
+                      ". MinPossibleTemperature: " + str(Sensor1.MinPossibleTemperature)
+    if Sensor2.CurrentTemperature < Sensor2.MinPossibleTemperature:
+        Text = Text + "Current Temperature at sensor " + Sensor2.NameForSMS  + ": " + str(Sensor2.CurrentTemperature) +
+                      ". MinPossibleTemperature: " + str(Sensor2.MinPossibleTemperature))
+    if len(Text) > 0:
+        SendSMS(Text)
+
+
+
+
 
 
 
@@ -387,14 +402,15 @@ ListenToSignal()
 #    exit
 SMSPassword = sys.argv[1]
 
-Sensor1 = TSensor(TempPath1)
-Sensor2 = TSensor(TempPath2)
+Sensor1 = TSensor(TempPath1, "Sensor 1", 15)
+Sensor2 = TSensor(TempPath2, "Sensor 2", 15)
 OpenSensorData = TOpenSensorData()
 
 while True:
     time.sleep(1)
     Sensor1.ParseAndUpdate()
     Sensor2.ParseAndUpdate()
+    SendEmergencySMS();
     SendSMSWhithStats()
     OpenSensorData.OnMeasurement()
 
