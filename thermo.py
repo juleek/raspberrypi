@@ -145,10 +145,10 @@ def SendEmergencySMS():
     Text = ""
     if Sensor1.CurrentTemperature < Sensor1.MinPossibleTemperature:
         Text = Text + "Current Temperature at sensor " + Sensor1.NameForSMS  + ": " + str(Sensor1.CurrentTemperature) +
-                      ". MinPossibleTemperature: " + str(Sensor1.MinPossibleTemperature)
+        ". MinPossibleTemperature: " + str(Sensor1.MinPossibleTemperature)
     if Sensor2.CurrentTemperature < Sensor2.MinPossibleTemperature:
         Text = Text + "Current Temperature at sensor " + Sensor2.NameForSMS  + ": " + str(Sensor2.CurrentTemperature) +
-                      ". MinPossibleTemperature: " + str(Sensor2.MinPossibleTemperature))
+        ". MinPossibleTemperature: " + str(Sensor2.MinPossibleTemperature))
     if len(Text) > 0:
         SendSMS(Text)
 
