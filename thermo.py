@@ -398,8 +398,8 @@ ListenToSignal()
 #    exit
 SMSPassword = sys.argv[1]
 
-Sensor1 = TSensor(TempPath1, "Sensor 1", 15)
-Sensor2 = TSensor(TempPath2, "Sensor 2", 15)
+Sensor1 = TSensor(TempPath1, "BottomTube", 15)
+Sensor2 = TSensor(TempPath2, "Ambient", 15)
 OpenSensorData = TOpenSensorData()
 
 while True:
