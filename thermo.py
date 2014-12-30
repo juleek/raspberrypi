@@ -144,9 +144,9 @@ def SendSMSWhithStats():
 def SendEmergencySMS():
     Text = ""
     if Sensor1.CurrentTemperature < Sensor1.MinPossibleTemperature:
-        Text = Text + "Current Temperature at sensor " + Sensor1.NameForSMS  + ": " + str(Sensor1.CurrentTemperature) + ". MinPossibleTemperature: " + str(Sensor1.MinPossibleTemperature)
+        Text = Text + "Current Temperature at sensor " + Sensor1.NameForSMS  + ": " + str(Sensor1.CurrentTemperature) + ". MinPossibleTemperature: " + str(Sensor1.MinPossibleTemperature) + ". "
     if Sensor2.CurrentTemperature < Sensor2.MinPossibleTemperature:
-        Text = Text + "Current Temperature at sensor " + Sensor2.NameForSMS  + ": " + str(Sensor2.CurrentTemperature) + ". MinPossibleTemperature: " + str(Sensor2.MinPossibleTemperature)
+        Text = Text + "Current Temperature at sensor " + Sensor2.NameForSMS  + ": " + str(Sensor2.CurrentTemperature) + ". MinPossibleTemperature: " + str(Sensor2.MinPossibleTemperature) + ". "
     if len(Text) > 0:
         SendSMS(Text)
 
@@ -398,8 +398,8 @@ ListenToSignal()
 #    exit
 SMSPassword = sys.argv[1]
 
-Sensor1 = TSensor(TempPath1, "BottomTube", 15)
-Sensor2 = TSensor(TempPath2, "Ambient", 8)
+Sensor1 = TSensor(TempPath1, "BottomTube", 12)
+Sensor2 = TSensor(TempPath2, "Ambient", 6)
 OpenSensorData = TOpenSensorData()
 
 while True:
