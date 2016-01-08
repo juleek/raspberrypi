@@ -11,10 +11,13 @@ Application {
       "TDriver.cpp"        ,
       "TDriver.h"          ,
       "TTempPoller.h"      ,
-      "TTempPoller.cpp"
+      "TTempPoller.cpp"    ,
+      "TSmsSender.cpp"     ,
+      "TSmsSender.h"
    ]
    Depends { name: "cpp" }
    Depends { name: "Qt.core" }
+   Depends { name: "Qt.network" }
    cpp.compilerName: "clang++"
    cpp.cxxStandardLibrary: "libstdc++"
    cpp.debugInformation: true
