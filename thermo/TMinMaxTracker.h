@@ -1,35 +1,55 @@
 #ifndef TMYSTRUCT_H
 #define TMYSTRUCT_H
 
+#include <QDateTime>
+
 struct TMinMaxTracker {
-    void Update(double Tempr) {
-        //MinMaxTracker->Min = 34;
-        if(IsFirstTemp == true) {
-            IsFirstTemp = false;
-            Min = Tempr;
-            Max = Tempr;
-            return;
-        }
+   void Update(double Tempr) {
+      //MinMaxTracker->Min = 34;
+      Last = Tempr;
 
-        if(Tempr < Min)
-            Min = Tempr;
-        if(Tempr > Max)
-            Max = Tempr;
-    }
+      if(IsFirstTemp == true) {
+         IsFirstTemp = false;
+         Min = Tempr;
+         Max = Tempr;
+         TimeOfMin = QDateTime::currentDateTime();
+         TimeOfMax = QDateTime::currentDateTime();
+         return;
+      }
 
-    double GetMin() {
-        return Min;
-    }
+      if(Tempr < Min) {
+         Min = Tempr;
+         TimeOfMin = QDateTime::currentDateTime();
+      }
+      if(Tempr > Max) {
+         Max = Tempr;
+         TimeOfMax = QDateTime::currentDateTime();
+      }
+   }
 
-    double GetMax() {
-        return Max;
-    }
-
+   double GetLast() {
+      return Last;
+   }
+   double GetMin() {
+      return Min;
+   }
+   double GetMax() {
+      return Max;
+   }
+   QDateTime GetTimeOfMin() {
+      return TimeOfMin;
+   }
+   QDateTime GetTimeOfMax() {
+      return TimeOfMax;
+   }
 
 private:
-    double Min;
-    double Max;
-    bool IsFirstTemp = true;
+   QDateTime TimeOfMin;
+   QDateTime TimeOfMax;
+   double Min  = 0;
+   double Max  = 0;
+   double Last = 0;
+   bool IsFirstTemp = true;
 };
 
 

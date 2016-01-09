@@ -8,6 +8,7 @@
 struct TSensorInfo {
    QString Path;
    QString Name;
+   double MinPossibleTemp;
 };
 
 class TTempPoller: public QObject {
@@ -15,7 +16,7 @@ public:
    TTempPoller(TSensorInfo SensorInfo) noexcept;
 
 signals:
-   void NewTemperatureGot(QString SensorName, QString ErrMsg, double Temp);
+   void NewTemperatureGot(QString ErrMsg, double Temp);
 
 public slots:
    void Bootstrap();

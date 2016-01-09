@@ -31,11 +31,14 @@ int main(int argc, char **argv) {
 
    InProcTests(SMSPass);
 
-   std::vector<TSensorInfo> SensorInfos = {
-      { "/home/dw", "Floor" }
+   const std::vector<TSensorInfo> SensorInfos = {
+      { "/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube", 12 },
+      { "/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient"   , 6  }
    };
+   const QTime SendSMSStartTime = QTime(18, 30, 0);
+   const QTime SendSMSEndTime   = QTime(19, 30, 0);
 
-   new TDriver(SMSPass, SensorInfos);
+   new TDriver(SMSPass, SensorInfos, SendSMSStartTime, SendSMSEndTime);
    return app.exec();
 }
 

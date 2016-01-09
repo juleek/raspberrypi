@@ -3,7 +3,8 @@
 
 struct TSmsCategoryIds {
    enum Type {
-      DaylyStats,
+      DailyStats,
+      ParsingError,
       Emergency
    };
 };

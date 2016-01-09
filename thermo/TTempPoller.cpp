@@ -1,4 +1,5 @@
 #include "TTempPoller.h"
+#include "ParseTemp.h"
 
 #include <QThread>
 #include <QDebug>
@@ -17,7 +18,7 @@ void TTempPoller::Bootstrap() {
 
 void TTempPoller::ScheduleNextMeasurement() noexcept {
    const QTime &Current = QTime::currentTime();
-   const QTime &NextGet = LastGet.addSecs(Periodicity.second());
+   const QTime &NextGet = LastGet.addMSecs(Periodicity.msecsSinceStartOfDay());
    int MSecs = Current.msecsTo(NextGet);
    if(MSecs <= 0)
       MSecs = 0;
@@ -29,6 +30,7 @@ void TTempPoller::ScheduleNextMeasurement() noexcept {
 }
 
 void TTempPoller::ItsTimeToGetTemperature() noexcept {
-   emit NewTemperatureGot(SensorInfo.Name, "err", 12);
+   std::tuple<QString, double> ErrStrAndTemp = ProcessAndParseTemp(SensorInfo.Path);
+   emit NewTemperatureGot(std::get<0>(ErrStrAndTemp), std::get<1>(ErrStrAndTemp));
 }
 
