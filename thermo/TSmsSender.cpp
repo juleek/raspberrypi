@@ -7,6 +7,10 @@
 #include <QNetworkRequest>
 
 struct TCategory {
+   ~TCategory() noexcept {
+      if(NetworkReply)
+         NetworkReply->deleteLater();
+   }
    TCategoryInfo Info;
    QTime LastSentFinished;
    std::uint32_t CategoryId;
@@ -63,6 +67,10 @@ void HandleFinishOfRequest(TCategory *Category, QNetworkReply *NetworkReply, QNe
       qDebug() << "SMSSender: Error occurred:" << NetworkError
                << "while executing request:" << Category->NetworkReply->request().url()
                << "in CategoryId:" << Category->CategoryId;
+   } else {
+      const QString &Answer = Category->NetworkReply->readAll();
+      if(Answer.startsWith("ERROR"))
+         qDebug() << "Got error from SMS relay:" << Answer;
    }
    Category->NetworkReply->deleteLater();
    Category->NetworkReply = nullptr;
@@ -124,9 +132,9 @@ void TSmsSender::Send(std::uint32_t CategoryId, const QString &Message, const QS
       std::abort();
    }
 
-   qDebug() << Url;
-   Category->LastSentFinished = QTime::currentTime();
-   return;
+   //qDebug() << Url;
+//   Category->LastSentFinished = QTime::currentTime();
+//   return;
 
    QNetworkRequest NetworkRequest;
    NetworkRequest.setUrl(Url);

@@ -1,4 +1,5 @@
 #include "TDriver.h"
+#include "TSmsCategoryIds.h"
 
 #include <QDebug>
 #include <QCoreApplication>
@@ -39,8 +40,8 @@ void TDriver::InitSignalHandlers() noexcept {
    if(SocketPairCreated != 0)
       std::abort();
 
-   SigIntSocketNotifier = std::make_unique<QSocketNotifier>(SigIntFd[1], QSocketNotifier::Read);
-   connect(SigIntSocketNotifier.get(), &QSocketNotifier::activated, [this](int ) {
+   m_SigIntSocketNotifier = std::make_unique<QSocketNotifier>(SigIntFd[1], QSocketNotifier::Read);
+   connect(m_SigIntSocketNotifier.get(), &QSocketNotifier::activated, [this](int ) {
       OnSigInt();
    });
 
@@ -52,14 +53,23 @@ void TDriver::InitSignalHandlers() noexcept {
       std::abort();
 }
 void TDriver::OnSigInt() {
-   SigIntSocketNotifier->setEnabled(false);
+   m_SigIntSocketNotifier->setEnabled(false);
    qDebug() << "Signal INT received - exiting...";
    delete this;
    qApp->quit();
 }
 
-TDriver::TDriver(std::vector<TSensorInfo> SensorInfos) noexcept {
+namespace {
+std::unordered_map<std::uint32_t, TCategoryInfo> SMSCategoriesDescription = {
+   {TSmsCategoryIds::DaylyStats, { QTime(6, 0, 0)  }},
+   {TSmsCategoryIds::Emergency , { QTime(0, 55, 0) }}
+};
+}
+
+TDriver::TDriver(QString SMSPass, std::vector<TSensorInfo> SensorInfos) noexcept {
    InitSignalHandlers();
+
+   m_SmsSender = std::make_unique<TSmsSender>("dimanne", std::move(SMSPass), "Tarasovka", SMSCategoriesDescription);
 
    for(TSensorInfo &SensorInfo: SensorInfos) {
       TTempPollerAndThreadPtr Ptr = std::make_unique<TTempPollerAndThread>(std::move(SensorInfo));
@@ -67,14 +77,17 @@ TDriver::TDriver(std::vector<TSensorInfo> SensorInfos) noexcept {
          OnNewTemperatureGot(std::move(SensorName), std::move(ErrStr), Temp);
       });
       connect(this, &TDriver::BootstrapTempPollers, &Ptr->TempPoller, &TTempPoller::Bootstrap);
-      TempPollers.push_back(std::move(Ptr));
+      m_TempPollers.push_back(std::move(Ptr));
    }
 
    emit BootstrapTempPollers();
 }
 
+//TSmsSender *TDriver::SmsSender() const noexcept {
+//   return m_SmsSender.get();
+//}
+
 void TDriver::OnNewTemperatureGot(QString SensorName, QString ErrStr, double Temp) noexcept {
    qDebug() << "TDriver::OnNewTemperatureGot" << SensorName << ErrStr << Temp;
-
 }
 

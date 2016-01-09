@@ -13,7 +13,8 @@ Application {
       "TTempPoller.h"      ,
       "TTempPoller.cpp"    ,
       "TSmsSender.cpp"     ,
-      "TSmsSender.h"
+      "TSmsSender.h"       ,
+      "TSmsCategoryIds.h"
    ]
    Depends { name: "cpp" }
    Depends { name: "Qt.core" }

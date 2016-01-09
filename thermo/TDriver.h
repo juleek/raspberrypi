@@ -2,6 +2,7 @@
 #define TDRIVER_H
 
 #include "TTempPoller.h"
+#include "TSmsSender.h"
 
 #include <QString>
 #include <QThread>
@@ -26,7 +27,8 @@ using TTempPollerAndThreadPtr = std::unique_ptr<TTempPollerAndThread>;
 class QSocketNotifier;
 class TDriver: public QObject {
 public:
-   TDriver(std::vector<TSensorInfo> SensorInfos) noexcept;
+   TDriver(QString SMSPass, std::vector<TSensorInfo> SensorInfos) noexcept;
+   //TSmsSender *SmsSender() const noexcept;
 
 signals:
    void BootstrapTempPollers();
@@ -35,11 +37,12 @@ private:
    Q_OBJECT
    void OnNewTemperatureGot(QString SensorName, QString ErrStr, double Temp) noexcept;
 
-   std::vector<TTempPollerAndThreadPtr> TempPollers;
+   std::unique_ptr<TSmsSender>          m_SmsSender;
+   std::vector<TTempPollerAndThreadPtr> m_TempPollers;
 
    void InitSignalHandlers() noexcept;
    void OnSigInt();
-   std::unique_ptr<QSocketNotifier> SigIntSocketNotifier;
+   std::unique_ptr<QSocketNotifier> m_SigIntSocketNotifier;
 };
 
 #endif
