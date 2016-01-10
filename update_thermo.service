@@ -6,6 +6,7 @@ After=network-online.target
 
 [Service]
 Type=simple
+User=pi
 ExecStart=/bin/bash /home/pi/raspberrypi/install.sh
 Restart=no
 
