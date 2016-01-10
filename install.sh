@@ -45,7 +45,7 @@ function InstallIfNeeded {
 git pull
 
 # Too critical to be updated on regular basis
-#InstallIfNeeded reversessh.service true
+#InstallIfNeeded /etc/systemd/system reversessh.service true
 
 # Deprecated
 #InstallIfNeeded /home/pi thermo.py
