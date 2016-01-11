@@ -27,19 +27,19 @@ struct TMinMaxTracker {
       }
    }
 
-   double GetLast() {
+   double GetLast() const {
       return Last;
    }
-   double GetMin() {
+   double GetMin() const {
       return Min;
    }
-   double GetMax() {
+   double GetMax() const {
       return Max;
    }
-   QDateTime GetTimeOfMin() {
+   QDateTime GetTimeOfMin() const {
       return TimeOfMin;
    }
-   QDateTime GetTimeOfMax() {
+   QDateTime GetTimeOfMax() const {
       return TimeOfMax;
    }
 

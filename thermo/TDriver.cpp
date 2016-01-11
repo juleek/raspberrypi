@@ -67,9 +67,26 @@ std::unordered_map<std::uint32_t, TCategoryInfo> SMSCategoriesDescription = {
    {TSmsCategoryIds::Emergency   , { QTime(0, 55, 0) }}
 };
 QSet<QString> RegularReceivers = { "+79647088442", "+79037081325" };
-void OutputSensorDailyStatsToStream(QTextStream &Stream, const TMinMaxTracker &MinMaxTracker) {
+void OutputSensorDailyStatsToStream(const QString &Result,
+                                    QTextStream &Stream,
+                                    const TMinMaxTracker &MinMaxTracker,
+                                    const QString &SensorName) {
+   if(Result.isEmpty() == false)
+      Stream << " ";
+   Stream << SensorName
+          << " T = " << MinMaxTracker.GetLast()
+          << ", Min = " << MinMaxTracker.GetMin() << "(" << MinMaxTracker.GetTimeOfMin().toString() << ")"
+          << ", Max = " << MinMaxTracker.GetMax() << "(" << MinMaxTracker.GetTimeOfMax().toString() << ")"
+          << ".";
+}
+void OutputTooColdMessageToStream(QTextStream &Stream,
+                                  const double CurrentTemp,
+                                  const double MinPossibleTemp,
+                                  const QString &SensorName) {
+   Stream << SensorName << " T = " << CurrentTemp << ", lower than min possible: " << MinPossibleTemp << "!";
 
 }
+
 }
 
 TDriver::TDriver(QString SMSPass,
@@ -104,6 +121,8 @@ void TDriver::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, d
       Wrapper->MinMaxTracker.Update(Temp);
       if(Temp < Wrapper->SensorInfo.MinPossibleTemp) {
          QString SMSText;
+         QTextStream Stream(&SMSText);
+         OutputTooColdMessageToStream(Stream, Temp, Wrapper->SensorInfo.MinPossibleTemp, Wrapper->SensorInfo.Name);
          m_SmsSender->Send(TSmsCategoryIds::Emergency, SMSText, RegularReceivers);
       }
    }
@@ -116,7 +135,7 @@ void TDriver::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, d
          QString SMSText;
          QTextStream Stream(&SMSText);
          for(const TTempPollerAndThreadPtr &W: m_TempPollers) {
-            OutputSensorDailyStatsToStream(Stream, W->MinMaxTracker);
+            OutputSensorDailyStatsToStream(SMSText, Stream, W->MinMaxTracker, W->SensorInfo.Name);
          }
          m_SmsSender->Send(TSmsCategoryIds::DailyStats, SMSText, RegularReceivers);
          m_AllreadySent = true;
