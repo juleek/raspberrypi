@@ -28,6 +28,7 @@ void TTempPoller::ScheduleNextMeasurement() noexcept {
 }
 
 void TTempPoller::OnTimerShot() {
+   qDebug() << "TTempPoller::OnTimerShot";
    ItsTimeToGetTemperature();
    LastGet = QTime::currentTime();
    ScheduleNextMeasurement();
