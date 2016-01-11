@@ -21,6 +21,9 @@ signals:
 public slots:
    void Bootstrap();
 
+private slots:
+   void OnTimerShot();
+
 private:
    void ScheduleNextMeasurement() noexcept;
    void ItsTimeToGetTemperature() noexcept;
