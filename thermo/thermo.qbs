@@ -25,4 +25,10 @@ Application {
    cpp.cxxLanguageVersion: "c++14"
    //cpp.dynamicLibraries: [ "netfilter_queue", "pthread" ]
    //cpp.libraryPaths: ["/usr/lib/x86_64-linux-gnu/"]
+
+   Group {
+      name: "The App itself"
+      fileTagsFilter: "application"
+      qbs.install: true
+   }
 }
