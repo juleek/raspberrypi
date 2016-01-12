@@ -92,7 +92,6 @@ bool AllSensorsHasMeasurements(const std::vector<TTempPollerAndThreadPtr> &TempP
    for(const TTempPollerAndThreadPtr &W: TempPollers)
       if(W->MinMaxTracker.HasMeasurements() == false)
          return false;
-
    return true;
 }
 }

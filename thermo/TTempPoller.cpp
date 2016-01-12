@@ -33,6 +33,6 @@ void TTempPoller::OnTimerShot() {
 
 void TTempPoller::ItsTimeToGetTemperature() noexcept {
    std::tuple<QString, double> ErrStrAndTemp = ProcessAndParseTemp(SensorInfo.Path);
-   emit NewTemperatureGot(std::get<0>(ErrStrAndTemp), std::get<1>(ErrStrAndTemp));
+   emit NewTemperatureGot(/*std::get<0>(ErrStrAndTemp)*/"NumberOfLines != 2", std::get<1>(ErrStrAndTemp));
 }
 

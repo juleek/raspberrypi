@@ -116,11 +116,11 @@ void TSmsSender::Send(std::uint32_t CategoryId, const QString &Message, const QS
    QTextStream ErrStream(&ErrStr);
    TCategory *Category = d->CanSendNow(CategoryId, ErrStream);
    if(ErrStr.isEmpty() == false) {
-      qDebug() << "Can not send SMS:" << ErrStr;
+      qDebug() << "Can not send SMS:" << ErrStr << ". SMS text:" << Message;
       return;
    }
    if(Category == nullptr) {
-      qDebug() << "Can not send SMS: Category == nullptr!";
+      qDebug() << "Can not send SMS: Category == nullptr!" << ". SMS text:" << Message;
       std::abort();
    }
 
@@ -128,7 +128,7 @@ void TSmsSender::Send(std::uint32_t CategoryId, const QString &Message, const QS
    QString StrUrl = d->UrlTemplate.arg(StrReceivers).arg(Message);
    QUrl Url(StrUrl);
    if(Url.isValid() == false) {
-      qDebug() << "Url:" << Url << "is not valid!";
+      qDebug() << "Url:" << Url << "is not valid!" << ". SMS text:" << Message;
       std::abort();
    }
 

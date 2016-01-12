@@ -27,7 +27,7 @@ std::tuple<QString, double> ProcessAndParseTemp(QString FileName) {
     Ok = File.open(QIODevice::ReadOnly);
     if(Ok == false) {
         File.close();
-        return std::tuple<QString, double>("Could not open file", 0);
+        return std::tuple<QString, double>("Could not open file " + FileName, 0);
     }
 
     /// We can't readLine by line file, see https://bugreports.qt.io/browse/QTBUG-24367
