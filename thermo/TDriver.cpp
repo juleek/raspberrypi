@@ -121,8 +121,8 @@ TDriver::TDriver(QString SMSPass,
 }
 
 void TDriver::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, double Temp) noexcept {
-   qDebug().nospace() << "TDriver::OnNewTemperatureGot: "
-                      << ", Name: "            << Wrapper->SensorInfo.Name
+   qDebug().nospace() << "TDriver::OnNewTemperatureGot:"
+                      << " Name: "             << Wrapper->SensorInfo.Name
                       << ", Path: "            << Wrapper->SensorInfo.Path
                       << ", MinPossibleTemp: " << Wrapper->SensorInfo.MinPossibleTemp
                       << ", ErrStr: "          << ErrStr

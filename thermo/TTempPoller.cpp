@@ -7,7 +7,7 @@
 
 TTempPoller::TTempPoller(TSensorInfo si) noexcept {
    SensorInfo = std::move(si);
-   Periodicity = QTime(0, 0, 1);
+   Periodicity = QTime(0, 0, 15);
 }
 
 void TTempPoller::Bootstrap() {
