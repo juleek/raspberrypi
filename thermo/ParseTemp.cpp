@@ -30,16 +30,16 @@ std::tuple<QString, double> ProcessAndParseTemp(QString FileName) {
         return std::tuple<QString, double>("Could not open file", 0);
     }
 
-    qDebug() << File.readAll();
+    QString Content = File.readAll();
+    File.close();
+    QTextStream StreamContent(&Content, QIODevice::ReadOnly);
 
     int NumberOfLines = 0;
     QString Line;
-    for(; !File.atEnd(); ++NumberOfLines) {
+    for(; !StreamContent.atEnd(); ++NumberOfLines) {
         //qDebug() << FileName << File.canReadLine() << Line;
-        Line = File.readLine(1024 * 1024);
+        Line = StreamContent.readLine();
     }
-    File.close();
-
 
 
     if(NumberOfLines != 2) {
