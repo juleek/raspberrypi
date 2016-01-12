@@ -113,8 +113,12 @@ TDriver::TDriver(QString SMSPass,
 }
 
 void TDriver::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, double Temp) noexcept {
-   qDebug() << "TDriver::OnNewTemperatureGot" << Wrapper->SensorInfo.Name << Wrapper->SensorInfo.Path
-            << Wrapper->SensorInfo.MinPossibleTemp << ErrStr << Temp;
+   qDebug() << "TDriver::OnNewTemperatureGot"
+            << "Name:"            << Wrapper->SensorInfo.Name
+            << "Path:"            << Wrapper->SensorInfo.Path
+            << "MinPossibleTemp:" << Wrapper->SensorInfo.MinPossibleTemp
+            << "ErrStr:"          << ErrStr
+            << "T: "              << Temp;
    if(!ErrStr.isEmpty()) { // Error while parsing temperature
       QString SMSText = "Sensor " + Wrapper->SensorInfo.Path + ", " + Wrapper->SensorInfo.Name + " has ERROR: " + ErrStr;
       m_SmsSender->Send(TSmsCategoryIds::ParsingError, SMSText, RegularReceivers);

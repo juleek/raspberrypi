@@ -22,13 +22,11 @@ void TTempPoller::ScheduleNextMeasurement() noexcept {
    int MSecs = Current.msecsTo(NextGet);
    if(MSecs <= 0)
       MSecs = 0;
-   qDebug() << MSecs;
    QTimer::singleShot(MSecs, this, SLOT(OnTimerShot()));
    //QTimer::singleShot(MSecs, [this]() { OnTimerShot(); });
 }
 
 void TTempPoller::OnTimerShot() {
-   qDebug() << "TTempPoller::OnTimerShot";
    ItsTimeToGetTemperature();
    LastGet = QTime::currentTime();
    ScheduleNextMeasurement();
