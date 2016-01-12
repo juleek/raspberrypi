@@ -132,7 +132,7 @@ void TSmsSender::Send(std::uint32_t CategoryId, const QString &Message, const QS
       std::abort();
    }
 
-   //qDebug() << Url;
+   qDebug() << Url;
 //   Category->LastSentFinished = QTime::currentTime();
 //   return;
 
