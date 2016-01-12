@@ -134,6 +134,7 @@ void TDriver::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, d
 
    // ---------------------- Daily stats reporting ----------------------
    const QTime &Current = QTime::currentTime();
+   qDebug() << Current.toString() << m_SendSMSStartTime.toString() << m_SendSMSEndTime.toString() << Current.msecsTo(m_SendSMSStartTime) << Current.msecsTo(m_SendSMSEndTime);
    if(Current.msecsTo(m_SendSMSStartTime) < 0 && Current.msecsTo(m_SendSMSEndTime) > 0) {
       // Current time withing desirable time span
       if(m_AllreadySent == false) {
