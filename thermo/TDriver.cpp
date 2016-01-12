@@ -16,7 +16,8 @@ TTempPollerWrapper::TTempPollerWrapper(TSensorInfo si) noexcept: TempPoller(si) 
    SensorInfo = si;
    TempPoller.moveToThread(&Thread);
    Thread.start();
-   qDebug() << "Created TempPoller and its thread (" << &Thread << ") from main thread" << QThread::currentThreadId();
+   qDebug().nospace() << "Created TempPoller and its thread (" << &Thread << ") from main thread: "
+                      << QThread::currentThreadId();
 }
 TTempPollerWrapper::~TTempPollerWrapper() noexcept {
    qDebug() << "Stopping thread" << &Thread << "...";
@@ -75,8 +76,8 @@ void OutputSensorDailyStatsToStream(const QString &Result,
       Stream << " ";
    Stream << SensorName
           << " T = " << MinMaxTracker.GetLast()
-          << ", Min = " << MinMaxTracker.GetMin() << "(" << MinMaxTracker.GetTimeOfMin().toString() << ")"
-          << ", Max = " << MinMaxTracker.GetMax() << "(" << MinMaxTracker.GetTimeOfMax().toString() << ")"
+          << ", Min = " << MinMaxTracker.GetMin() << "(" << MinMaxTracker.GetTimeOfMin().toString("hh:mm") << ")"
+          << ", Max = " << MinMaxTracker.GetMax() << "(" << MinMaxTracker.GetTimeOfMax().toString("hh:mm") << ")"
           << ".";
 }
 void OutputTooColdMessageToStream(QTextStream &Stream,
@@ -87,6 +88,13 @@ void OutputTooColdMessageToStream(QTextStream &Stream,
 
 }
 
+bool AllSensorsHasMeasurements(const std::vector<TTempPollerAndThreadPtr> &TempPollers) {
+   for(const TTempPollerAndThreadPtr &W: TempPollers)
+      if(W->MinMaxTracker.HasMeasurements() == false)
+         return false;
+
+   return true;
+}
 }
 
 TDriver::TDriver(QString SMSPass,
@@ -113,12 +121,12 @@ TDriver::TDriver(QString SMSPass,
 }
 
 void TDriver::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, double Temp) noexcept {
-   qDebug() << "TDriver::OnNewTemperatureGot"
-            << "Name:"            << Wrapper->SensorInfo.Name
-            << "Path:"            << Wrapper->SensorInfo.Path
-            << "MinPossibleTemp:" << Wrapper->SensorInfo.MinPossibleTemp
-            << "ErrStr:"          << ErrStr
-            << "T: "              << Temp;
+   qDebug().nospace() << "TDriver::OnNewTemperatureGot: "
+                      << ", Name: "            << Wrapper->SensorInfo.Name
+                      << ", Path: "            << Wrapper->SensorInfo.Path
+                      << ", MinPossibleTemp: " << Wrapper->SensorInfo.MinPossibleTemp
+                      << ", ErrStr: "          << ErrStr
+                      << ", T: "               << Temp;
    if(!ErrStr.isEmpty()) { // Error while parsing temperature
       QString SMSText = "Sensor " + Wrapper->SensorInfo.Path + ", " + Wrapper->SensorInfo.Name + " has ERROR: " + ErrStr;
       m_SmsSender->Send(TSmsCategoryIds::ParsingError, SMSText, RegularReceivers);
@@ -136,7 +144,7 @@ void TDriver::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, d
    const QTime &Current = QTime::currentTime();
    if(Current.msecsTo(m_SendSMSStartTime) < 0 && Current.msecsTo(m_SendSMSEndTime) > 0) {
       // Current time withing desirable time span
-      if(m_AllreadySent == false) {
+      if(m_AllreadySent == false && AllSensorsHasMeasurements(m_TempPollers)) {
          QString SMSText;
          QTextStream Stream(&SMSText);
          for(const TTempPollerAndThreadPtr &W: m_TempPollers) {

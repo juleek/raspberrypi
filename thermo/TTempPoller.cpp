@@ -12,7 +12,7 @@ TTempPoller::TTempPoller(TSensorInfo si) noexcept {
 
 void TTempPoller::Bootstrap() {
    qDebug().nospace() << "TempPoller started (and working) in thread: " << QThread::currentThreadId()
-                      << ", Path:" << SensorInfo.Path << ", Name:" << SensorInfo.Name;
+                      << ", Path: " << SensorInfo.Path << ", Name: " << SensorInfo.Name;
    ScheduleNextMeasurement();
 }
 
@@ -23,7 +23,6 @@ void TTempPoller::ScheduleNextMeasurement() noexcept {
    if(MSecs <= 0)
       MSecs = 0;
    QTimer::singleShot(MSecs, this, SLOT(OnTimerShot()));
-   //QTimer::singleShot(MSecs, [this]() { OnTimerShot(); });
 }
 
 void TTempPoller::OnTimerShot() {

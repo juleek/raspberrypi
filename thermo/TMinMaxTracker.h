@@ -42,6 +42,9 @@ struct TMinMaxTracker {
    QDateTime GetTimeOfMax() const {
       return TimeOfMax;
    }
+   bool HasMeasurements() const {
+      return IsFirstTemp == false;
+   }
 
 private:
    QDateTime TimeOfMin;
