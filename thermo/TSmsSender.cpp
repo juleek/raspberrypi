@@ -40,10 +40,10 @@ TCategory *TSmsSenderPrivate::CanSendNow(std::uint32_t CategoryId, QTextStream &
 
    const QTime &Current = QTime::currentTime();
    const QTime &NextMostSoonSend = Category.LastSentFinished.addMSecs(Category.Info.Period.msecsSinceStartOfDay());
-//   qDebug() << "Current:" << Current
-//            << ", NextMostSoonSend:" << NextMostSoonSend
-//            << ", Period:" << Category.Info.Period
-//            << ", Category.LastSentFinished:" << Category.LastSentFinished;
+   qDebug() << "Current:" << Current
+            << ", NextMostSoonSend:" << NextMostSoonSend
+            << ", Period:" << Category.Info.Period
+            << ", Category.LastSentFinished:" << Category.LastSentFinished;
    if(NextMostSoonSend.msecsTo(Current) < 0) {
       ErrStr << "Attempt to send SMS too often for category: " << CategoryId
              << ", LastSentFinished: " << Category.LastSentFinished.toString()
