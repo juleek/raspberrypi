@@ -33,7 +33,7 @@ std::tuple<QString, double> ProcessAndParseTemp(QString FileName) {
     int NumberOfLines = 0;
     QString Line;
     for(; !File.atEnd(); ++NumberOfLines) {
-        Line = File.readLine();
+        Line = File.readLine(1024 * 1024);
         qDebug() << FileName << Line;
     }
     File.close();
