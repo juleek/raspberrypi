@@ -30,20 +30,23 @@ std::tuple<QString, double> ProcessAndParseTemp(QString FileName) {
         return std::tuple<QString, double>("Could not open file", 0);
     }
 
+    /// We can't readLine by line file, see https://bugreports.qt.io/browse/QTBUG-24367
+    /// bool QIODevice::canReadLine() const [virtual]
+    /// Returns true if a complete line of data can be read from the device; otherwise returns false.
+    /// Note that unbuffered devices, which have no way of determining what can be read, always return false.
+    ///
+    /// so, just readAll:
     QString Content = File.readAll();
     File.close();
     QTextStream StreamContent(&Content, QIODevice::ReadOnly);
 
     int NumberOfLines = 0;
     QString Line;
-    for(; !StreamContent.atEnd(); ++NumberOfLines) {
+    for(; !StreamContent.atEnd(); ++NumberOfLines)
         Line = StreamContent.readLine();
-    }
 
-
-    if(NumberOfLines != 2) {
+    if(NumberOfLines != 2)
         return std::tuple<QString, double>("NumberOfLines != 2", 0);
-    }
 
     std::tuple<QString, double> Result = ParseTempFromLine(Line);
     return Result;
