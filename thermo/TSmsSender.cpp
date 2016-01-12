@@ -12,8 +12,8 @@ struct TCategory {
          NetworkReply->deleteLater();
    }
    TCategoryInfo Info;
-   QTime LastSentFinished;
    std::uint32_t CategoryId;
+   QDateTime LastSentFinished;
    QNetworkReply *NetworkReply = nullptr;
 };
 
@@ -38,8 +38,8 @@ TCategory *TSmsSenderPrivate::CanSendNow(std::uint32_t CategoryId, QTextStream &
       return nullptr;
    }
 
-   const QTime &Current = QTime::currentTime();
-   const QTime &NextMostSoonSend = Category.LastSentFinished.addMSecs(Category.Info.Period.msecsSinceStartOfDay());
+   const QDateTime &Current = QDateTime::currentDateTime();
+   const QDateTime &NextMostSoonSend = Category.LastSentFinished.addMSecs(Category.Info.Period.msecsSinceStartOfDay());
    qDebug() << "Current:" << Current
             << ", NextMostSoonSend:" << NextMostSoonSend
             << ", Period:" << Category.Info.Period
@@ -74,7 +74,7 @@ void HandleFinishOfRequest(TCategory *Category, QNetworkReply *NetworkReply, QNe
    }
    Category->NetworkReply->deleteLater();
    Category->NetworkReply = nullptr;
-   Category->LastSentFinished = QTime::currentTime();
+   Category->LastSentFinished = QDateTime::currentDateTime();
 }
 }
 
