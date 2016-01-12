@@ -32,8 +32,8 @@ int main(int argc, char **argv) {
    //InProcTests(SMSPass);
 
    const std::vector<TSensorInfo> SensorInfos = {
-      { "/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube", 16 },
-      { "/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient"   , 16  }
+      { "/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube", 12 },
+      { "/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient"   , 6  }
    };
    const QTime SendSMSStartTime = QTime(8, 30, 0);
    const QTime SendSMSEndTime   = QTime(19, 30, 0);
