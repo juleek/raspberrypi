@@ -102,8 +102,8 @@ TDriver::TDriver(QString SMSPass,
 
    for(TSensorInfo &SensorInfo: SensorInfos) {
       TTempPollerAndThreadPtr Ptr = std::make_unique<TTempPollerWrapper>(std::move(SensorInfo));
-      connect(&Ptr->TempPoller, &TTempPoller::NewTemperatureGot, [this, Wrapper = Ptr.get()](QString ErrStr, double Temp) {
-         OnNewTemperatureGot(Wrapper, std::move(ErrStr), Temp);
+      connect(&Ptr->TempPoller, &TTempPoller::NewTemperatureGot, this, [this, W = Ptr.get()](QString Err, double T) {
+         OnNewTemperatureGot(W, std::move(Err), T);
       });
       connect(this, &TDriver::BootstrapTempPollers, &Ptr->TempPoller, &TTempPoller::Bootstrap);
       m_TempPollers.push_back(std::move(Ptr));
@@ -134,7 +134,6 @@ void TDriver::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, d
 
    // ---------------------- Daily stats reporting ----------------------
    const QTime &Current = QTime::currentTime();
-   qDebug() << Current.toString() << m_SendSMSStartTime.toString() << m_SendSMSEndTime.toString() << Current.msecsTo(m_SendSMSStartTime) << Current.msecsTo(m_SendSMSEndTime);
    if(Current.msecsTo(m_SendSMSStartTime) < 0 && Current.msecsTo(m_SendSMSEndTime) > 0) {
       // Current time withing desirable time span
       if(m_AllreadySent == false) {
