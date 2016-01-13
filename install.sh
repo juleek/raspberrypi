@@ -54,6 +54,6 @@ git pull
 #InstallIfNeeded /etc/systemd/system update_thermo.service
 #InstallIfNeeded /etc/systemd/system update_thermo.timer true
 
-#InstallIfNeeded /etc/systemd/system setup_3g_4g.service
-#InstallIfNeeded /etc/systemd/system setup_3g_4g.timer true
-#InstallIfNeeded /etc/systemd/system setup_3g_4g_on_boot.timer true
+InstallIfNeeded /etc/systemd/system setup_3g_4g.service
+InstallIfNeeded /etc/systemd/system setup_3g_4g.timer true
+InstallIfNeeded /etc/systemd/system setup_3g_4g_on_boot.timer true
