@@ -8,9 +8,9 @@ After=network-online.target
 Type=simple
 User=pi
 EnvironmentFile=/home/pi/keyinfo.txt
-ExecStart=/usr/bin/python3 /home/pi/thermo.py ${SMS_PASS} ${DEVICE_KEY} ${DEVICE_ID}
+ExecStart=/home/pi/build-thermo/qt-5-3-2-debug/install-root/thermo ${SMS_PASS}
 Restart=always
-RestartSec=30
+RestartSec=60
 
 
 [Install]

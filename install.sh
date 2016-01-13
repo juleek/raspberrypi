@@ -41,18 +41,29 @@ function InstallIfNeeded {
    fi
 }
 
-
+COMMIT_BEFORE_PULL=`git log thermo | head -n 1`
+echo "COMMIT_BEFORE_PULL: $COMMIT_BEFORE_PULL"
 git pull
+COMMIT_AFTER_PULL=`git log thermo | head -n 1`
+echo "COMMIT_AFTER_PULL: $COMMIT_AFTER_PULL"
+
+if [ "$COMMIT_BEFORE_PULL" = "$COMMIT_AFTER_PULL" ]
+then
+   echo "Commits of thermo C++ programme are equal => skipping it"
+else
+   echo "Commits of thermo C++ programme are different => building it"
+   rm -rf /home/pi/build-thermo
+   cd /home/pi/build-thermo && qbs build -f ../raspberrypi/thermo/thermo.qbs profile:qt-5-3-2 && sudo systemct restart thermo.service
+   echo "thermo built and restarted"
+fi
 
 # Too critical to be updated on regular basis
 #InstallIfNeeded /etc/systemd/system reversessh.service true
 
-# Deprecated
-#InstallIfNeeded /home/pi thermo.py
-#InstallIfNeeded /etc/systemd/system thermo.service true
+InstallIfNeeded /etc/systemd/system thermo.service true
 
-#InstallIfNeeded /etc/systemd/system update_thermo.service
-#InstallIfNeeded /etc/systemd/system update_thermo.timer true
+InstallIfNeeded /etc/systemd/system update_thermo.service
+InstallIfNeeded /etc/systemd/system update_thermo.timer true
 
 InstallIfNeeded /etc/systemd/system setup_3g_4g.service
 InstallIfNeeded /etc/systemd/system setup_3g_4g.timer true
