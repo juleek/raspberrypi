@@ -7,3 +7,4 @@
 std::tuple<QString, double> ProcessAndParseTemp(QString FileName);
 
 #endif
+
