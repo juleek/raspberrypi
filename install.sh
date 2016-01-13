@@ -52,7 +52,8 @@ then
    echo "Commits of thermo C++ programme are equal => skipping it"
 else
    echo "Commits of thermo C++ programme are different => building it"
-   rm -rf /home/pi/build-thermo
+   RunVerbosely rm -rf /home/pi/build-thermo
+   RunVerbosely mkdir -p /home/pi/build-thermo
    cd /home/pi/build-thermo && qbs build -f ../raspberrypi/thermo/thermo.qbs profile:qt-5-3-2 && sudo systemct restart thermo.service
    echo "thermo built and restarted"
 fi
