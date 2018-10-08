@@ -1,12 +1,6 @@
-#ifndef TSMS_CATEGORY_IDS_H
-#define TSMS_CATEGORY_IDS_H
+#pragma once
 
 struct TSmsCategoryIds {
-   enum Type {
-      DailyStats,
-      ParsingError,
-      Emergency
-   };
+   enum Type { DailyStats, ParsingError, Emergency };
 };
 
-#endif

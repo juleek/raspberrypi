@@ -1,17 +1,18 @@
-#ifndef TTEMP_POLLER_H
-#define TTEMP_POLLER_H
+#pragma once
 
-#include <QString>
 #include <QObject>
+#include <QString>
 #include <QTime>
 
 struct TSensorInfo {
    QString Path;
    QString Name;
-   double MinPossibleTemp;
+   double  MinPossibleTemp;
 };
 
-class TTempPoller: public QObject {
+std::tuple<QString, double> ProcessAndParseTemp(const QString &FileName);
+
+class TTempPoller : public QObject {
 public:
    TTempPoller(TSensorInfo SensorInfo) noexcept;
 
@@ -26,13 +27,10 @@ private slots:
 
 private:
    void ScheduleNextMeasurement() noexcept;
-   void ItsTimeToGetTemperature() noexcept;
 
    TSensorInfo SensorInfo;
-   QTime LastGet;
-   QTime Periodicity;
+   QTime       LastGet;
+   QTime       Periodicity;
 
    Q_OBJECT
 };
-
-#endif

@@ -4,8 +4,6 @@ Application {
    name: "thermo"
    files: [
       "main.cpp"           ,
-      "ParseTemp.cpp"      ,
-      "ParseTemp.h"        ,
       "TMinMaxTracker.h"   ,
       "TMinMaxTracker.cpp" ,
       "TDriver.cpp"        ,
@@ -19,10 +17,10 @@ Application {
    Depends { name: "cpp" }
    Depends { name: "Qt.core" }
    Depends { name: "Qt.network" }
-   cpp.compilerName: "clang++"
-   cpp.cxxStandardLibrary: "libstdc++"
+   // cpp.compilerName: "clang++"
+   // cpp.cxxStandardLibrary: "libstdc++"
    cpp.debugInformation: true
-   cpp.cxxLanguageVersion: "c++14"
+   cpp.cxxLanguageVersion: "c++17"
    //cpp.dynamicLibraries: [ "netfilter_queue", "pthread" ]
    //cpp.libraryPaths: ["/usr/lib/x86_64-linux-gnu/"]
 

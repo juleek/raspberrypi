@@ -1,10 +1,9 @@
-#ifndef TSMS_SENDER_H
-#define TSMS_SENDER_H
+#pragma once
 
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QTime>
-#include <QSet>
 
 #include <unordered_map>
 #include <unordered_set>
@@ -14,9 +13,11 @@ struct TCategoryInfo {
 };
 
 class TSmsSenderPrivate;
-class TSmsSender: public QObject {
+class TSmsSender : public QObject {
 public:
-   TSmsSender(QString Login, QString Password, QString SenderId,
+   TSmsSender(QString                                          Login,
+              QString                                          Password,
+              QString                                          SenderId,
               std::unordered_map<std::uint32_t, TCategoryInfo> Setup) noexcept;
 
 public slots:
@@ -25,7 +26,5 @@ public slots:
 private:
    Q_OBJECT
    Q_DECLARE_PRIVATE(TSmsSender)
-   TSmsSenderPrivate  * const d_ptr;
+   TSmsSenderPrivate *const d_ptr;
 };
-
-#endif
