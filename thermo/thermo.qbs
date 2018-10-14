@@ -6,6 +6,9 @@ Application {
    name: "thermo"
    files: [
       "main.cpp"           ,
+      "TJwt.cpp"           ,
+      "TJwt.h"             ,
+      "TJwt_p.h"           ,
       "TMinMaxTracker.h"   ,
       "TMinMaxTracker.cpp" ,
       "TDriver.cpp"        ,
@@ -26,9 +29,11 @@ Application {
    //cpp.dynamicLibraries: [ "netfilter_queue", "pthread" ]
    //cpp.libraryPaths: ["/usr/lib/x86_64-linux-gnu/"]
 
-   cpp.includePaths: [rootDir + "/../qtmqtt/include"]
-   cpp.dynamicLibraries: [rootDir + "/../qtmqtt/lib/libQt5Mqtt.so"]
-
+   cpp.includePaths: [rootDir + "/../qtmqtt/include",
+                      // "/usr/include"
+   ]
+   cpp.dynamicLibraries: [rootDir + "/../qtmqtt/lib/libQt5Mqtt.so",
+                          "crypto"]
 
    Group {
       name: "The App itself"

@@ -1,9 +1,12 @@
 #include "TDriver.h"
 
+#include "TJwt.h"
 #include "TSmsSender.h"
+#include <QFile>
 
 #include <QCommandLineParser>
 #include <QCoreApplication>
+#include <QDebug>
 #include <QtDebug>
 #include <QtMqtt/QMqttClient>
 
@@ -48,22 +51,47 @@ void OnMessageReceived(const QByteArray &Message, const QMqttTopicName &Topic) {
 }
 
 int main(int argc, char **argv) {
-   QCoreApplication app(argc, argv);
+   // QFile         PrivateKey = {"/home/Void/devel/gc/ec_private.pem"};
+   // PrivateKey.open(QIODevice::ReadOnly);
+   // TDigestSigner Signer(PrivateKey.readAll(), TDigestAlgo::SHA256);
+   // Signer.AddData("asdf");
+   // THashData Signature = CalculateSignature(std::move(Signer));
+   // qDebug() << Signature;
+   // return 0;
 
-   std::unique_ptr<QMqttClient> MqttClient = std::make_unique<QMqttClient>();
-   MqttClient->setHostname(MQTT_HOST);
-   MqttClient->setClientId(CLIENT_ID);
-   MqttClient->setUsername(MQTT_USERNAME);
-   MqttClient->setPassword(CalculatePassword({}));
+   // ---------------------------------------------------------------------------------------------------------
 
-   MqttClient->connectToHostEncrypted(MQTT_HOST);
+    QFile         PrivateKey = {"/home/Void/devel/gc/ec_private.pem"};
+    PrivateKey.open(QIODevice::ReadOnly);
 
-   QObject::connect(MqttClient.get(), &QMqttClient::connected, [&MqttClient]() { OnConnected(*MqttClient); });
-   QObject::connect(MqttClient.get(),
-                    &QMqttClient::messageReceived,
-                    [](const QByteArray &Message, const QMqttTopicName &Topic) { OnMessageReceived(Message, Topic); });
 
-   return app.exec();
+    TJwt Jwt;
+    Jwt.SetAudience("asdf");
+    const QString Token = Jwt.ComposeToken(PrivateKey);
+    qDebug() << Token;
+
+   // ---------------------------------------------------------------------------------------------------------
+
+
+   // QCoreApplication app(argc, argv);
+   //
+   // std::unique_ptr<QMqttClient> MqttClient = std::make_unique<QMqttClient>();
+   // MqttClient->setHostname(MQTT_HOST);
+   // MqttClient->setClientId(CLIENT_ID);
+   // MqttClient->setUsername(MQTT_USERNAME);
+   // MqttClient->setPassword(CalculatePassword({}));
+   //
+   // MqttClient->connectToHostEncrypted(MQTT_HOST);
+   //
+   // QObject::connect(MqttClient.get(), &QMqttClient::connected, [&MqttClient]() { OnConnected(*MqttClient); });
+   // QObject::connect(MqttClient.get(),
+   //                  &QMqttClient::messageReceived,
+   //                  [](const QByteArray &Message, const QMqttTopicName &Topic) { OnMessageReceived(Message, Topic); });
+   //
+   // return app.exec();
+
+
+   // ---------------------------------------------------------------------------------------------------------
 
 
    // QCoreApplication   app(argc, argv);
