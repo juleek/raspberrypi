@@ -9,12 +9,15 @@ class THashData {
 public:
    QByteArray Data;
 
-   QString AsHexString() const {
+   QString ToHexString() const {
       QString Result = Data.toHex().toLower();
       return Result;
    }
-   QByteArray AsBinaryString() const {
+   QByteArray ToBinaryString() const {
       return Data;
+   }
+   QByteArray ToBase64Url() const {
+       return Data.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
    }
    bool IsValid() const {
       return Data.isEmpty() == false;
@@ -28,7 +31,7 @@ enum class TDigestAlgo { SHA256 };
 class TDigestSignerPrivate;
 class TDigestSigner {
 public:
-   TDigestSigner(const QByteArray &PrivateKey, const TDigestAlgo Algo);
+   TDigestSigner(const TDigestAlgo Algo);
    ~TDigestSigner();
 
    // clang-format off
@@ -43,12 +46,12 @@ public:
 
 private:
    std::unique_ptr<TDigestSignerPrivate> d;
-   friend THashData                      CalculateSignature(TDigestSigner &&Signer);
+   friend THashData CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKey);
 };
 
 
 // This operation is NOT reversible, internal state of the hasher will be changed thereafter
-THashData CalculateSignature(TDigestSigner &&Signer);
+THashData CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKey);
 THashData CalculateSignature(const QByteArray &PrivateKey, const QByteArray &String, TDigestAlgo Algo = TDigestAlgo::SHA256);
 THashData CalculateSignature(const QByteArray &PrivateKey, QIODevice &Stream, TDigestAlgo Algo = TDigestAlgo::SHA256);
 

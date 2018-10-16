@@ -34,7 +34,7 @@ TUniquePtrInitHelper<X> MakeUnique(X *Raw) noexcept {
 
 
 QDebug operator<<(QDebug Out, const THashData &Bits) {
-   Out << Bits.AsHexString();
+   Out << Bits.ToBase64Url();
    return Out;
 }
 
@@ -48,14 +48,15 @@ struct TOpenSSLDeleter {
    void operator()(EC_KEY *Key) {
       EC_KEY_free(Key);
    }
+   void operator()(BIO *Bio) {
+      BIO_free(Bio);
+   }
+   void operator()(ECDSA_SIG *Signature) {
+      ECDSA_SIG_free(Signature);
+   }
 };
 class TDigestSignerPrivate {
 public:
-   TDigestSignerPrivate() {
-      Ctx = MakeUnique(EVP_MD_CTX_create());
-      if (Ctx == nullptr)
-         Ok = false;
-   }
    std::unique_ptr<EVP_MD_CTX, TOpenSSLDeleter> Ctx;
    bool                                         Ok = true;
 };
@@ -70,44 +71,31 @@ namespace {
 
 
 
-TDigestSigner::TDigestSigner(const QByteArray &PrivateKey, const TDigestAlgo Algo)
+TDigestSigner::TDigestSigner(const TDigestAlgo Algo)
     : d(new TDigestSignerPrivate) {
-   if (!d->Ok)
-      return;
-
-   BIO *Bio = BIO_new_mem_buf(PrivateKey.data(), PrivateKey.size());
-   if (Bio == nullptr) {
+   d->Ctx = MakeUnique(EVP_MD_CTX_create());
+   if (d->Ctx == nullptr) {
+      Q_ASSERT(false);
       d->Ok = false;
       return;
    }
 
-   std::unique_ptr<EC_KEY, TOpenSSLDeleter> ECKey = MakeUnique(PEM_read_bio_ECPrivateKey(Bio, nullptr, nullptr, nullptr));
-   if (ECKey == nullptr) {
-      d->Ok = false;
+   d->Ok = EVP_DigestInit(d->Ctx.get(), AlgoToOpenSSL(Algo));
+   if (d->Ok == false) {
+      Q_ASSERT(false);
       return;
    }
-
-   std::unique_ptr<EVP_PKEY, TOpenSSLDeleter> EVPKey = MakeUnique(EVP_PKEY_new());
-   if (EVPKey == nullptr) {
-      d->Ok = false;
-      return;
-   }
-
-   d->Ok = EVP_PKEY_set1_EC_KEY(EVPKey.get(), ECKey.get());
-   if (!d->Ok)
-      return;
-
-   d->Ok = EVP_DigestSignInit(d->Ctx.get(), nullptr, AlgoToOpenSSL(Algo), nullptr, EVPKey.get());
-   if (!d->Ok)
-      return;
 }
 TDigestSigner::~TDigestSigner() = default;
 
 TDigestSigner &TDigestSigner::AddData(const char *Data, size_t n) & {
-   if (d->Ok == false)
+   if (d->Ok == false) {
+      Q_ASSERT(false);
       return *this;
+   }
 
-   d->Ok = EVP_DigestSignUpdate(d->Ctx.get(), Data, n);
+   d->Ok = EVP_DigestUpdate(d->Ctx.get(), Data, n);
+   Q_ASSERT(d->Ok);
 
    return *this;
 }
@@ -125,6 +113,7 @@ TDigestSigner &TDigestSigner::AddData(QIODevice &Stream) & {
          break;
       AddData(buffer.data(), Actual);
    }
+   Q_ASSERT(d->Ok);
    return *this;
 }
 
@@ -138,31 +127,77 @@ TDigestSigner &&TDigestSigner::AddData(QIODevice &Stream) && {
    return std::move(AddData(Stream));
 }
 
-THashData CalculateSignature(TDigestSigner &&Signer) {
-   if (Signer.d->Ok == false)
+THashData CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKey) {
+   TDigestSignerPrivate *d = Signer.d.get();
+   if (d->Ok == false) {
+      Q_ASSERT(false);
       return {};
+   }
 
-   bool   Ok;
-   size_t SignatureLength;
-   Ok = EVP_DigestSignFinal(Signer.d->Ctx.get(), nullptr, &SignatureLength);
-   if (!Ok)
+   QByteArray Digest;
+   Digest.resize(EVP_MAX_MD_SIZE);
+   unsigned int Len;
+   d->Ok = EVP_DigestFinal(d->Ctx.get(), reinterpret_cast<unsigned char *>(Digest.data()), &Len);
+   Digest.resize(Len);
+
+
+
+   std::unique_ptr<BIO, TOpenSSLDeleter> Bio = MakeUnique(BIO_new_mem_buf(PrivateKey.data(), PrivateKey.size()));
+   if (Bio == nullptr) {
+      Q_ASSERT(false);
+      d->Ok = false;
       return {};
+   }
+
+   std::unique_ptr<EC_KEY, TOpenSSLDeleter> ECKey =
+       MakeUnique(PEM_read_bio_ECPrivateKey(Bio.get(), nullptr, nullptr, nullptr));
+   if (ECKey == nullptr) {
+      Q_ASSERT(false);
+      d->Ok = false;
+      return {};
+   }
+
+   std::unique_ptr<ECDSA_SIG, TOpenSSLDeleter> Signature =
+       MakeUnique(ECDSA_do_sign(reinterpret_cast<unsigned char *>(Digest.data()), Digest.size(), ECKey.get()));
+   if (Signature == nullptr) {
+      Q_ASSERT(false);
+      d->Ok = false;
+      return {};
+   }
+
+
+   const BIGNUM *r;
+   const BIGNUM *s;
+   ECDSA_SIG_get0(Signature.get(), &r, &s);
    THashData Result;
-   Result.Data.resize(SignatureLength);
-
-   Ok = EVP_DigestSignFinal(Signer.d->Ctx.get(), reinterpret_cast<unsigned char *>(Result.Data.data()), &SignatureLength);
-   if (!Ok)
-      return {};
-
+   Result.Data.resize(64);
+   BN_bn2bin(r, reinterpret_cast<unsigned char *>(Result.Data.data()));
+   BN_bn2bin(s, reinterpret_cast<unsigned char *>(Result.Data.data()) + 32);
+   // qDebug() << Result;
    return Result;
+
+   // ECDSA_SIG *sig;
+   // BIGNUM *r = BN_bin2bn(reinterpret_cast<const unsigned char *>(Result.Data.data()) + 4, 32, nullptr); // create new bn
+   // here BIGNUM *s = BN_bin2bn(reinterpret_cast<const unsigned char *>(Result.Data.data()) + 4 + 32 + 2, 32, nullptr);
+   // QByteArray ba;
+   // ba.resize(64);
+   // BN_bn2bin(r, reinterpret_cast<unsigned char *>(ba.data()));
+   // BN_bn2bin(s, reinterpret_cast<unsigned char *>(ba.data()) + 32);
+   // qDebug() << ba.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+   // BN_copy(sig->r, r);
+   // BN_copy(sig->s, s);
 }
 
 THashData CalculateSignature(const QByteArray &PrivateKey, const QByteArray &String, TDigestAlgo Algo) {
-   return CalculateSignature(TDigestSigner(PrivateKey, Algo).AddData(String));
+   return CalculateSignature(TDigestSigner(Algo).AddData(String), PrivateKey);
 }
 THashData CalculateSignature(const QByteArray &PrivateKey, QIODevice &Stream, TDigestAlgo Algo) {
-   return CalculateSignature(TDigestSigner(PrivateKey, Algo).AddData(Stream));
+   return CalculateSignature(TDigestSigner(Algo).AddData(Stream), PrivateKey);
 }
+
+// openssl dgst -sha256 -sign ec_private.pem tosign.txt > signature.bin
+// openssl dgst -sha256  -verify ec_public.pem -signature signature.bin tosign.txt
+// Verified OK
 
 
 
@@ -211,42 +246,22 @@ const QString &TJwt::Audience() {
 }
 
 namespace {
-   // template <class TDetails>
-   // struct TAlgoHandler {
-   //     static const QString Name;
-   // };
-   // template <class TDetails>
-   // const QString TAlgoHandler<TDetails>::Name = TDetails::Name;
-
    template <TJwt::TAlgo>
    struct TAlgoDetails;
-
    template <>
    struct TAlgoDetails<TJwt::ES256> {
       static const QString Name;
-      static QByteArray    Hash(const QByteArray &StringToSign, const QByteArray &Secret) {
-         return CalculateSignature(Secret, StringToSign).Data;
-      }
    };
    const QString TAlgoDetails<TJwt::ES256>::Name = "ES256";
-
-   // template <>
-   // struct TAlgoDetails<TJwt::RS256> {
-   //    static const QString Name;
-   //    static QString       Hash(const QString &StringToSign, const QString &Secret) {}
-   // };
-   // const QString TAlgoDetails<TJwt::RS256>::Name = "RS256";
 
    // --------------------------------------------------------------------------------------------------
 
    QString ToString(const TJwt::TAlgo Algo) {
       switch (Algo) {
-         // case TJwt::RS256: return TAlgoDetails<TJwt::RS256>::Name;
          case TJwt::ES256: return TAlgoDetails<TJwt::ES256>::Name;
       }
    }
    QString JsonObjectToString(const QJsonObject &Object) {
-      // QString Result = QJsonDocument(Object).toJson(QJsonDocument::JsonFormat::Indented);
       QString Result = QJsonDocument(Object).toJson(QJsonDocument::Compact);
       return Result;
    }
@@ -263,14 +278,14 @@ namespace {
          Payload["aud"] = d.Audience;
       return JsonObjectToString(Payload);
    }
-   QByteArray ComposeSignature(const TJwt::TAlgo Algo, const QByteArray &StringToSign, QIODevice &Secret) {
+   THashData ComposeSignature(const TJwt::TAlgo Algo, const QByteArray &StringToSign, QIODevice &Secret) {
       switch (Algo) {
-         // case TJwt::RS256: return TAlgoDetails<TJwt::RS256>::Hash(StringToSign, Secret.readAll());
-         case TJwt::ES256: return TAlgoDetails<TJwt::ES256>::Hash(StringToSign, Secret.readAll());
+         case TJwt::ES256: return CalculateSignature(Secret.readAll(), StringToSign);
       }
    }
    const QByteArray::Base64Options Base64Options = QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals;
 } // namespace
+
 QString TJwt::ComposeToken(QIODevice &Secret) const {
    const QString StrJsonHeader  = ComposeHeader(d->Algo);
    const QString StrJsonPayload = ComposePayload(*d);
@@ -284,7 +299,7 @@ QString TJwt::ComposeToken(QIODevice &Secret) const {
 
 
    QByteArray       Result          = Base64Header + "." + Base64Payload;
-   const QByteArray Base64Signature = ComposeSignature(d->Algo, Result, Secret).toBase64(Base64Options);
+   const QByteArray Base64Signature = ComposeSignature(d->Algo, Result, Secret).Data.toBase64(Base64Options);
    Result += "." + Base64Signature;
    return Result;
 }

@@ -32,8 +32,17 @@ Application {
    cpp.includePaths: [rootDir + "/../qtmqtt/include",
                       // "/usr/include"
    ]
-   cpp.dynamicLibraries: [rootDir + "/../qtmqtt/lib/libQt5Mqtt.so",
-                          "crypto"]
+   cpp.dynamicLibraries: [// "asan",
+                          rootDir + "/../qtmqtt/lib/libQt5Mqtt.so",
+                          "crypto",
+                          "ssl",
+
+   ]
+
+   // clang asan
+   // cpp.cxxFlags: ["-fsanitize=address", "-fno-omit-frame-pointer"]
+   // cpp.cFlags: ["-fsanitize=address", "-fno-omit-frame-pointer"]
+
 
    Group {
       name: "The App itself"
