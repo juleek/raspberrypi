@@ -273,7 +273,7 @@ namespace {
       if (d.IssuedAt.isValid())
          Payload["iat"] = d.IssuedAt.toSecsSinceEpoch();
       if (d.Expiration.isValid())
-         Payload["exp	"] = d.Expiration.toSecsSinceEpoch();
+         Payload["exp"] = d.Expiration.toSecsSinceEpoch();
       if (d.Audience.isEmpty() == false)
          Payload["aud"] = d.Audience;
       return JsonObjectToString(Payload);
@@ -289,14 +289,13 @@ namespace {
 QString TJwt::ComposeToken(QIODevice &Secret) const {
    const QString StrJsonHeader  = ComposeHeader(d->Algo);
    const QString StrJsonPayload = ComposePayload(*d);
-   qDebug().noquote() << StrJsonHeader;
-   qDebug().noquote() << StrJsonPayload;
+   // qDebug().noquote() << StrJsonHeader;
+   // qDebug().noquote() << StrJsonPayload;
 
    const QByteArray Base64Header  = QByteArray(StrJsonHeader.toLatin1()).toBase64(Base64Options);
    const QByteArray Base64Payload = QByteArray(StrJsonPayload.toLatin1()).toBase64(Base64Options);
-   qDebug().noquote() << Base64Header;
-   qDebug().noquote() << Base64Payload;
-
+   // qDebug().noquote() << Base64Header;
+   // qDebug().noquote() << Base64Payload;
 
    QByteArray       Result          = Base64Header + "." + Base64Payload;
    const QByteArray Base64Signature = ComposeSignature(d->Algo, Result, Secret).Data.toBase64(Base64Options);

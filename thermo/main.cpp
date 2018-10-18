@@ -106,24 +106,46 @@
 //}
 
 namespace {
-   const QString MQTT_HOST      = "mqtt.googleapis.com"; // :8883
-   const QString MQTT_USERNAME  = {};
+   const QString MQTT_HOST      = "mqtt.googleapis.com";
+   const int     MQTT_PORT      = 8883;
+   const QString MQTT_USERNAME  = {"asdf"};
    const QString DEVICE_ID_TEST = "device_test_imp";
    const QString DEVICE_ID_MAIN = "device_tarpi";
+   const QString PROJECT_ID     = "tarasovka-monitoring";
 
    const QString DEVICE_ID  = DEVICE_ID_TEST;
    const QString MQTT_TOPIC = "/devices/" + DEVICE_ID + "/events";
    const QString CLIENT_ID =
-       "projects/tarasovka-monitoring/locations/europe-west1/registries/temperature/devices/" + DEVICE_ID;
+       "projects/" + PROJECT_ID + "/locations/europe-west1/registries/temperature/devices/" + DEVICE_ID;
 
-   QString CalculatePassword(const QString &PrivateKey) {
-      return {};
+   const QString PRIVATE_KEY_PATH = "/home/Void/devel/gc/ec_private.pem";
+
+   QString CalculatePassword(const QString &PrivateKeyPath, const QString &ProjectId) {
+      QFile PrivateKey = {PrivateKeyPath};
+      PrivateKey.open(QIODevice::ReadOnly);
+
+      TJwt Jwt;
+      Jwt.SetIssuedAt(QDateTime::currentDateTimeUtc());
+      Jwt.SetExpiration(Jwt.IssuedAt().addDays(1));
+      Jwt.SetAudience(ProjectId);
+
+      const QString Result = Jwt.ComposeToken(PrivateKey);
+      qDebug() << "Mqtt Password: " << Result;
+      return Result;
    }
 } // namespace
-
+void ReConnect(QMqttClient &MqttClient) {
+   MqttClient.setPassword(CalculatePassword(PRIVATE_KEY_PATH, PROJECT_ID));
+   MqttClient.connectToHostEncrypted(MQTT_HOST);
+   qDebug() << MqttClient.error() << MqttClient.state();
+}
 void OnConnected(QMqttClient &MqttClient) {
-   qDebug() << "Connected!";
+   qDebug() << "OnConnected!";
    MqttClient.disconnectFromHost();
+}
+void OnDisconnected(QMqttClient &MqttClient) {
+   qDebug() << "OnDisconnected!";
+   ReConnect(MqttClient);
 }
 void OnMessageReceived(const QByteArray &Message, const QMqttTopicName &Topic) {
    qDebug() << QDateTime::currentDateTime().toString() << QLatin1String(" Received Topic: ") << Topic.name()
@@ -145,32 +167,33 @@ int main(int argc, char **argv) {
 
    // ---------------------------------------------------------------------------------------------------------
 
-   QFile PrivateKey = {"/home/Void/devel/gc/ec_private.pem"};
-   PrivateKey.open(QIODevice::ReadOnly);
-   TJwt Jwt;
-   Jwt.SetAudience("asdf");
-   const QString Token = Jwt.ComposeToken(PrivateKey);
-   qDebug() << Token;
+   // QFile PrivateKey = {"/home/Void/devel/gc/ec_private.pem"};
+   // PrivateKey.open(QIODevice::ReadOnly);
+   // TJwt Jwt;
+   // Jwt.SetAudience("asdf");
+   // const QString Token = Jwt.ComposeToken(PrivateKey);
+   // qDebug() << Token;
 
    // ---------------------------------------------------------------------------------------------------------
 
 
-   // QCoreApplication app(argc, argv);
-   //
-   // std::unique_ptr<QMqttClient> MqttClient = std::make_unique<QMqttClient>();
-   // MqttClient->setHostname(MQTT_HOST);
-   // MqttClient->setClientId(CLIENT_ID);
-   // MqttClient->setUsername(MQTT_USERNAME);
-   // MqttClient->setPassword(CalculatePassword({}));
-   //
-   // MqttClient->connectToHostEncrypted(MQTT_HOST);
-   //
-   // QObject::connect(MqttClient.get(), &QMqttClient::connected, [&MqttClient]() { OnConnected(*MqttClient); });
-   // QObject::connect(MqttClient.get(),
-   //                  &QMqttClient::messageReceived,
-   //                  [](const QByteArray &Message, const QMqttTopicName &Topic) { OnMessageReceived(Message, Topic); });
-   //
-   // return app.exec();
+   QCoreApplication app(argc, argv);
+
+   std::unique_ptr<QMqttClient> MqttClient = std::make_unique<QMqttClient>();
+   MqttClient->setProtocolVersion(QMqttClient::MQTT_3_1_1);
+   MqttClient->setHostname(MQTT_HOST);
+   MqttClient->setPort(MQTT_PORT);
+   MqttClient->setClientId(CLIENT_ID);
+   MqttClient->setUsername(MQTT_USERNAME);
+   ReConnect(*MqttClient);
+
+   QObject::connect(MqttClient.get(), &QMqttClient::connected, [&MqttClient]() { OnConnected(*MqttClient); });
+   QObject::connect(MqttClient.get(), &QMqttClient::disconnected, [&MqttClient]() { OnDisconnected(*MqttClient); });
+   QObject::connect(MqttClient.get(),
+                    &QMqttClient::messageReceived,
+                    [](const QByteArray &Message, const QMqttTopicName &Topic) { OnMessageReceived(Message, Topic); });
+
+   return app.exec();
 
 
    // ---------------------------------------------------------------------------------------------------------

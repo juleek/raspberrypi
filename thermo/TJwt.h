@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDateTime>
 #include <QString>
 #include <memory>
 
@@ -17,7 +18,7 @@ public:
       return Data;
    }
    QByteArray ToBase64Url() const {
-       return Data.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+      return Data.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
    }
    bool IsValid() const {
       return Data.isEmpty() == false;
@@ -46,7 +47,7 @@ public:
 
 private:
    std::unique_ptr<TDigestSignerPrivate> d;
-   friend THashData CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKey);
+   friend THashData                      CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKey);
 };
 
 
@@ -74,7 +75,7 @@ public:
    void  SetAlgo(TAlgo Algo);
    TAlgo Algo() const;
 
-   void             SetIssuedAt(const QDateTime &DateTime);
+   void             SetIssuedAt(const QDateTime &DateTime = QDateTime::currentDateTime());
    const QDateTime &IssuedAt() const;
 
    void             SetExpiration(const QDateTime &DateTime);
