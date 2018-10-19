@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QFile>
+#include <QTimer>
 #include <QtMqtt/QMqttClient>
 #include <memory>
 
@@ -139,18 +140,25 @@ void ReConnect(QMqttClient &MqttClient) {
    MqttClient.connectToHostEncrypted(MQTT_HOST);
    qDebug() << MqttClient.error() << MqttClient.state();
 }
-void OnConnected(QMqttClient &MqttClient) {
-   qDebug() << "OnConnected!";
-   MqttClient.disconnectFromHost();
+void OnConnected(QMqttClient &MqttClient, QTimer &Timer) {
+   Q_UNUSED(MqttClient);
+   qDebug() << "OnConnected!" << MqttClient.error() << MqttClient.state();
+   Timer.start();
+   // MqttClient.disconnectFromHost();
 }
 void OnDisconnected(QMqttClient &MqttClient) {
-   qDebug() << "OnDisconnected!";
+   qDebug() << "OnDisconnected!" << MqttClient.error() << MqttClient.state();
    ReConnect(MqttClient);
 }
 void OnMessageReceived(const QByteArray &Message, const QMqttTopicName &Topic) {
    qDebug() << QDateTime::currentDateTime().toString() << QLatin1String(" Received Topic: ") << Topic.name()
             << QLatin1String(" Message: ") << Message;
    Q_ASSERT(false);
+}
+void OnWakeUp(QTimer &Timer, QMqttClient &MqttClient) {
+   Q_UNUSED(Timer);
+   // MqttClient.publish(MQTT_TOPIC, "{\"alg\": \"ES256\",\"typ\": \"JWT\"}");
+   MqttClient.publish(MQTT_TOPIC, "qwe");
 }
 
 int main(int argc, char **argv) {
@@ -187,7 +195,12 @@ int main(int argc, char **argv) {
    MqttClient->setUsername(MQTT_USERNAME);
    ReConnect(*MqttClient);
 
-   QObject::connect(MqttClient.get(), &QMqttClient::connected, [&MqttClient]() { OnConnected(*MqttClient); });
+   QTimer Timer;
+   Timer.setInterval(1000 * 10);
+   QObject::connect(&Timer, &QTimer::timeout, [&MqttClient, &Timer]() { OnWakeUp(Timer, *MqttClient); });
+
+
+   QObject::connect(MqttClient.get(), &QMqttClient::connected, [&MqttClient, &Timer]() { OnConnected(*MqttClient, Timer); });
    QObject::connect(MqttClient.get(), &QMqttClient::disconnected, [&MqttClient]() { OnDisconnected(*MqttClient); });
    QObject::connect(MqttClient.get(),
                     &QMqttClient::messageReceived,
