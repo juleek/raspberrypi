@@ -9,15 +9,12 @@ Application {
       "TJwt.cpp"           ,
       "TJwt.h"             ,
       "TJwt_p.h"           ,
-      "TMinMaxTracker.h"   ,
-      "TMinMaxTracker.cpp" ,
-      "TDriver.cpp"        ,
-      "TDriver.h"          ,
+      // "TDriver.cpp"        ,
+      // "TDriver.h"          ,
       "TTempPoller.h"      ,
       "TTempPoller.cpp"    ,
-      "TSmsSender.cpp"     ,
-      "TSmsSender.h"       ,
-      "TSmsCategoryIds.h"
+      "TGCMqtt.cpp",
+      "TGCMqtt.h",
    ]
    Depends { name: "cpp" }
    Depends { name: "Qt.core" }
