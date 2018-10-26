@@ -86,10 +86,10 @@ def insert_new_row(gcloud_state, event_id, ambient_temperature, bottom_tube_temp
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
     rows_to_insert = [(event_id, timestamp, ambient_temperature, bottom_tube_temperature, error_string)]
     print('Inserting: {}'.format(rows_to_insert))
-    # errors = gcloud_state.client.insert_rows(gcloud_state.table, rows_to_insert)  # API request
-    # if errors:
-    #     print(errors)
-    #     assert errors == []
+    errors = gcloud_state.client.insert_rows(gcloud_state.table, rows_to_insert)  # API request
+    if errors:
+        print(errors)
+        assert errors == []
 
 
 # -------------------------------------------------------------------------------------------------------------------
