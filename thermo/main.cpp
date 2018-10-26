@@ -38,7 +38,7 @@ int InlineTest(int argc, char **argv) {
    MqttSetup.PrivateKeyPath = "/home/Void/devel/gc/ec_private.pem";
 
    TGCMqtt GCMqtt(MqttSetup);
-   GCMqtt.Publish(12, 32);
+   GCMqtt.Publish(12, 29);
 
    return app.exec();
 
