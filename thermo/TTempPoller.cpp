@@ -22,7 +22,7 @@ namespace {
       // qDebug() << LineTemp << Temperature;
       if (Ok == false)
          return {"Failed to convert " + LineTemp + " to double", 0};
-      return {{}, Temperature};
+      return {QString(), Temperature};
    }
 } // namespace
 
