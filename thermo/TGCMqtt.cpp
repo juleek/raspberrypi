@@ -3,10 +3,11 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QRandomGenerator>
+// #include <QRandomGenerator>
 #include <QTimer>
 #include <QtMqtt/QMqttClient>
 #include <optional>
+#include <random>
 
 namespace {
    struct TPublishItem {
@@ -64,9 +65,11 @@ public:
    void                        PublishIfNeeded();
    std::optional<TPublishItem> ItemToPublish;
 
-   size_t NumberOfFailedConnects = 0;
-   size_t GetBackoffDurationMSec() const;
-   void   ScheduleReConnect();
+   size_t               NumberOfFailedConnects = 0;
+   size_t               GetBackoffDurationMSec() const;
+   void                 ScheduleReConnect();
+   std::random_device   rd;                       // obtain a random number from hardware
+   mutable std::mt19937 eng = std::mt19937{rd()}; // seed the generator
 };
 
 void TGCMqttPrivate::Init() {
@@ -95,7 +98,8 @@ size_t TGCMqttPrivate::GetBackoffDurationMSec() const {
       return MIN_MSECS;
 
    size_t Result = NumberOfFailedConnects > 10 ? MAX_MSECS : std::min(MAX_MSECS, (1ul << NumberOfFailedConnects) * 1000);
-   Result += QRandomGenerator::global()->bounded(static_cast<quint32>(Result / 2));
+   // Result += QRandomGenerator::global()->bounded(static_cast<quint32>(Result / 2));
+   Result += std::uniform_int_distribution<>(0, Result / 2)(eng); // define the range
    return Result;
 }
 
