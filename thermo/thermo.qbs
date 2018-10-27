@@ -22,7 +22,7 @@ Application {
    // cpp.compilerName: "clang++"
    // cpp.cxxStandardLibrary: "libstdc++"
    cpp.debugInformation: true
-   cpp.cxxLanguageVersion: "c++14"
+   cpp.cxxLanguageVersion: "c++17"
    //cpp.dynamicLibraries: [ "netfilter_queue", "pthread" ]
    //cpp.libraryPaths: ["/usr/lib/x86_64-linux-gnu/"]
 

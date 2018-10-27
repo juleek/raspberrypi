@@ -6,7 +6,7 @@
 #include <QRandomGenerator>
 #include <QTimer>
 #include <QtMqtt/QMqttClient>
-#include <experimental/optional>
+#include <optional>
 
 namespace {
    struct TPublishItem {
@@ -62,7 +62,7 @@ public:
    void OnConnected();
 
    void                        PublishIfNeeded();
-   std::experimental::optional<TPublishItem> ItemToPublish;
+   std::optional<TPublishItem> ItemToPublish;
 
    size_t NumberOfFailedConnects = 0;
    size_t GetBackoffDurationMSec() const;
@@ -139,7 +139,7 @@ void TGCMqttPrivate::PublishIfNeeded() {
    qDebug() << "TGCMqtt:"
             << "Publishing:" << DataInJson;
    Client.publish(Setup.Topic(), DataInJson);
-   ItemToPublish = std::experimental::optional<TPublishItem>();
+   ItemToPublish.reset();
 }
 
 
