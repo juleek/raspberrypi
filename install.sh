@@ -28,12 +28,6 @@ function InstallIfNeeded {
       RunVerbosely sudo cp $SERVICE $INSTALL_PATH/$SERVICE
       RunVerbosely sudo systemctl daemon-reload
 
-      if [ "$SERVICE" = "thermo.py" ]
-      then
-         RunVerbosely sudo systemctl enable thermo.service
-         RunVerbosely sudo systemctl restart thermo.service
-      fi
-
       if [ "$RESTART" = "true" ]
       then
          RunVerbosely sudo systemctl enable $SERVICE
