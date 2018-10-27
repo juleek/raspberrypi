@@ -271,9 +271,9 @@ namespace {
    QString ComposePayload(const TJwtPrivate &d) {
       QJsonObject Payload;
       if (d.IssuedAt.isValid())
-         Payload["iat"] = d.IssuedAt.toSecsSinceEpoch();
+         Payload["iat"] = d.IssuedAt.toMSecsSinceEpoch() / 1000;
       if (d.Expiration.isValid())
-         Payload["exp"] = d.Expiration.toSecsSinceEpoch();
+         Payload["exp"] = d.Expiration.toMSecsSinceEpoch() / 1000;
       if (d.Audience.isEmpty() == false)
          Payload["aud"] = d.Audience;
       return JsonObjectToString(Payload);
