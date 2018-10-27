@@ -91,13 +91,13 @@ size_t TGCMqttPrivate::GetBackoffDurationMSec() const {
    // Exponential Backoff
    // https://cloud.google.com/iot/docs/how-tos/exponential-backoff
 
-   static const size_t MAX_MSECS = 20 * 1000;
-   static const size_t MIN_MSECS = 1;
+   static const unsigned long long MAX_MSECS = 20ull * 1000;
+   static const size_t             MIN_MSECS = 1;
 
    if (NumberOfFailedConnects == 0)
       return MIN_MSECS;
 
-   size_t Result = NumberOfFailedConnects > 10 ? MAX_MSECS : std::min(MAX_MSECS, (1ul << NumberOfFailedConnects) * 1000);
+   size_t Result = NumberOfFailedConnects > 10 ? MAX_MSECS : std::min(MAX_MSECS, (1ull << NumberOfFailedConnects) * 1000);
    // Result += QRandomGenerator::global()->bounded(static_cast<quint32>(Result / 2));
    Result += std::uniform_int_distribution<>(0, Result / 2)(eng); // define the range
    return Result;
