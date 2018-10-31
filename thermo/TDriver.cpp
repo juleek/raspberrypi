@@ -118,13 +118,15 @@ void TDriverPrivate::OnSigInt() {
 namespace {
    void TempPollersToPublishItem(TPublishItem &PublishItem, std::vector<TTempPollerAndThreadPtr> &TempPollers) {
       for (TTempPollerAndThreadPtr &Sensor : TempPollers) {
-         double  Temp;
-         QString ErrStr;
+         const size_t NumberOfConsecutiveReadings = Sensor->GetNumberOfConsecutiveReadings();
+         double       Temp;
+         QString      ErrStr;
          std::tie(Temp, ErrStr) = Sensor->GetTempAndErrStr();
-         PublishItem.ErrorString += ErrStr;
 
-         if (Sensor->GetNumberOfConsecutiveReadings() == 0)
+         PublishItem.ErrorString += ErrStr;
+         if (NumberOfConsecutiveReadings == 0)
             continue;
+
          PublishItem.NameToTemp[Sensor->SensorInfo.Name] = Temp;
       }
    }
