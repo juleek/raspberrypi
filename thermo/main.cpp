@@ -55,6 +55,7 @@ void HandleCommandLineOptions(QCoreApplication &app, TGCMqttSetup &MqttSetup) {
    QCommandLineOption MQTTDryRunOption = {"MQTTDryRun", "If true we will not publish any data to Google Cloud", "bool"};
    QCommandLineParser Parser;
    Parser.addOption(MQTTPrivateKeyPathOption);
+   Parser.addOption(MQTTDryRunOption);
    Parser.addHelpOption();
    Parser.addVersionOption();
    Parser.process(app);
