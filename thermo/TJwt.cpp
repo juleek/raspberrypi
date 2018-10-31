@@ -1,5 +1,6 @@
 #include "TJwt.h"
 #include "TJwt_p.h"
+#include "MakeUnique.h"
 
 #include <QIODevice>
 #include <QJsonDocument>
@@ -7,30 +8,12 @@
 #include <QtDebug>
 #include <cstring>
 
+
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/hmac.h>
 #include <openssl/pem.h>
 #include <openssl/sha.h>
-
-template <class X>
-struct TUniquePtrInitHelper {
-   TUniquePtrInitHelper(X *Raw) noexcept {
-      m_Raw = Raw;
-   }
-   template <class T, class D>
-   operator std::unique_ptr<T, D>() const noexcept {
-      return std::unique_ptr<T, D>(m_Raw);
-   }
-
-private:
-   X *m_Raw;
-};
-template <class X>
-TUniquePtrInitHelper<X> MakeUnique(X *Raw) noexcept {
-   return {Raw};
-}
-
 
 
 QDebug operator<<(QDebug Out, const THashData &Bits) {

@@ -3,6 +3,7 @@
 #include <QDebug>
 
 #include "TDriver.h"
+#include "TTempPoller.h"
 #include "TGCMqtt.h"
 
 namespace {
@@ -75,9 +76,8 @@ int main(int argc, char **argv) {
 
    HandleCommandLineOptions(app, MqttSetup);
 
-   // const std::vector<TSensorInfo> SensorInfos = {{"/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube"},
-   //                                               {"/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient"}};
-
-   // new TDriver(SMSPass, SensorInfos, SendSMSStartTime, SendSMSEndTime);
+   const std::vector<TSensorInfo> SensorInfos = {{"/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube"},
+                                                 {"/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient"}};
+   new TDriver(SensorInfos, MqttSetup);
    return app.exec();
 }

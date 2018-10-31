@@ -1,4 +1,6 @@
 #include "TDriver.h"
+#include "MakeUnique.h"
+#include "TGCMqtt.h"
 #include "TTempPoller.h"
 
 #include <QCoreApplication>
@@ -44,6 +46,7 @@ public:
    void OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, double Temp) noexcept;
 
    std::vector<TTempPollerAndThreadPtr> TempPollers;
+   std::unique_ptr<TGCMqtt>             Mqtt;
    QTime                                SendSMSStartTime;
    QTime                                SendSMSEndTime;
    bool                                 AllreadySent = false;
@@ -71,7 +74,7 @@ void TDriverPrivate::InitSignalHandlers() noexcept {
    if (SocketPairCreated != 0)
       std::abort();
 
-   SigIntSocketNotifier = std::make_unique<QSocketNotifier>(SigIntFd[1], QSocketNotifier::Read);
+   SigIntSocketNotifier = MakeUnique(new QSocketNotifier(SigIntFd[1], QSocketNotifier::Read));
    QObject::connect(SigIntSocketNotifier.get(), &QSocketNotifier::activated, [this](int) { OnSigInt(); });
 
    struct sigaction Int;
@@ -92,6 +95,7 @@ void TDriverPrivate::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString Er
    qDebug().nospace() << "TDriver::OnNewTemperatureGot:"
                       << " Name: " << Wrapper->SensorInfo.Name << ", Path: " << Wrapper->SensorInfo.Path
                       << ", ErrStr: " << ErrStr << ", T: " << Temp;
+   Mqtt->Publish(Temp, Temp, ErrStr);
    if (!ErrStr.isEmpty()) { // Error while parsing temperature
       // QString SMSText = "Sensor " + Wrapper->SensorInfo.Path + ", " + Wrapper->SensorInfo.Name + " has ERROR: " + ErrStr;
       // SmsSender->Send(TSmsCategoryIds::ParsingError, SMSText, RegularReceivers);
@@ -153,9 +157,10 @@ namespace {
    // }
 } // namespace
 
-TDriver::TDriver(const std::vector<TSensorInfo> &SensorInfos) noexcept
+TDriver::TDriver(const std::vector<TSensorInfo> &SensorInfos, const TGCMqttSetup &MqttSetup) noexcept
     : d(new TDriverPrivate) {
    d->InitSignalHandlers();
+   d->Mqtt = std::make_unique<TGCMqtt>(MqttSetup);
 
    for (const TSensorInfo &SensorInfo : SensorInfos) {
       TTempPollerAndThreadPtr Ptr = std::make_unique<TTempPollerWrapper>(SensorInfo);

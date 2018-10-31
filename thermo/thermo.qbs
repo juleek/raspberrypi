@@ -6,6 +6,7 @@ Application {
    name: "thermo"
    files: [
       "main.cpp"           ,
+      "MakeUnique.h"       ,
       "TJwt.cpp"           ,
       "TJwt.h"             ,
       "TJwt_p.h"           ,
@@ -13,8 +14,8 @@ Application {
       "TDriver.h"          ,
       "TTempPoller.h"      ,
       "TTempPoller.cpp"    ,
-      "TGCMqtt.cpp",
-      "TGCMqtt.h",
+      "TGCMqtt.cpp"        ,
+      "TGCMqtt.h"          ,
    ]
    Depends { name: "cpp" }
    Depends { name: "Qt.core" }

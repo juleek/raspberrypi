@@ -4,10 +4,11 @@
 #include <memory>
 
 struct TSensorInfo;
+struct TGCMqttSetup;
 class TDriverPrivate;
 class TDriver : public QObject {
 public:
-   TDriver(const std::vector<TSensorInfo> &SensorInfos) noexcept;
+   TDriver(const std::vector<TSensorInfo> &SensorInfos, const TGCMqttSetup &MqttSetup) noexcept;
    ~TDriver();
 
 signals:
