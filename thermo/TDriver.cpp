@@ -137,8 +137,8 @@ void TDriverPrivate::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString Er
                       << " Name: " << Wrapper->SensorInfo.Name << ", T: " << Temp << ", Path: " << Wrapper->SensorInfo.Path
                       << ", ErrStr: " << ErrStr;
 
-   if (Wrapper->SensorInfo.Name == "Ambient")
-      Wrapper->OnNewTemperatureGot(Temp, ErrStr);
+   // if (Wrapper->SensorInfo.Name == "Ambient")
+   Wrapper->OnNewTemperatureGot(Temp, ErrStr);
 
    const auto cmp = [](const auto &f, const auto &s) {
       return f->GetNumberOfConsecutiveReadings() < s->GetNumberOfConsecutiveReadings();
