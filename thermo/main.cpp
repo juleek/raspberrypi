@@ -52,7 +52,7 @@ int InlineTest(int argc, char **argv) {
 
 void HandleCommandLineOptions(QCoreApplication &app, TGCMqttSetup &MqttSetup) {
    QCommandLineOption MQTTPrivateKeyPathOption = {"MQTTPrivateKeyPath", "Path of the private key for MQTT", "String"};
-   QCommandLineOption MQTTDryRunOption = {"MQTTDryRun", "If true we will not publish any data to Google Cloud", "bool"};
+   QCommandLineOption MQTTDryRunOption = {"MQTTDryRun", "If true we will not publish any data to Google Cloud"};
    QCommandLineParser Parser;
    Parser.addOption(MQTTPrivateKeyPathOption);
    Parser.addOption(MQTTDryRunOption);
