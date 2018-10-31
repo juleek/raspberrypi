@@ -57,6 +57,7 @@ void HandleCommandLineOptions(QCoreApplication &app, TGCMqttSetup &MqttSetup) {
    QCommandLineParser Parser;
    Parser.addOption(MQTTPrivateKeyPathOption);
    Parser.addOption(MQTTDryRunOption);
+   Parser.addOption(GCDeviceIdOption);
    Parser.addHelpOption();
    Parser.addVersionOption();
    Parser.process(app);
