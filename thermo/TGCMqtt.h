@@ -7,11 +7,13 @@ struct TGCMqttSetup {
    int     Port     = 8883;
    QString UserName = {"asdf"};
    QString Location = "europe-west1";
+   bool    DryRun   = false;
 
    QString ProjectId;
    QString DeviceId;
    QString RegistryId;
    QString PrivateKeyPath;
+
 
    QString ClientId() const;
    QString Topic() const;

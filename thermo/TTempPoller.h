@@ -7,7 +7,6 @@
 struct TSensorInfo {
    QString Path;
    QString Name;
-   double  MinPossibleTemp;
 };
 
 std::tuple<QString, double> ProcessAndParseTemp(const QString &FileName);

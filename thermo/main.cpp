@@ -2,7 +2,14 @@
 #include <QCoreApplication>
 #include <QDebug>
 
+#include "TDriver.h"
 #include "TGCMqtt.h"
+
+namespace {
+   const QString DEVICE_ID_TEST = "device_test_imp";
+   const QString DEVICE_ID_MAIN = "device_tarpi";
+} // namespace
+
 
 int InlineTest(int argc, char **argv) {
    // OpenSSLTest();
@@ -28,9 +35,6 @@ int InlineTest(int argc, char **argv) {
 
    QCoreApplication app(argc, argv);
 
-   static const QString DEVICE_ID_TEST = "device_test_imp";
-   static const QString DEVICE_ID_MAIN = "device_tarpi";
-
    TGCMqttSetup MqttSetup;
    MqttSetup.ProjectId      = "tarasovka-monitoring";
    MqttSetup.RegistryId     = "temperature";
@@ -45,27 +49,35 @@ int InlineTest(int argc, char **argv) {
    // ---------------------------------------------------------------------------------------------------------
 }
 
-int main(int argc, char **argv) {
-   return InlineTest(argc, argv);
+void HandleCommandLineOptions(QCoreApplication &app, TGCMqttSetup &MqttSetup) {
+   QCommandLineOption MQTTPrivateKeyPathOption = {"MQTTPrivateKeyPath", "Path of the private key for MQTT", "String"};
+   QCommandLineOption MQTTDryRunOption = {"MQTTDryRun", "If true we will not publish any data to Google Cloud", "bool"};
+   QCommandLineParser Parser;
+   Parser.addOption(MQTTPrivateKeyPathOption);
+   Parser.addHelpOption();
+   Parser.addVersionOption();
+   Parser.process(app);
 
-   // QCoreApplication   app(argc, argv);
-   // QCommandLineParser Parser;
-   //
-   // QCommandLineOption SMSPassOpt = QCommandLineOption("SMSPass", "Password for SMS gate", "String");
-   // Parser.addOption(SMSPassOpt);
-   // Parser.process(app);
-   //
-   // QString SMSPass = Parser.value(SMSPassOpt);
-   // qDebug() << "SMSPass:" << SMSPass;
-   //
-   // // InProcTests(SMSPass);
-   //
-   // const std::vector<TSensorInfo> SensorInfos = {{"/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube", 12},
-   //                                               {"/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient", 6}};
-   //
-   // const QTime SendSMSStartTime = QTime(18, 15, 0);
-   // const QTime SendSMSEndTime   = QTime(19, 30, 0);
-   //
+   MqttSetup.PrivateKeyPath = Parser.value(MQTTPrivateKeyPathOption); // "/home/Void/devel/gc/ec_private.pem";
+   if (Parser.isSet(MQTTDryRunOption))
+      MqttSetup.DryRun = true;
+}
+
+int main(int argc, char **argv) {
+   // return InlineTest(argc, argv);
+
+   QCoreApplication app(argc, argv);
+
+   TGCMqttSetup MqttSetup;
+   MqttSetup.ProjectId  = "tarasovka-monitoring";
+   MqttSetup.RegistryId = "temperature";
+   MqttSetup.DeviceId   = DEVICE_ID_TEST;
+
+   HandleCommandLineOptions(app, MqttSetup);
+
+   // const std::vector<TSensorInfo> SensorInfos = {{"/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube"},
+   //                                               {"/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient"}};
+
    // new TDriver(SMSPass, SensorInfos, SendSMSStartTime, SendSMSEndTime);
-   // return app.exec();
+   return app.exec();
 }

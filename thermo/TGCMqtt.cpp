@@ -142,7 +142,8 @@ void TGCMqttPrivate::PublishIfNeeded() {
    const QByteArray DataInJson = TelemetryToJson(*ItemToPublish);
    qDebug() << "TGCMqtt:"
             << "Publishing:" << DataInJson;
-   Client.publish(Setup.Topic(), DataInJson);
+   if(Setup.DryRun == false)
+     Client.publish(Setup.Topic(), DataInJson);
    ItemToPublish = std::experimental::optional<TPublishItem>();
 }
 
