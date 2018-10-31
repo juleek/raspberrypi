@@ -12,7 +12,7 @@
 
 
 QDebug operator<<(QDebug Out, const TGCMqttSetup &Setup) {
-   Out << "============ TGCMqttSetup ============";
+   Out << "============ TGCMqttSetup ============\n";
    Out << "Host:" << Setup.Host << "\n";
    Out << "Port:" << Setup.Port << "\n";
    Out << "UserName:" << Setup.UserName << "\n";
