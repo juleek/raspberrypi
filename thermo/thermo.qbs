@@ -30,12 +30,15 @@ Application {
    cpp.includePaths: [rootDir + "/../qtmqtt/include",
                       // "/usr/include"
    ]
+   property string mqttlib: rootDir + "/../qtmqtt/lib/libQt5Mqtt.so"
    cpp.dynamicLibraries: [// "asan",
-                          rootDir + "/../qtmqtt/lib/libQt5Mqtt.so",
+                          mqttlib,
                           "crypto",
                           "ssl",
 
    ]
+
+   cpp.linkerFlags: ["-rpath="+mqttlib]
 
    // clang asan
    // cpp.cxxFlags: ["-fsanitize=address", "-fno-omit-frame-pointer"]
