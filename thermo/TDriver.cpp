@@ -16,8 +16,9 @@
 
 struct TTempPollerWrapper {
    TTempPollerWrapper(TSensorInfo si) noexcept
-       : TempPoller(si) {
-      SensorInfo = si;
+       : SensorInfo(si)
+       , TempPoller(si) {
+
       TempPoller.moveToThread(&Thread);
       Thread.start();
       qDebug().nospace() << "Created TempPoller and its thread (" << &Thread
@@ -30,11 +31,34 @@ struct TTempPollerWrapper {
       qDebug() << "Thread stopped";
    }
 
-   TSensorInfo SensorInfo;
-   TTempPoller TempPoller;
+   const TSensorInfo SensorInfo;
+   TTempPoller       TempPoller;
+
+
+
+   void OnNewTemperatureGot(double t, const QString &err) {
+      Temp = t;
+      ErrStr += err;
+      ++NumberOfConsecutiveReadings;
+   }
+   size_t GetNumberOfConsecutiveReadings() const {
+      return NumberOfConsecutiveReadings;
+   }
+   std::pair<double, QString> GetTempAndErrStr() {
+      const double  TempTemp      = Temp;
+      const QString TempErrStr    = ErrStr;
+      NumberOfConsecutiveReadings = 0;
+      Temp                        = 0;
+      ErrStr.clear();
+      return {TempTemp, TempErrStr};
+   }
 
 private:
    QThread Thread;
+
+   size_t  NumberOfConsecutiveReadings = 0;
+   QString ErrStr;
+   double  Temp;
 };
 
 
@@ -91,71 +115,55 @@ void TDriverPrivate::OnSigInt() {
    qApp->quit();
 }
 
+namespace {
+   void TempPollersToPublishItem(TPublishItem &PublishItem, std::vector<TTempPollerAndThreadPtr> &TempPollers) {
+      for (TTempPollerAndThreadPtr &Sensor : TempPollers) {
+         const auto[Temp, ErrStr] = Sensor->GetTempAndErrStr();
+         PublishItem.ErrorString += ErrStr;
+
+         if (Sensor->GetNumberOfConsecutiveReadings() == 0)
+            continue;
+         PublishItem.NameToTemp[Sensor->SensorInfo.Name] = Temp;
+      }
+   }
+} // namespace
+
 void TDriverPrivate::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, double Temp) noexcept {
    qDebug().nospace() << "TDriver::OnNewTemperatureGot:"
                       << " Name: " << Wrapper->SensorInfo.Name << ", T: " << Temp << ", Path: " << Wrapper->SensorInfo.Path
                       << ", ErrStr: " << ErrStr;
-   Mqtt->Publish(Temp, Temp, ErrStr);
-   if (!ErrStr.isEmpty()) { // Error while parsing temperature
-      // QString SMSText = "Sensor " + Wrapper->SensorInfo.Path + ", " + Wrapper->SensorInfo.Name + " has ERROR: " + ErrStr;
-      // SmsSender->Send(TSmsCategoryIds::ParsingError, SMSText, RegularReceivers);
+   Wrapper->OnNewTemperatureGot(Temp, ErrStr);
+
+   const auto cmp = [](const auto &f, const auto &s) {
+      return f->GetNumberOfConsecutiveReadings() < s->GetNumberOfConsecutiveReadings();
+   };
+   TTempPollerWrapper &MaxNumberSensor = **std::max_element(TempPollers.begin(), TempPollers.end(), cmp);
+   TTempPollerWrapper &MinNumberSensor = **std::min_element(TempPollers.begin(), TempPollers.end(), cmp);
+
+
+
+   static const size_t MAX_DIFFERENCE_BETWEEN_SENSORS = 4;
+   if (MinNumberSensor.GetNumberOfConsecutiveReadings() == 0 &&
+       MaxNumberSensor.GetNumberOfConsecutiveReadings() < MAX_DIFFERENCE_BETWEEN_SENSORS) {
+      // We know that there is at least one lagging sensor (MinNumberSensor.GetNumberOfConsecutiveReadings() == 0)
+      // but the diff between it and the most advanced one is less than thrashold => we are allowed to wait more time
+      qDebug() << "Not publishing the reading, because there are other unread sensors: " << MinNumberSensor.SensorInfo.Name;
    } else {
-      // Wrapper->MinMaxTracker.Update(Temp);
-      // if (Temp < Wrapper->SensorInfo.MinPossibleTemp) {
-      //    QString     SMSText;
-      //    QTextStream Stream(&SMSText);
-      //    OutputTooColdMessageToStream(Stream, Temp, Wrapper->SensorInfo.MinPossibleTemp, Wrapper->SensorInfo.Name);
-      //    SmsSender->Send(TSmsCategoryIds::Emergency, SMSText, RegularReceivers);
-      // }
+      // Either all of the sensors have some data, or difference between them is larger than threshold
+      TPublishItem PublishItem;
+      if (MinNumberSensor.GetNumberOfConsecutiveReadings() == 0 &&
+          MaxNumberSensor.GetNumberOfConsecutiveReadings() >= MAX_DIFFERENCE_BETWEEN_SENSORS) {
+         PublishItem.ErrorString = QString("We were able to read %1 times from sensor %2:%3, but were "
+                                           "unable to read once from sensor %4:%5")
+                                       .arg(MaxNumberSensor.GetNumberOfConsecutiveReadings())
+                                       .arg(MaxNumberSensor.SensorInfo.Name, MaxNumberSensor.SensorInfo.Path)
+                                       .arg(MinNumberSensor.SensorInfo.Name, MinNumberSensor.SensorInfo.Path);
+      }
+      TempPollersToPublishItem(PublishItem, TempPollers);
+      // TGCMqtt: Publishing: "{\"Ambient\":22.875,\"BottomTube\":22.875}"
+      Mqtt->Publish(PublishItem);
    }
-
-   // ---------------------- Daily stats reporting ----------------------
-   // const QTime &Current = QTime::currentTime();
-   // if (Current.msecsTo(SendSMSStartTime) < 0 && Current.msecsTo(SendSMSEndTime) > 0) {
-   //    if (AllreadySent == false && AllSensorsHasMeasurements(TempPollers)) {
-   //       QString     SMSText;
-   //       QTextStream Stream(&SMSText);
-   //       for (const TTempPollerAndThreadPtr &W : TempPollers) {
-   //          OutputSensorDailyStatsToStream(SMSText, Stream, W->MinMaxTracker, W->SensorInfo.Name);
-   //       }
-   //       SmsSender->Send(TSmsCategoryIds::DailyStats, SMSText, RegularReceivers);
-   //       AllreadySent = true;
-   //    }
-   // } else {
-   //    AllreadySent = false;
-   // }
 }
-
-namespace {
-   // std::unordered_map<std::uint32_t, TCategoryInfo> SMSCategoriesDescription =
-   //     {{TSmsCategoryIds::DailyStats, {QTime(6, 0, 0)}},
-   //      {TSmsCategoryIds::ParsingError, {QTime(3, 0, 0)}},
-   //      {TSmsCategoryIds::Emergency, {QTime(0, 55, 0)}}};
-   // QSet<QString> RegularReceivers = {"+79647088442", "+79037081325"};
-   // void          OutputSensorDailyStatsToStream(const QString &       Result,
-   //                                              QTextStream &         Stream,
-   //                                              const TMinMaxTracker &MinMaxTracker,
-   //                                              const QString &       SensorName) {
-   //    if (Result.isEmpty() == false)
-   //       Stream << " ";
-   //    Stream << SensorName << " T = " << MinMaxTracker.GetLast() << ", Min = " << MinMaxTracker.GetMin() << "("
-   //           << MinMaxTracker.GetTimeOfMin().toString("hh:mm") << ")"
-   //           << ", Max = " << MinMaxTracker.GetMax() << "(" << MinMaxTracker.GetTimeOfMax().toString("hh:mm") << ")"
-   //           << ".";
-   // }
-   // void OutputTooColdMessageToStream(QTextStream &  Stream,
-   //                                   const double   CurrentTemp,
-   //                                   const double   MinPossibleTemp,
-   //                                   const QString &SensorName) {
-   //    Stream << SensorName << " T = " << CurrentTemp << ", lower than min possible: " << MinPossibleTemp << "!";
-   // }
-   // bool AllSensorsHasMeasurements(const std::vector<TTempPollerAndThreadPtr> &TempPollers) {
-   //    for (const TTempPollerAndThreadPtr &W : TempPollers)
-   //       if (W->MinMaxTracker.HasMeasurements() == false)
-   //          return false;
-   //    return true;
-   // }
-} // namespace
 
 TDriver::TDriver(const std::vector<TSensorInfo> &SensorInfos, const TGCMqttSetup &MqttSetup) noexcept
     : d(new TDriverPrivate) {

@@ -43,7 +43,7 @@ int InlineTest(int argc, char **argv) {
    MqttSetup.PrivateKeyPath = "/home/Void/devel/gc/ec_private.pem";
 
    TGCMqtt GCMqtt(MqttSetup);
-   GCMqtt.Publish(12, 29);
+   GCMqtt.Publish({{{"BottomTube", 12}, {"Ambient", 29}}, {}});
 
    return app.exec();
 

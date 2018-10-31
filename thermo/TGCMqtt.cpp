@@ -29,11 +29,6 @@ QDebug operator<<(QDebug Out, const TGCMqttSetup &Setup) {
 
 
 namespace {
-   struct TPublishItem {
-      double  BottomTube;
-      double  Ambient;
-      QString ErrorString;
-   };
 
    QByteArray TelemetryToJson(const TPublishItem &Item) {
       /// Json with the following fields is expected by google function:
@@ -41,7 +36,12 @@ namespace {
       /// sensor_id_ambient = "Ambient";
       /// error_string_id = "ErrorString"
 
-      QJsonObject Object = {{"BottomTube", Item.BottomTube}, {"Ambient", Item.Ambient}};
+      QJsonObject Object;
+      for (auto It = Item.NameToTemp.cbegin(); It != Item.NameToTemp.cend(); ++It) {
+         const QString &SensorName  = It.key();
+         const double   Temperature = It.value();
+         Object[SensorName]         = Temperature;
+      }
       if (Item.ErrorString.isEmpty() == false)
          Object["ErrorString"] = Item.ErrorString;
       QByteArray Result = QJsonDocument(Object).toJson(QJsonDocument::Compact);
@@ -172,13 +172,13 @@ void TGCMqttPrivate::PublishIfNeeded() {
 
 TGCMqtt::TGCMqtt(const TGCMqttSetup &Setup)
     : d(new TGCMqttPrivate) {
-  qDebug() << Setup;
+   qDebug() << Setup;
    d->Setup = Setup;
    d->Init();
 }
 TGCMqtt::~TGCMqtt() = default;
 
-void TGCMqtt::Publish(double BottomTube, double Ambient, const QString &ErrorString) {
-   d->ItemToPublish = {BottomTube, Ambient, ErrorString};
+void TGCMqtt::Publish(const TPublishItem &PublishItem) {
+   d->ItemToPublish = PublishItem;
    d->PublishIfNeeded();
 }
