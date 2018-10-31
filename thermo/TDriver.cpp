@@ -118,7 +118,9 @@ void TDriverPrivate::OnSigInt() {
 namespace {
    void TempPollersToPublishItem(TPublishItem &PublishItem, std::vector<TTempPollerAndThreadPtr> &TempPollers) {
       for (TTempPollerAndThreadPtr &Sensor : TempPollers) {
-         const auto[Temp, ErrStr] = Sensor->GetTempAndErrStr();
+         double  Temp;
+         QString ErrStr;
+         std::tie(Temp, ErrStr) = Sensor->GetTempAndErrStr();
          PublishItem.ErrorString += ErrStr;
 
          if (Sensor->GetNumberOfConsecutiveReadings() == 0)
