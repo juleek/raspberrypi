@@ -9,6 +9,25 @@
 #include <experimental/optional>
 #include <random>
 
+
+
+QDebug operator<<(QDebug Out, const TGCMqttSetup &Setup) {
+   Out << "============ TGCMqttSetup ============";
+   Out << "Host:" << Setup.Host;
+   Out << "Port:" << Setup.Port;
+   Out << "UserName:" << Setup.UserName;
+   Out << "Location:" << Setup.Location;
+   Out << "DryRun:" << Setup.DryRun;
+   Out << "ProjectId:" << Setup.ProjectId;
+   Out << "DeviceId:" << Setup.DeviceId;
+   Out << "RegistryId:" << Setup.RegistryId;
+   Out << "PrivateKeyPath:" << Setup.PrivateKeyPath;
+
+   Out << "====================================\n\n";
+   return Out;
+}
+
+
 namespace {
    struct TPublishItem {
       double  BottomTube;
@@ -142,8 +161,8 @@ void TGCMqttPrivate::PublishIfNeeded() {
    const QByteArray DataInJson = TelemetryToJson(*ItemToPublish);
    qDebug() << "TGCMqtt:"
             << "Publishing:" << DataInJson;
-   if(Setup.DryRun == false)
-     Client.publish(Setup.Topic(), DataInJson);
+   if (Setup.DryRun == false)
+      Client.publish(Setup.Topic(), DataInJson);
    ItemToPublish = std::experimental::optional<TPublishItem>();
 }
 
@@ -153,6 +172,7 @@ void TGCMqttPrivate::PublishIfNeeded() {
 
 TGCMqtt::TGCMqtt(const TGCMqttSetup &Setup)
     : d(new TGCMqttPrivate) {
+  qDebug() << Setup;
    d->Setup = Setup;
    d->Init();
 }

@@ -3,8 +3,8 @@
 #include <QDebug>
 
 #include "TDriver.h"
-#include "TTempPoller.h"
 #include "TGCMqtt.h"
+#include "TTempPoller.h"
 
 namespace {
    const QString DEVICE_ID_TEST = "device_test_imp";
@@ -59,7 +59,12 @@ void HandleCommandLineOptions(QCoreApplication &app, TGCMqttSetup &MqttSetup) {
    Parser.addVersionOption();
    Parser.process(app);
 
+   if (Parser.isSet(MQTTPrivateKeyPathOption) == false) {
+      qDebug() << "There is no" << MQTTPrivateKeyPathOption.names() << " => exiting...";
+      exit(1);
+   }
    MqttSetup.PrivateKeyPath = Parser.value(MQTTPrivateKeyPathOption); // "/home/Void/devel/gc/ec_private.pem";
+
    if (Parser.isSet(MQTTDryRunOption))
       MqttSetup.DryRun = true;
 }

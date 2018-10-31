@@ -38,7 +38,7 @@ Application {
 
    ]
 
-   cpp.linkerFlags: ["-rpath="+mqttlib]
+   // cpp.linkerFlags: ["-Wl,-rpath="+mqttlib]
 
    // clang asan
    // cpp.cxxFlags: ["-fsanitize=address", "-fno-omit-frame-pointer"]

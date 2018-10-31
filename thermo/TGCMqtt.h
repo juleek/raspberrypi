@@ -18,6 +18,7 @@ struct TGCMqttSetup {
    QString ClientId() const;
    QString Topic() const;
 };
+QDebug operator<<(QDebug Out, const TGCMqttSetup &Setup);
 
 class TGCMqttPrivate;
 class TGCMqtt {
