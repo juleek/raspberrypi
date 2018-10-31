@@ -93,8 +93,8 @@ void TDriverPrivate::OnSigInt() {
 
 void TDriverPrivate::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString ErrStr, double Temp) noexcept {
    qDebug().nospace() << "TDriver::OnNewTemperatureGot:"
-                      << " Name: " << Wrapper->SensorInfo.Name << ", Path: " << Wrapper->SensorInfo.Path
-                      << ", ErrStr: " << ErrStr << ", T: " << Temp;
+                      << " Name: " << Wrapper->SensorInfo.Name << ", T: " << Temp << ", Path: " << Wrapper->SensorInfo.Path
+                      << ", ErrStr: " << ErrStr;
    Mqtt->Publish(Temp, Temp, ErrStr);
    if (!ErrStr.isEmpty()) { // Error while parsing temperature
       // QString SMSText = "Sensor " + Wrapper->SensorInfo.Path + ", " + Wrapper->SensorInfo.Name + " has ERROR: " + ErrStr;
