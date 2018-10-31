@@ -136,7 +136,9 @@ void TDriverPrivate::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString Er
    qDebug().nospace() << "TDriver::OnNewTemperatureGot:"
                       << " Name: " << Wrapper->SensorInfo.Name << ", T: " << Temp << ", Path: " << Wrapper->SensorInfo.Path
                       << ", ErrStr: " << ErrStr;
-   Wrapper->OnNewTemperatureGot(Temp, ErrStr);
+
+   if (Wrapper->SensorInfo.Name == "Ambient")
+      Wrapper->OnNewTemperatureGot(Temp, ErrStr);
 
    const auto cmp = [](const auto &f, const auto &s) {
       return f->GetNumberOfConsecutiveReadings() < s->GetNumberOfConsecutiveReadings();
@@ -165,6 +167,7 @@ void TDriverPrivate::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString Er
       }
       TempPollersToPublishItem(PublishItem, TempPollers);
       // TGCMqtt: Publishing: "{\"Ambient\":22.875,\"BottomTube\":22.875}"
+      // TGCMqtt: Publishing: "{\"Ambient\":22.937,\"BottomTube\":23.375}"
       Mqtt->Publish(PublishItem);
    }
 }
