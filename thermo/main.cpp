@@ -52,7 +52,8 @@ int InlineTest(int argc, char **argv) {
 
 void HandleCommandLineOptions(QCoreApplication &app, TGCMqttSetup &MqttSetup) {
    QCommandLineOption MQTTPrivateKeyPathOption = {"MQTTPrivateKeyPath", "Path of the private key for MQTT", "String"};
-   QCommandLineOption MQTTDryRunOption = {"MQTTDryRun", "If true we will not publish any data to Google Cloud"};
+   QCommandLineOption MQTTDryRunOption         = {"MQTTDryRun", "If true we will not publish any data to Google Cloud"};
+   QCommandLineOption GCDeviceIdOption         = {"GCDeviceId", "Device id, as it registered in Google Cloud"};
    QCommandLineParser Parser;
    Parser.addOption(MQTTPrivateKeyPathOption);
    Parser.addOption(MQTTDryRunOption);
@@ -65,6 +66,9 @@ void HandleCommandLineOptions(QCoreApplication &app, TGCMqttSetup &MqttSetup) {
       exit(1);
    }
    MqttSetup.PrivateKeyPath = Parser.value(MQTTPrivateKeyPathOption); // "/home/Void/devel/gc/ec_private.pem";
+
+   if (Parser.isSet(GCDeviceIdOption))
+      MqttSetup.DeviceId = Parser.value(GCDeviceIdOption);
 
    if (Parser.isSet(MQTTDryRunOption))
       MqttSetup.DryRun = true;

@@ -13,15 +13,15 @@
 
 QDebug operator<<(QDebug Out, const TGCMqttSetup &Setup) {
    Out << "============ TGCMqttSetup ============";
-   Out << "Host:" << Setup.Host;
-   Out << "Port:" << Setup.Port;
-   Out << "UserName:" << Setup.UserName;
-   Out << "Location:" << Setup.Location;
-   Out << "DryRun:" << Setup.DryRun;
-   Out << "ProjectId:" << Setup.ProjectId;
-   Out << "DeviceId:" << Setup.DeviceId;
-   Out << "RegistryId:" << Setup.RegistryId;
-   Out << "PrivateKeyPath:" << Setup.PrivateKeyPath;
+   Out << "Host:" << Setup.Host << "\n";
+   Out << "Port:" << Setup.Port << "\n";
+   Out << "UserName:" << Setup.UserName << "\n";
+   Out << "Location:" << Setup.Location << "\n";
+   Out << "DryRun:" << Setup.DryRun << "\n";
+   Out << "ProjectId:" << Setup.ProjectId << "\n";
+   Out << "DeviceId:" << Setup.DeviceId << "\n";
+   Out << "RegistryId:" << Setup.RegistryId << "\n";
+   Out << "PrivateKeyPath:" << Setup.PrivateKeyPath << "\n";
 
    Out << "====================================\n\n";
    return Out;
