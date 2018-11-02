@@ -49,8 +49,8 @@ else
    echo "Commits of thermo C++ programme are different => building it"
    #RunVerbosely rm -rf /home/pi/build-thermo
    #RunVerbosely mkdir -p /home/pi/build-thermo
-   RunVerbosely cd /home/pi/build-thermo && /home/pi/build-qbs/bin/qbs build -f ../raspberrypi/thermo/thermo.qbs profile:qt-5-3-2 && sudo systemctl restart thermo.service
-   echo "thermo built and restarted"
+   RunVerbosely cd /home/pi/build-thermo && /usr/bin/qbs build --command-echo-mode command-line -f ../raspberrypi/thermo/thermo.qbs && sudo systemctl restart thermo.service
+   echo "thermo has been built and restarted"
 fi
 
 # Too critical to be updated on regular basis
