@@ -8,7 +8,7 @@ After=network-online.target
 Type=simple
 User=pi
 # EnvironmentFile=/home/pi/keyinfo.txt
-ExecStart=/home/pi/build-thermo/qt-5-3-2-debug/install-root/thermo # --SMSPass=${SMS_PASS}
+ExecStart=/home/pi/build-thermo/default/install-root/thermo --MQTTPrivateKeyPath /home/pi/ec_private.pem --GCDeviceId device_tarpi --MQTTDryRun
 Restart=always
 RestartSec=60
 
