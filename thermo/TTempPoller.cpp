@@ -58,7 +58,7 @@ std::tuple<QString, double> ProcessAndParseTemp(const QString &FileName) {
 
 TTempPoller::TTempPoller(TSensorInfo si) noexcept {
    SensorInfo  = std::move(si);
-   Periodicity = QTime(0, 0, 15);
+   Periodicity = QTime(0, 0, 20);
 }
 
 void TTempPoller::Bootstrap() {
@@ -70,7 +70,7 @@ void TTempPoller::Bootstrap() {
 void TTempPoller::ScheduleNextMeasurement() noexcept {
    const QTime &Current = QTime::currentTime();
    const QTime &NextGet = LastGet.addMSecs(Periodicity.msecsSinceStartOfDay());
-   const int    MSecs   = std::min(0, Current.msecsTo(NextGet));
+   const int    MSecs   = std::max(0, Current.msecsTo(NextGet));
    QTimer::singleShot(MSecs, this, SLOT(OnTimerShot()));
 }
 
