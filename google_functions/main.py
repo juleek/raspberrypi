@@ -5,7 +5,7 @@ import base64
 import datetime
 
 
-class GCloudState:
+class GBigQuery:
     def __init__(self, dataset_id: str, table_id: str, location: str, dry_run: bool = False) -> None:
         self.dataset_id = dataset_id
         self.table_id = table_id
@@ -68,7 +68,7 @@ class GCloudState:
             bigquery.SchemaField('Timestamp', 'TIMESTAMP', mode='REQUIRED'),
             bigquery.SchemaField(sensor_id_ambient, 'FLOAT64', mode='NULLABLE'),
             bigquery.SchemaField(sensor_id_bottom_tube, 'FLOAT64', mode='NULLABLE'),
-            # bigquery.SchemaField(error_string_id, 'STRING', mode='NULLABLE'),
+            bigquery.SchemaField(error_string_id, 'STRING', mode='NULLABLE'),
         ]
         original_schema = self.table.schema
         # print ('Original schema: {}'.format(original_schema))
@@ -91,9 +91,7 @@ class GCloudState:
             return
 
         timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        rows_to_insert = [(event_id, timestamp, ambient_temperature, bottom_tube_temperature
-                           # , error_string
-                           )]
+        rows_to_insert = [(event_id, timestamp, ambient_temperature, bottom_tube_temperature, error_string)]
         print('Inserting: {}'.format(rows_to_insert))
         errors = self.client.insert_rows(self.table, rows_to_insert)  # API request
         if errors:
@@ -107,10 +105,10 @@ class GCloudState:
 sensor_id_bottom_tube: str = "BottomTube"
 sensor_id_ambient: str = "Ambient"
 error_string_id: str = "ErrorString"
-gcloud_state_global_var: GCloudState = GCloudState(dataset_id="MainDataSet",
-                                                   table_id="AllTempSensors",
-                                                   location="europe-west2",
-                                                   dry_run=True)
+google_big_query_global: GBigQuery = GBigQuery(dataset_id="MainDataSet",
+                                               table_id="AllTempSensors",
+                                               location="europe-west2",
+                                               dry_run=False)
 
 
 def on_new_telemetry_impl(data, event_id) -> None:
@@ -138,7 +136,7 @@ def on_new_telemetry_impl(data, event_id) -> None:
     error_string = json[error_string_id] if error_string_id in json else None
     # print("Checks are passed: bottom_tube_temperature={}, ambient_temperature={}, ErrorString={}".
     #          format(bottom_tube_temperature, ambient_temperature, error_string))
-    gcloud_state_global_var.insert_new_row(event_id=event_id,
+    google_big_query_global.insert_new_row(event_id=event_id,
                                            ambient_temperature=ambient_temperature,
                                            bottom_tube_temperature=bottom_tube_temperature,
                                            error_string=error_string)
