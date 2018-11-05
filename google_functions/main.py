@@ -1,10 +1,10 @@
 import base64
 from json import JSONDecodeError
 import big_query as bq
-
+import metrics
 
 project_id: str = "tarasovka-monitoring"
-location="europe-west2"
+location = "europe-west2"
 metric_type_name: str = "telemetry_sensors/temperature"
 
 sensor_id_bottom_tube: str = "BottomTube"
@@ -18,6 +18,10 @@ google_big_query_global: bq.GBigQuery = bq.GBigQuery(dataset_id="MainDataSet",
                                                      sensor_id_ambient=sensor_id_ambient,
                                                      error_string_id=error_string_id,
                                                      dry_run=True)
+google_metrics_global: metrics.GMetrics = metrics.GMetrics(project_id=project_id,
+                                                           metric_type_name=metric_type_name,
+                                                           location=location,
+                                                           namespace="global namespace")
 
 
 def on_new_telemetry_impl(data, event_id) -> None:
@@ -43,12 +47,14 @@ def on_new_telemetry_impl(data, event_id) -> None:
     ambient_temperature = json[sensor_id_ambient] if sensor_id_ambient in json else None
     bottom_tube_temperature = json[sensor_id_bottom_tube] if sensor_id_bottom_tube in json else None
     error_string = json[error_string_id] if error_string_id in json else None
-    # print("Checks are passed: bottom_tube_temperature={}, ambient_temperature={}, ErrorString={}".
-    #          format(bottom_tube_temperature, ambient_temperature, error_string))
+    #print("Checks are passed: bottom_tube_temperature={}, ambient_temperature={}, ErrorString={}".
+    #      format(bottom_tube_temperature, ambient_temperature, error_string))
     google_big_query_global.insert_new_row(event_id=event_id,
                                            ambient_temperature=ambient_temperature,
                                            bottom_tube_temperature=bottom_tube_temperature,
                                            error_string=error_string)
+    google_metrics_global.add_time_series(sensor_id_ambient, ambient_temperature)
+    google_metrics_global.add_time_series(sensor_id_bottom_tube, bottom_tube_temperature)
 
 
 def on_new_telemetry(data, context) -> None:
@@ -59,5 +65,5 @@ def on_new_telemetry(data, context) -> None:
     on_new_telemetry_impl(data, context.event_id)
 
 
-x = base64.b64encode(b'{ "BottomTube":12.5, "Ambient":30}')
-on_new_telemetry_impl({'data': x}, "TestContext")
+# x = base64.b64encode(b'{ "BottomTube":10, "Ambient":-1}')
+# on_new_telemetry_impl({'data': x}, "TestContext")

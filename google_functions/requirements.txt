@@ -5,9 +5,11 @@ google-api-core==1.5.0
 google-auth==1.5.1
 google-cloud-bigquery==1.6.0
 google-cloud-core==0.28.1
+google-cloud-monitoring==0.30.1
 google-cloud-storage==1.13.0
 google-resumable-media==0.3.1
 googleapis-common-protos==1.5.3
+grpcio==1.16.0
 idna==2.7
 protobuf==3.6.1
 pyasn1==0.4.4

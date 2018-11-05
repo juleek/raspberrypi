@@ -1,16 +1,16 @@
 import time
-
 from google.cloud import monitoring_v3
 
 
 class GMetrics:
-    def __init__(self, project_id: str, metric_type_name: str, location: str) -> None:
+    def __init__(self, project_id: str, metric_type_name: str, location: str, namespace: str) -> None:
         self.client = monitoring_v3.MetricServiceClient()
         self.project_id = project_id
         self.metric_type_name = 'custom.googleapis.com/' + metric_type_name
         self.location = location
-        self.place_label_id = "place"
+        self.namespace = namespace
 
+        self.place_label_id = "place"
         self.project_name = self.client.project_path(self.project_id)
         self.__create_descriptor()
 
@@ -44,13 +44,15 @@ class GMetrics:
         descriptor = self.client.create_metric_descriptor(self.project_name, descriptor)
         # print('Metrics descriptor "{}" has been created'.format(descriptor))
 
-
     def delete_descriptor(self) -> None:
         descriptor_name = 'projects/{}/metricDescriptors/{}'.format(self.project_id, self.metric_type_name)
         self.client.delete_metric_descriptor(descriptor_name)
         print('Deleted metric descriptor "{}"'.format(descriptor_name))
 
     def add_time_series(self, place: str, temperature: float) -> None:
+        if not temperature:
+            return
+
         series = monitoring_v3.types.TimeSeries()
 
         # https://github.com/googleapis/googleapis/blob/master/google/monitoring/v3/metric.proto
@@ -60,7 +62,7 @@ class GMetrics:
         # https://cloud.google.com/monitoring/api/resources#tag_generic_task
         series.resource.type = "generic_task"
         series.resource.labels["location"] = self.location
-        series.resource.labels['namespace'] = "global namespace"
+        series.resource.labels['namespace'] = self.namespace
         series.resource.labels["job"] = "temperature collecting job"
         series.resource.labels["task_id"] = "some task id"
         # series.resource.labels["place"] = "bottom_tube"
@@ -92,8 +94,10 @@ class GMetrics:
 
 
 if __name__ == "__main__":
-    metrics = GMetrics("tarasovka-monitoring", "telemetry_sensors/temperature", "europe-west2")
-    # metrics.delete_descriptor()
-    metrics.add_time_series("BottomTube", 30)
-    metrics.add_time_series("Ambient", 25)
-
+    metrics = GMetrics("tarasovka-monitoring",
+                       "telemetry_sensors/temperature",
+                       "europe-west2",
+                       namespace="test namespace")
+    metrics.delete_descriptor()
+    # metrics.add_time_series("BottomTube", 14)
+    # metrics.add_time_series("Ambient", None)
