@@ -3,12 +3,17 @@ from json import JSONDecodeError
 import big_query as bq
 
 
+project_id: str = "tarasovka-monitoring"
+location="europe-west2"
+metric_type_name: str = "telemetry_sensors/temperature"
+
 sensor_id_bottom_tube: str = "BottomTube"
 sensor_id_ambient: str = "Ambient"
 error_string_id: str = "ErrorString"
+
 google_big_query_global: bq.GBigQuery = bq.GBigQuery(dataset_id="MainDataSet",
                                                      table_id="AllTempSensors",
-                                                     location="europe-west2",
+                                                     location=location,
                                                      sensor_id_bottom_tube=sensor_id_bottom_tube,
                                                      sensor_id_ambient=sensor_id_ambient,
                                                      error_string_id=error_string_id,
