@@ -47,8 +47,8 @@ def on_new_telemetry_impl(data, event_id) -> None:
     ambient_temperature = json[sensor_id_ambient] if sensor_id_ambient in json else None
     bottom_tube_temperature = json[sensor_id_bottom_tube] if sensor_id_bottom_tube in json else None
     error_string = json[error_string_id] if error_string_id in json else None
-    #print("Checks are passed: bottom_tube_temperature={}, ambient_temperature={}, ErrorString={}".
-    #      format(bottom_tube_temperature, ambient_temperature, error_string))
+    print("Checks are passed: bottom_tube_temperature={}, ambient_temperature={}, ErrorString={}".
+          format(bottom_tube_temperature, ambient_temperature, error_string))
     google_big_query_global.insert_new_row(event_id=event_id,
                                            ambient_temperature=ambient_temperature,
                                            bottom_tube_temperature=bottom_tube_temperature,
@@ -63,7 +63,6 @@ def on_new_telemetry(data, context) -> None:
     """
     # print (context)
     on_new_telemetry_impl(data, context.event_id)
-
 
 # x = base64.b64encode(b'{ "BottomTube":10, "Ambient":-1}')
 # on_new_telemetry_impl({'data': x}, "TestContext")
