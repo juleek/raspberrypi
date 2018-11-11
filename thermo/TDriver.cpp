@@ -170,7 +170,6 @@ void TDriverPrivate::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString Er
       // TGCMqtt: Publishing: "{\"Ambient\":22.937,\"BottomTube\":23.375}"
       Mqtt->Publish(PublishItem);
 
-
    }
 }
 

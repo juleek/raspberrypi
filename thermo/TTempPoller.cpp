@@ -56,7 +56,7 @@ std::tuple<QString, double> ProcessAndParseTemp(const QString &FileName) {
 
 TTempPoller::TTempPoller(TSensorInfo si) noexcept {
    SensorInfo  = std::move(si);
-   Periodicity = QTime(0, 0, 20);
+   Periodicity = QTime(0, 0, 30);
 }
 
 void TTempPoller::Bootstrap() {
