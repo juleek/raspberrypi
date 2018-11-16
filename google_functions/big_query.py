@@ -1,26 +1,18 @@
 from google.cloud import bigquery
 import google.api_core.exceptions
-import datetime
+from typing import List, Tuple
 
 
 class GBigQuery:
-    def __init__(self, dataset_id: str, table_id: str, location: str, sensor_id_ambient: str,
-                 sensor_id_bottom_tube: str, error_string_id: str, dry_run: bool = False) -> None:
+    def __init__(self, dataset_id: str, location: str, dry_run: bool) -> None:
         """
         Creates dataset, table in location in BigQuery
         """
         self.dataset_id = dataset_id
-        self.table_id = table_id
         self.location = location
-        self.sensor_id_ambient = sensor_id_ambient
-        self.sensor_id_bottom_tube = sensor_id_bottom_tube
-        self.error_string_id = error_string_id
         self.dry_run = dry_run
 
         self.client = bigquery.Client()
-
-        if self.dry_run:
-            return
 
         # https://cloud.google.com/functions/docs/bestpractices/tips#functions-graceful-termination-python
         # https://googleapis.github.io/google-cloud-python/latest/bigquery/usage/datasets.html
@@ -29,6 +21,8 @@ class GBigQuery:
         # has_required_dataset = bool(datasets and
         #                             [True for dataset in datasets if dataset.dataset_id == self.dataset_id])
 
+        if self.dry_run:
+            return
         self.dataset_ref = self.client.dataset(self.dataset_id)
         try:
             self.client.get_dataset(self.dataset_ref)
@@ -37,15 +31,15 @@ class GBigQuery:
                                                                                      self.dataset_id))
             self.__create_dataset()
 
-        self.table_ref = self.dataset_ref.table(self.table_id)
-        try:
-            self.table = self.client.get_table(self.table_ref)
-        except google.api_core.exceptions.NotFound:
-            print('Dataset "{}" in project "{}" does not contain table "{}" => creating it'.
-                  format(self.dataset_id, self.client.project, self.table_id))
-            self.table = self.__create_table()
+    @classmethod
+    def dry_run(cls):
+        result = cls(dataset_id="", location="", dry_run=True)
+        return result
 
-        self.__ensure_table_scheme()
+    @classmethod
+    def wet_run(cls, dataset_id: str, location: str):
+        result = cls(dataset_id=dataset_id, location=location, dry_run=False)
+        return result
 
     def __create_dataset(self) -> None:
         dataset = bigquery.Dataset(self.dataset_ref)
@@ -58,49 +52,61 @@ class GBigQuery:
         except google.api_core.exceptions.Conflict as exc:
             print('{}: {}'.format(type(exc), exc))
 
-    def __create_table(self):
+    def create_table_if_not_created(self, table_id: str):
+        table_ref = self.dataset_ref.table(table_id)
         try:
-            self.client.create_table(bigquery.Table(self.table_ref))  # API request
-            print('Table "{}" created.\n'.format(self.table_ref))
-        except google.api_core.exceptions.Conflict as exc:
-            print('{}: {}'.format(type(exc), exc))
+            table = self.client.get_table(table_ref)
+        except google.api_core.exceptions.NotFound:
+            print('Dataset "{}" in project "{}" does not contain table "{}" => creating it'.
+                  format(self.dataset_id, self.client.project, table_id))
+            table = self.create_table(table_ref)
 
-        table = self.client.get_table(self.table_ref)
         return table
 
-    def __ensure_table_scheme(self):
-        schema = [
-            bigquery.SchemaField('ContextEventId', 'STRING', mode='REQUIRED'),
-            bigquery.SchemaField('Timestamp', 'TIMESTAMP', mode='REQUIRED'),
-            bigquery.SchemaField(self.sensor_id_ambient, 'FLOAT64', mode='NULLABLE'),
-            bigquery.SchemaField(self.sensor_id_bottom_tube, 'FLOAT64', mode='NULLABLE'),
-            bigquery.SchemaField(self.error_string_id, 'STRING', mode='NULLABLE'),
-        ]
-        original_schema = self.table.schema
+    def create_table(self, table_ref):
+        try:
+            self.client.create_table(bigquery.Table(table_ref))  # API request
+            print('Table "{}" created.\n'.format(table_ref))
+        except google.api_core.exceptions.Conflict as exc:
+            print('Got exception while creating table {}: {}'.format(type(exc), exc))
+
+        table = self.client.get_table(table_ref)
+        return table
+
+    def delete_table(self, table_id: str):
+        table_ref = self.dataset_ref.table(table_id)
+        self.client.delete_table(table_ref)
+        print('Table {}:{} deleted.'.format(self.dataset_id, table_id))
+
+    def ensure_table_scheme(self, existing_table, schema: List[bigquery.SchemaField]):
+        if self.dry_run:
+            return
+
+        original_schema = existing_table.schema
         # print ('Original schema: {}'.format(original_schema))
         new_schema = original_schema[:]  # creates a copy of the schema
         for schema_field in schema:
             if not [True for existing_field in original_schema if existing_field.name == schema_field.name]:
                 print('{} is not in original schema of table "{}" => adding it'.format(schema_field,
-                                                                                       self.table.table_id))
+                                                                                       existing_table.table_id))
                 new_schema.append(schema_field)
 
-        self.table.schema = new_schema
-        self.table = self.client.update_table(self.table, ['schema'])  # API request
+        existing_table.schema = new_schema
+        table = self.client.update_table(existing_table, ['schema'])  # API request
+        return table
 
-    def insert_new_row(self, event_id: str, ambient_temperature, bottom_tube_temperature, error_string: str) -> None:
+    def insert_rows(self, table, rows_to_insert: List[Tuple]) -> None:
         """
         Inserts its arguments in BigQuery
         https://cloud.google.com/bigquery/streaming-data-into-bigquery#bigquery-stream-data-python
         """
 
+        print('Inserting: {} into table: {}'.format(rows_to_insert, table.table_id))
+
         if self.dry_run:
             return
 
-        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        rows_to_insert = [(event_id, timestamp, ambient_temperature, bottom_tube_temperature, error_string)]
-        print('Inserting: {}'.format(rows_to_insert))
-        errors = self.client.insert_rows(self.table, rows_to_insert)  # API request
+        errors = self.client.insert_rows(table, rows_to_insert)  # API request
         if errors:
             print(errors)
             assert errors == []

@@ -1,60 +1,35 @@
-import base64
-from json import JSONDecodeError
+import telemetry_processor as tp
 import big_query as bq
-import metrics
+from flask import request
+import bots
+import secrets
 
-project_id: str = "tarasovka-monitoring"
-location = "europe-west2"
-metric_type_name: str = "telemetry_sensors/temperature"
+location: str = "europe-west2"
+dataset_id: str = "MainDataSet"
+alerting_bot_authed_users_table_id: str = "AlertingBotChats"
+monitoring_bot_authed_users_table_id: str = "MonitoringBotChats"
 
-sensor_id_bottom_tube: str = "BottomTube"
-sensor_id_ambient: str = "Ambient"
-error_string_id: str = "ErrorString"
-
-google_big_query_global: bq.GBigQuery = bq.GBigQuery(dataset_id="MainDataSet",
-                                                     table_id="AllTempSensors",
+google_big_query_global: bq.GBigQuery = bq.GBigQuery(dataset_id=dataset_id,
                                                      location=location,
-                                                     sensor_id_bottom_tube=sensor_id_bottom_tube,
-                                                     sensor_id_ambient=sensor_id_ambient,
-                                                     error_string_id=error_string_id,
-                                                     dry_run=True)
-google_metrics_global: metrics.GMetrics = metrics.GMetrics(project_id=project_id,
-                                                           metric_type_name=metric_type_name,
-                                                           location=location,
-                                                           namespace="global namespace")
+                                                     dry_run=False)
+
+alerting_telegram_bot: bots.AlertingTelegramBot = bots.AlertingTelegramBot(
+    bot=bots.BigQueryTelegramBot(bot=bots.TelegramBot(secrets.alerting_telegram_bot_token),
+                                 bq=google_big_query_global,
+                                 authed_users_table_id=alerting_bot_authed_users_table_id),
+    ambient_temp_threshold=6,
+    bottom_tube_temp_threshold=12
+)
+
+telemetry_processor: tp.TelemetryProcessor = tp.TelemetryProcessor(bq=google_big_query_global,
+                                                                   alerting_bot=alerting_telegram_bot,
+                                                                   location=location)
 
 
-def on_new_telemetry_impl(data, event_id) -> None:
-    import base64
-    import json
-
-    if 'data' not in data:
-        print('There is no "data" key in "data", available keys are: {}'.format(data.keys()))  # Log Error
-        return  # TODO: Log error
-
-    json_data = base64.b64decode(data['data']).decode('utf-8')
-    try:
-        json = json.loads(json_data)
-    except JSONDecodeError as exc:
-        print('Failed to decode JSON: {}: {}'.format(type(exc), exc))  # Log Error
-        return
-
-    all_sensors = [sensor_id_ambient, sensor_id_bottom_tube]
-    if not any(True for sensor in all_sensors if sensor in json):
-        print('Found neither of "{}" in JSON. Available keys are: "{}"'.format(all_sensors, json.keys()))  # Log Error
-        return
-
-    ambient_temperature = json[sensor_id_ambient] if sensor_id_ambient in json else None
-    bottom_tube_temperature = json[sensor_id_bottom_tube] if sensor_id_bottom_tube in json else None
-    error_string = json[error_string_id] if error_string_id in json else None
-    print("Checks are passed: bottom_tube_temperature={}, ambient_temperature={}, ErrorString={}".
-          format(bottom_tube_temperature, ambient_temperature, error_string))
-    google_big_query_global.insert_new_row(event_id=event_id,
-                                           ambient_temperature=ambient_temperature,
-                                           bottom_tube_temperature=bottom_tube_temperature,
-                                           error_string=error_string)
-    google_metrics_global.add_time_series(sensor_id_ambient, ambient_temperature)
-    google_metrics_global.add_time_series(sensor_id_bottom_tube, bottom_tube_temperature)
+# bq_monitoring_telegram_bot: bots.BigQueryTelegramBot = bots.BigQueryTelegramBot(
+#     bot=bots.TelegramBot(monitoring_telegram_bot_token),
+#     bq=google_big_query_global,
+#     authed_users_table_id=monitoring_bot_authed_users_table_id)
 
 
 def on_new_telemetry(data, context) -> None:
@@ -62,7 +37,12 @@ def on_new_telemetry(data, context) -> None:
     https://cloud.google.com/functions/docs/writing/background
     """
     # print (context)
-    on_new_telemetry_impl(data, context.event_id)
+    telemetry_processor.feed(data, context.event_id)
 
-# x = base64.b64encode(b'{ "BottomTube":10, "Ambient":-1}')
-# on_new_telemetry_impl({'data': x}, "TestContext")
+
+# noinspection PyShadowingNames
+def on_telegram_alerting_bot_request(request: request):
+    alerting_telegram_bot.handle_request(request.get_json())
+
+# def on_telegram_monitoring_bot_request(request: request):
+#     bq_monitoring_telegram_bot.handle_request(request.get_json())

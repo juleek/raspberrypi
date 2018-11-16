@@ -18,8 +18,8 @@ class GMetrics:
         # https: // github.com / googleapis / googleapis / blob / master / google / api / metric.proto
         descriptor = monitoring_v3.types.MetricDescriptor()
         descriptor.type = self.metric_type_name
-        descriptor.metric_kind = (monitoring_v3.enums.MetricDescriptor.MetricKind.GAUGE)
-        descriptor.value_type = (monitoring_v3.enums.MetricDescriptor.ValueType.DOUBLE)
+        descriptor.metric_kind = monitoring_v3.enums.MetricDescriptor.MetricKind.GAUGE
+        descriptor.value_type = monitoring_v3.enums.MetricDescriptor.ValueType.DOUBLE
         descriptor.description = 'Temperature readings.'
 
         # https: // github.com / googleapis / googleapis / blob / master / google / api / label.proto
@@ -41,6 +41,7 @@ class GMetrics:
         # " has been created
         #
 
+        # noinspection PyUnusedLocal
         descriptor = self.client.create_metric_descriptor(self.project_name, descriptor)
         # print('Metrics descriptor "{}" has been created'.format(descriptor))
 
