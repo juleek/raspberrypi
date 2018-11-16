@@ -1,15 +1,23 @@
+import io
+
 from flask import request
 import requests
 import json
-from typing import Set
-from collections import namedtuple
+from typing import Set, List, Tuple, Optional
+# from collections import namedtuple
+from dataclasses import dataclass, field
 from enum import Enum, unique, auto
 import big_query as bq
 from google.cloud import bigquery
+from datetime import datetime
 
 import secrets
 
-SendResult = namedtuple('SendResult', ['is_ok', 'http_code'])
+
+@dataclass
+class SendResult:
+    is_ok: bool
+    http_code: int
 
 
 @unique
@@ -22,7 +30,7 @@ class TelegramBot:
     def __init__(self, token: str):
         self.token = token
 
-    def send(self, to_chat_id: int, message: str, parse_mode: ParseMode = None) -> SendResult or None:
+    def sendTextMessage(self, to_chat_id: int, message: str, parse_mode: ParseMode = None) -> Optional[SendResult]:
         # curl -v -X POST https://api.telegram.org/bot<token>/sendMessage -H
         # "Content-Type: application/json" --data '{"chat_id": -273706948, "text": "test response 3"}'
         url = 'https://api.telegram.org/bot{}/sendMessage'.format(self.token)
@@ -30,10 +38,36 @@ class TelegramBot:
         if parse_mode:
             payload['parse_mode'] = parse_mode.name
         headers = {'Content-Type': 'application/json'}
-        # print("TelegramBot: About to send msg: url: {}, payload: {}, headers: {}".format(url, payload, headers))
+        # print("TelegramBot: About to sendTextMessage msg: url: {}, payload: {}, headers: {}".format(url, payload, headers))
         response = requests.post(url, data=json.dumps(payload), headers=headers)
         print('TelegramBot: Sent message: {}, to: {}. Response status_code: {}, data: "{}"'.
               format(repr(message), to_chat_id, response.status_code, response.text))
+
+        try:
+            parsed_json = json.loads(response.text)
+        except json.JSONDecodeError as exc:
+            print('TelegramBot: Failed to decode JSON: {}: {}'.format(type(exc), exc))  # Log Error
+            return None
+        if 'ok' not in parsed_json:
+            return None
+        ok = parsed_json['ok']
+        return SendResult(is_ok=ok, http_code=response.status_code)
+
+    def sendPhoto(self, to_chat_id: int, buffer) -> Optional[SendResult]:
+        url = 'https://api.telegram.org/bot{}/sendPhoto'.format(self.token)
+        form_fields = {
+            'chat_id': (None, to_chat_id, None),
+            'photo': ('file.png', buffer, 'image/png', {'Content-Type': 'image/png'})
+        }
+        req = requests.Request('POST', url, files=form_fields)
+        prepared = req.prepare()
+        # print('{}\n{}\n{}\n\n{}'.format('-----------START-----------',prepared.method + ' ' + prepared.url,
+        # '\n'.join('{}: {}'.format(k, v) for k, v in prepared.headers.items()),prepared.body))
+
+        s = requests.Session()
+        response = s.send(prepared)
+        print('TelegramBot: Sent photo of size {} KiB to: {}. Response status_code: {}, data: "{}"'.
+              format(len(prepared.body) / 1024, to_chat_id, response.status_code, response.text))
 
         try:
             parsed_json = json.loads(response.text)
@@ -85,7 +119,7 @@ class BigQueryTelegramBot:
         # print('Sending "{}" to chat_ids: {}'.format(message, chat_ids))
         for chat_id in chat_ids:
             # print("BigQueryTelegramBot: chat_id: {}, parse_mode: {}".format(chat_id, parse_mode))
-            result = self.bot.send(to_chat_id=chat_id, message=message, parse_mode=parse_mode)
+            result = self.bot.sendTextMessage(to_chat_id=chat_id, message=message, parse_mode=parse_mode)
             if result and not result.is_ok and result.http_code == 403:
                 query: str = 'DELETE FROM `{}.{}` WHERE {} = {};'. \
                     format(self.bq.dataset_id, self.users_table_id, self.chat_id_column_name, chat_id)
@@ -190,6 +224,55 @@ class AlertingTelegramBot:
 #     print('Data:\n{}'.format(request.data))
 
 
+import matplotlib.pyplot as mplplt
+import matplotlib.dates as mpldates
+import numpy as np
+
+
+@dataclass
+class PlotLine:
+    legend: str
+    colour: Tuple[float, float, float]
+    x: List[datetime] = field(default_factory=list)
+    y: np.ndarray = np.empty(0)
+
+
+@dataclass
+class PlotInfo:
+    title: str
+    lines: List[PlotLine] = field(default_factory=list)
+    dpi: int = 500
+    title_font_size: int = 23
+    legend_font_size: int = 18
+    format: str = 'png'
+
+
+@dataclass
+class Test:
+    a: int
+
+
+def make_plot(plot_info: PlotInfo):
+    fig, axes = mplplt.subplots()
+    fig.suptitle(plot_info.title, fontsize=plot_info.title_font_size)
+
+    for line in plot_info.lines:
+        x: np.ndarray = np.empty(0)
+        for qw in line.x:
+            x = np.append(x, mpldates.date2num(qw))
+        y: np.ndarray = np.sin(x) * 15 + 20 if not line.y else line.y
+        axes.plot_date(x, y, linestyle='-', color=line.colour, label=line.legend, antialiased=True)
+
+    axes.legend(loc='best', fontsize=plot_info.legend_font_size)
+    mplplt.xticks(rotation=40)
+
+    png_buf: io.BytesIO = io.BytesIO()
+    fig.savefig(png_buf, format=plot_info.format, dpi=plot_info.dpi, bbox_inches='tight')
+    png_buf.seek(0)
+
+    return fig, axes, png_buf
+
+
 class MonitoringTelegramBot:
     def __init__(self, bot: BigQueryTelegramBot) -> None:
         self.bot = bot
@@ -199,7 +282,7 @@ class MonitoringTelegramBot:
 
 
 if __name__ == "__main__":
-    print("asdf")
+    print("asdf 1")
     # ================================================================================================
     # bq_alerting_telegram_bot: BigQueryTelegramBot = BigQueryTelegramBot(
     #     bot=TelegramBot(secrets.monitoring_telegram_bot_token),
@@ -220,6 +303,19 @@ if __name__ == "__main__":
     #     bottom_tube_temp_threshold=12)
     # alerting_bot.alert_all_if_needed(ambient_temperature=5, bottom_tube_temperature=10)
 
+    dates: List[str] = ["2018-11-15 12:06:08.610715 UTC", "2018-11-16 03:35:39.287725 UTC",
+                        "2018-11-16 03:55:39.287725 UTC", "2018-11-16 04:20:39.287725 UTC",
+                        "2018-11-16 05:50:39.287725 UTC", "2018-11-16 06:10:39.287725 UTC",
+                        "2018-11-16 06:40:39.287725 UTC", "2018-11-16 07:40:39.287725 UTC",
+                        "2018-11-16 08:40:39.287725 UTC", "2018-11-16 10:40:39.287725 UTC",
+                        "2018-11-16 12:40:39.287725 UTC", "2018-11-16 14:40:39.287725 UTC",
+                        "2018-11-16 16:40:39.287725 UTC", "2018-11-16 18:40:39.287725 UTC",
+                        "2018-11-16 20:40:39.287725 UTC", "2018-11-16 23:40:39.287725 UTC",
+                        "2018-11-17 03:40:39.287725 UTC", "2018-11-17 13:40:39.287725 UTC",
+                        "2018-11-18 04:40:39.287725 UTC", "2018-11-18 18:40:39.287725 UTC",
+                        "2018-11-19 03:40:39.287725 UTC", "2018-11-19 15:40:39.287725 UTC"
+                        ]
+
     # monitoring_bot_authed_users_table_id: str = "MonitoringBotChats"
     # dataset_id = "MainDataSet"
     # location = "europe-west2"
@@ -228,4 +324,19 @@ if __name__ == "__main__":
     #                         bq=bq.GBigQuery.wet_run(dataset_id, location),
     #                         authed_users_table_id=monitoring_bot_authed_users_table_id))
 
+    plot_info: PlotInfo = PlotInfo(title='Temperature in Tarasovka for 12.04')
+    bottom_tube_line: PlotLine = PlotLine(legend="BottomTube", colour=(1, 0, 0))
+    for date in dates:  # date looks like: "2018-11-16 02:06:08.610715 UTC"
+        stripped, _, _ = date.rpartition(' UTC')
+        bottom_tube_line.x.append(datetime.strptime(stripped, '%Y-%m-%d %H:%M:%S.%f'))
 
+    plot_info.lines.append(bottom_tube_line)
+
+
+    fig, axes, png_buf = make_plot(plot_info)
+
+    bot: TelegramBot = TelegramBot(token=secrets.monitoring_telegram_bot_token)
+    # bot.sendPhoto(23464524, buffer=png_buf)
+
+    fig.savefig("/home/Void/devel/plot_dpi_300.png", dpi=plot_info.dpi, bbox_inches='tight')
+    mplplt.show()
