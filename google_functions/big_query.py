@@ -52,18 +52,24 @@ class GBigQuery:
         except google.api_core.exceptions.Conflict as exc:
             print('{}: {}'.format(type(exc), exc))
 
-    def create_table_if_not_created(self, table_id: str):
+    def get_table_or_none(self, table_id: str):
         table_ref = self.dataset_ref.table(table_id)
         try:
             table = self.client.get_table(table_ref)
         except google.api_core.exceptions.NotFound:
-            print('Dataset "{}" in project "{}" does not contain table "{}" => creating it'.
-                  format(self.dataset_id, self.client.project, table_id))
-            table = self.create_table(table_ref)
-
+            return None
         return table
 
-    def create_table(self, table_ref):
+    def create_table_if_not_created(self, table_id: str):
+        table = self.get_table_or_none(table_id=table_id)
+        if not table:
+            print('Dataset "{}" in project "{}" does not contain table "{}" => creating it'.
+                  format(self.dataset_id, self.client.project, table_id))
+            table = self.create_table(table_id=table_id)
+        return table
+
+    def create_table(self, table_id: str):
+        table_ref = self.dataset_ref.table(table_id)
         try:
             self.client.create_table(bigquery.Table(table_ref))  # API request
             print('Table "{}" created.\n'.format(table_ref))
