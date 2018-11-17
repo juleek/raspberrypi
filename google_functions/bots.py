@@ -57,6 +57,8 @@ class TelegramBot:
         return SendResult(is_ok=ok, http_code=response.status_code)
 
     def send_photo(self, to_chat_id: int, buffer) -> Optional[SendResult]:
+        buffer.seek(0)
+
         url = 'https://api.telegram.org/bot{}/sendPhoto'.format(self.token)
         form_fields = {
             'chat_id': (None, to_chat_id, None),
