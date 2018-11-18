@@ -11,11 +11,6 @@ import bots
 
 project_id: str = "tarasovka-monitoring"
 metric_type_name: str = "telemetry_sensors/temperature"
-sensor_id_bottom_tube: str = "BottomTube"
-sensor_id_ambient: str = "Ambient"
-error_string_id: str = "ErrorString"
-
-telemetry_sensors_table_id: str = "AllTempSensors"
 
 
 # noinspection PyShadowingNames
@@ -54,17 +49,24 @@ class GBigQueryForSensors:
 
 # noinspection PyShadowingNames
 class TelemetryProcessor:
-    def __init__(self, bq: bq.GBigQuery, alerting_bot: bots.AlertingTelegramBot, location: str) -> None:
+    def __init__(self,
+                 bq: bq.GBigQuery,
+                 alerting_bot: bots.AlertingTelegramBot,
+                 location: str,
+                 telemetry_sensors_table_id: str,
+                 sensor_id_bottom_tube: str,
+                 sensor_id_ambient: str,
+                 error_string_id: str) -> None:
         self.metrics = metrics.GMetrics(project_id=project_id,
                                         metric_type_name=metric_type_name,
                                         location=location,
                                         namespace="global namespace")
 
-        self.big_query_for_metrics = GBigQueryForSensors(bq=bq,
-                                                         table_id=telemetry_sensors_table_id,
-                                                         sensor_id_bottom_tube=sensor_id_bottom_tube,
-                                                         sensor_id_ambient=sensor_id_ambient,
-                                                         error_string_id=error_string_id)
+        self.bq = GBigQueryForSensors(bq=bq,
+                                      table_id=telemetry_sensors_table_id,
+                                      sensor_id_bottom_tube=sensor_id_bottom_tube,
+                                      sensor_id_ambient=sensor_id_ambient,
+                                      error_string_id=error_string_id)
         self.alerting_bot = alerting_bot
 
     def feed(self, data, event_id) -> None:
@@ -79,25 +81,27 @@ class TelemetryProcessor:
             print('Failed to decode JSON: {}: {}'.format(type(exc), exc))  # Log Error
             return
 
-        all_sensors = [sensor_id_ambient, sensor_id_bottom_tube]
+        all_sensors = [self.bq.sensor_id_ambient, self.bq.sensor_id_bottom_tube]
         if not any(True for sensor in all_sensors if sensor in parsed_json):
-            print(
-                'Found neither of "{}" in JSON. Available keys are: "{}"'.format(all_sensors,
-                                                                                 parsed_json.keys()))  # Log Error
+            print('Found neither of "{}" in JSON. Available keys are: "{}"'.
+                  format(all_sensors, parsed_json.keys()))  # Log Error
             return
 
-        ambient_temperature = parsed_json[sensor_id_ambient] if sensor_id_ambient in parsed_json else None
-        bottom_tube_temperature = parsed_json[sensor_id_bottom_tube] if sensor_id_bottom_tube in parsed_json else None
-        error_string = parsed_json[error_string_id] if error_string_id in parsed_json else None
+        ambient_temperature = parsed_json[self.bq.sensor_id_ambient] \
+            if self.bq.sensor_id_ambient in parsed_json else None
+        bottom_tube_temperature = parsed_json[self.bq.sensor_id_bottom_tube] \
+            if self.bq.sensor_id_bottom_tube in parsed_json else None
+        error_string = parsed_json[self.bq.error_string_id] \
+            if self.bq.error_string_id in parsed_json else None
         print("Checks are passed: bottom_tube_temperature={}, ambient_temperature={}, ErrorString={}".
               format(bottom_tube_temperature, ambient_temperature, error_string))
 
-        self.big_query_for_metrics.insert_new_row(event_id=event_id,
-                                                  ambient_temperature=ambient_temperature,
-                                                  bottom_tube_temperature=bottom_tube_temperature,
-                                                  error_string=error_string)
-        self.metrics.add_time_series(sensor_id_ambient, ambient_temperature)
-        self.metrics.add_time_series(sensor_id_bottom_tube, bottom_tube_temperature)
+        self.bq.insert_new_row(event_id=event_id,
+                               ambient_temperature=ambient_temperature,
+                               bottom_tube_temperature=bottom_tube_temperature,
+                               error_string=error_string)
+        self.metrics.add_time_series(self.bq.sensor_id_ambient, ambient_temperature)
+        self.metrics.add_time_series(self.bq.sensor_id_bottom_tube, bottom_tube_temperature)
 
         self.alerting_bot.alert_all_if_needed(ambient_temperature=ambient_temperature,
                                               bottom_tube_temperature=bottom_tube_temperature)

@@ -10,10 +10,8 @@ from enum import Enum, unique, auto
 import big_query as bq
 from google.cloud import bigquery
 from datetime import datetime
-from datetime import timezone
 from datetime import timedelta
-
-import secrets
+import pytz
 
 
 @dataclass
@@ -61,7 +59,8 @@ class TelegramBot:
 
         url = 'https://api.telegram.org/bot{}/sendPhoto'.format(self.token)
         form_fields = {
-            'chat_id': (None, to_chat_id, None),
+            'chat_id': (None, to_chat_id),
+            'caption': (None, "this is some text, this is some text, this is some text"),
             'photo': ('file.png', buffer, 'image/png', {'Content-Type': 'image/png'})
         }
         req = requests.Request('POST', url, files=form_fields)
@@ -252,11 +251,13 @@ class PlotLine:
     colour: Tuple[float, float, float]
     x: List[datetime] = field(default_factory=list)
     y: np.ndarray = np.empty(0)
+    threshold_hline: float = None
 
 
 @dataclass
 class PlotInfo:
     title: str
+    tz: pytz.timezone
     lines: List[PlotLine] = field(default_factory=list)
     dpi: int = 500
     title_font_size: int = 23
@@ -279,7 +280,10 @@ def make_plot(plot_info: PlotInfo):
                        color=line.colour,
                        label=line.legend,
                        markersize=3,
-                       tz=timezone(timedelta(hours=3)))
+                       tz=plot_info.tz  # tz=timezone(timedelta(hours=3))
+                       )
+        if line.threshold_hline is not None:
+            axes.axhline(line.threshold_hline, color=line.colour, linestyle='-.')
 
     axes.legend(loc='best', fontsize=plot_info.legend_font_size)
     axes.tick_params(labelright=True, labelsize=17)
@@ -300,12 +304,18 @@ class MonitoringTelegramBot:
                  telemetry_table_id: str,
                  sensor_id_ambient: str,
                  sensor_id_bottom_tube: str,
-                 error_string_id: str) -> None:
+                 error_string_id: str,
+                 ambient_alert_temperature: float,
+                 bottom_tube_alert_temperature: float,
+                 tz: pytz.timezone) -> None:
         self.bot = bot
         self.telemetry_table_id = telemetry_table_id
         self.sensor_id_ambient = sensor_id_ambient
         self.sensor_id_bottom_tube = sensor_id_bottom_tube
         self.error_string_id = error_string_id
+        self.ambient_alert_temperature = ambient_alert_temperature
+        self.bottom_tube_alert_temperature = bottom_tube_alert_temperature
+        self.tz = tz
 
     def handle_request(self, parsed_json: json) -> None:
         self.bot.handle_potentially_new_chat_id(parsed_json=parsed_json)
@@ -343,15 +353,19 @@ class MonitoringTelegramBot:
         return result
 
     def compose_and_send_digest_to_all(self):
-        rows: List[Tuple] = monitoring_bot.fetch_rows(column_names=(monitoring_bot.sensor_id_ambient,
-                                                                    monitoring_bot.sensor_id_bottom_tube,
-                                                                    monitoring_bot.error_string_id),
-                                                      interval=timedelta(hours=24))
+        rows: List[Tuple] = self.fetch_rows(column_names=(self.sensor_id_ambient,
+                                                          self.sensor_id_bottom_tube,
+                                                          self.error_string_id),
+                                            interval=timedelta(hours=24))
 
-        bottom_tube_line: PlotLine = PlotLine(legend="BottomTube", colour=(1, 0, 0))
-        ambient_line: PlotLine = PlotLine(legend="Ambient", colour=(0, 0, 1))
+        bottom_tube_line: PlotLine = PlotLine(legend="BottomTube",
+                                              colour=(1, 0, 0),
+                                              threshold_hline=self.bottom_tube_alert_temperature)
+        ambient_line: PlotLine = PlotLine(legend="Ambient",
+                                          colour=(0, 0, 1),
+                                          threshold_hline=self.ambient_alert_temperature)
 
-        for timestamp, bottom_tube_temp, ambient_temp, _ in rows:
+        for timestamp, ambient_temp, bottom_tube_temp, _ in rows:
             # print(timestamp, bottom_tube_temp, ambient_temp)
             bottom_tube_line.x.append(timestamp)
             bottom_tube_line.y = np.append(bottom_tube_line.y, bottom_tube_temp)
@@ -360,7 +374,8 @@ class MonitoringTelegramBot:
             ambient_line.y = np.append(ambient_line.y, ambient_temp)
 
         plot_info: PlotInfo = PlotInfo(title='Temp in Tarasovka on {}'.
-                                       format(datetime.now().strftime('%m.%d  %H:%M')))
+                                       format(datetime.now(self.tz).strftime('%m.%d  %H:%M')),
+                                       tz=self.tz)
 
         plot_info.lines.append(bottom_tube_line)
         plot_info.lines.append(ambient_line)
@@ -373,6 +388,8 @@ class MonitoringTelegramBot:
         # mplplt.show()
 
 
+# import secrets
+
 if __name__ == "__main__":
     print("asdf 1")
     # ================================================================================================
@@ -384,20 +401,26 @@ if __name__ == "__main__":
     # bq_alerting_telegram_bot.handle_request(json.loads(b'{"message":{"chat":{"id":132}}}'))
 
     # ================================================================================================
-    monitoring_bot_authed_users_table_id: str = "MonitoringBotChats"
-    dataset_id = "MainDataSet"
-    location = "europe-west2"
-    telemetry_sensors_table_id: str = "AllTempSensors"
-    sensor_id_bottom_tube: str = "BottomTube"
-    sensor_id_ambient: str = "Ambient"
-    error_string_id: str = "ErrorString"
-    monitoring_bot: MonitoringTelegramBot = MonitoringTelegramBot(
-        BigQueryTelegramBot(TelegramBot(token=secrets.monitoring_telegram_bot_token),
-                            bq=bq.GBigQuery.wet_run(dataset_id, location),
-                            authed_users_table_id=monitoring_bot_authed_users_table_id),
-        telemetry_table_id=telemetry_sensors_table_id,
-        sensor_id_ambient=sensor_id_ambient,
-        sensor_id_bottom_tube=sensor_id_bottom_tube,
-        error_string_id=error_string_id)
-
-    monitoring_bot.compose_and_send_digest_to_all()
+    # monitoring_bot_authed_users_table_id: str = "MonitoringBotChats"
+    # dataset_id = "MainDataSet"
+    # location = "europe-west2"
+    # telemetry_sensors_table_id: str = "AllTempSensors"
+    # sensor_id_bottom_tube: str = "BottomTube"
+    # sensor_id_ambient: str = "Ambient"
+    # error_string_id: str = "ErrorString"
+    # ambient_alert_temperature: float = 6
+    # bottom_tube_alert_temperature: float = 12
+    # tz = pytz.timezone("Europe/Moscow")
+    # monitoring_bot: MonitoringTelegramBot = MonitoringTelegramBot(
+    #     BigQueryTelegramBot(TelegramBot(token=secrets.monitoring_telegram_bot_token),
+    #                         bq=bq.GBigQuery.wet_run(dataset_id, location),
+    #                         authed_users_table_id=monitoring_bot_authed_users_table_id),
+    #     telemetry_table_id=telemetry_sensors_table_id,
+    #     sensor_id_ambient=sensor_id_ambient,
+    #     sensor_id_bottom_tube=sensor_id_bottom_tube,
+    #     error_string_id=error_string_id,
+    #     ambient_alert_temperature=ambient_alert_temperature,
+    #     bottom_tube_alert_temperature=bottom_tube_alert_temperature,
+    #     tz=tz)
+    #
+    # monitoring_bot.compose_and_send_digest_to_all()
