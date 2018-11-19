@@ -4,7 +4,7 @@ import matplotlib.dates as mpldates
 import numpy as np
 import requests
 import json
-from typing import Set, List, Tuple, Optional
+from typing import Set, List, Tuple, Optional, Iterator
 from dataclasses import dataclass, field
 from enum import Enum, unique, auto
 import big_query as bq
@@ -54,15 +54,17 @@ class TelegramBot:
         ok = parsed_json['ok']
         return SendResult(is_ok=ok, http_code=response.status_code)
 
-    def send_photo(self, to_chat_id: int, buffer) -> Optional[SendResult]:
+    def send_photo(self, to_chat_id: int, buffer, text_message: str = None) -> Optional[SendResult]:
         buffer.seek(0)
 
         url = 'https://api.telegram.org/bot{}/sendPhoto'.format(self.token)
         form_fields = {
             'chat_id': (None, to_chat_id),
-            'caption': (None, "this is some text, this is some text, this is some text"),
             'photo': ('file.png', buffer, 'image/png', {'Content-Type': 'image/png'})
         }
+        if text_message:
+            form_fields['caption'] = (None, text_message)
+
         req = requests.Request('POST', url, files=form_fields)
         prepared = req.prepare()
         # print('{}\n{}\n{}\n\n{}'.format('-----------START-----------',prepared.method + ' ' + prepared.url,
@@ -128,14 +130,16 @@ class BigQueryTelegramBot:
                                                                       parse_mode=parse_mode)
             self.__remove_recepient_if_needed(chat_id=chat_id, result=result)
 
-    def send_photo_to_all(self, png_img):
+    def send_photo_to_all(self, png_img, text_message: str = None):
         if not png_img:
             return
-        self.send_photo_to(self.get_list_of_chat_ids(), png_img=png_img)
+        self.send_photo_to(self.get_list_of_chat_ids(), png_img=png_img, text_message=text_message)
 
-    def send_photo_to(self, chat_ids: Set[int], png_img) -> None:
+    def send_photo_to(self, chat_ids: Set[int], png_img, text_message: str = None) -> None:
         for chat_id in chat_ids:
-            result: Optional[SendResult] = self.bot.send_photo(to_chat_id=chat_id, buffer=png_img)
+            result: Optional[SendResult] = self.bot.send_photo(to_chat_id=chat_id,
+                                                               buffer=png_img,
+                                                               text_message=text_message)
             self.__remove_recepient_if_needed(chat_id=chat_id, result=result)
 
     def __remove_recepient_if_needed(self, chat_id: int, result: Optional[SendResult]) -> None:
@@ -365,6 +369,20 @@ class MonitoringTelegramBot:
                                           colour=(0, 0, 1),
                                           threshold_hline=self.ambient_alert_temperature)
 
+        ambient_min = min(filter(lambda t: t[1], rows), key=lambda t: t[1])[1]
+        ambient_max = max(filter(lambda t: t[1], rows), key=lambda t: t[1])[1]
+        bottom_tube_min = min(filter(lambda t: t[2], rows), key=lambda t: t[2])[2]
+        bottom_tube_max = max(filter(lambda t: t[2], rows), key=lambda t: t[2])[2]
+        all_error_strings = set(filter(lambda x: x[3], rows))
+        err_msg: str = '\n'.join(map(lambda x: x[3], list(all_error_strings)[:5]))
+
+        msg = 'BottomTube: Min: {}, Max: {}\n' \
+              'Ambient: Min: {}, Max: {}' \
+              '{}'.format(bottom_tube_min, bottom_tube_max,
+                          ambient_min, ambient_max,
+                          '\n' + err_msg if err_msg else '')
+        # print(msg)
+
         for timestamp, ambient_temp, bottom_tube_temp, _ in rows:
             # print(timestamp, bottom_tube_temp, ambient_temp)
             bottom_tube_line.x.append(timestamp)
@@ -382,16 +400,22 @@ class MonitoringTelegramBot:
         fig, axes, png_img = make_plot(plot_info)
 
         # self.bot.bot.send_photo(-208763401, buffer=png_buf)
-        self.bot.send_photo_to_all(png_img=png_img)
+        self.bot.send_photo_to_all(png_img=png_img, text_message=msg)
 
         # fig.savefig("/home/Void/devel/plot_dpi_300.png", dpi=plot_info.dpi, bbox_inches='tight')
         # mplplt.show()
 
 
-# import secrets
+import secrets
 
 if __name__ == "__main__":
     print("asdf 1")
+
+    # dataset_id = "MainDataSet"
+    # location = "europe-west2"
+    # bq = bq.GBigQuery.wet_run(dataset_id, location)
+    # bq.delete_table(table_id="MonitoringBotChats")
+
     # ================================================================================================
     # bq_alerting_telegram_bot: BigQueryTelegramBot = BigQueryTelegramBot(
     #     bot=TelegramBot(secrets.monitoring_telegram_bot_token),
@@ -401,26 +425,26 @@ if __name__ == "__main__":
     # bq_alerting_telegram_bot.handle_request(json.loads(b'{"message":{"chat":{"id":132}}}'))
 
     # ================================================================================================
-    # monitoring_bot_authed_users_table_id: str = "MonitoringBotChats"
-    # dataset_id = "MainDataSet"
-    # location = "europe-west2"
-    # telemetry_sensors_table_id: str = "AllTempSensors"
-    # sensor_id_bottom_tube: str = "BottomTube"
-    # sensor_id_ambient: str = "Ambient"
-    # error_string_id: str = "ErrorString"
-    # ambient_alert_temperature: float = 6
-    # bottom_tube_alert_temperature: float = 12
-    # tz = pytz.timezone("Europe/Moscow")
-    # monitoring_bot: MonitoringTelegramBot = MonitoringTelegramBot(
-    #     BigQueryTelegramBot(TelegramBot(token=secrets.monitoring_telegram_bot_token),
-    #                         bq=bq.GBigQuery.wet_run(dataset_id, location),
-    #                         authed_users_table_id=monitoring_bot_authed_users_table_id),
-    #     telemetry_table_id=telemetry_sensors_table_id,
-    #     sensor_id_ambient=sensor_id_ambient,
-    #     sensor_id_bottom_tube=sensor_id_bottom_tube,
-    #     error_string_id=error_string_id,
-    #     ambient_alert_temperature=ambient_alert_temperature,
-    #     bottom_tube_alert_temperature=bottom_tube_alert_temperature,
-    #     tz=tz)
-    #
-    # monitoring_bot.compose_and_send_digest_to_all()
+    monitoring_bot_authed_users_table_id: str = "MonitoringBotChats"
+    dataset_id = "MainDataSet"
+    location = "europe-west2"
+    telemetry_sensors_table_id: str = "AllTempSensors"
+    sensor_id_bottom_tube: str = "BottomTube"
+    sensor_id_ambient: str = "Ambient"
+    error_string_id: str = "ErrorString"
+    ambient_alert_temperature: float = 6
+    bottom_tube_alert_temperature: float = 12
+    tz = pytz.timezone("Europe/Moscow")
+    monitoring_bot: MonitoringTelegramBot = MonitoringTelegramBot(
+        bot=BigQueryTelegramBot(TelegramBot(token=secrets.monitoring_telegram_bot_token),
+                                bq=bq.GBigQuery.wet_run(dataset_id, location),
+                                authed_users_table_id=monitoring_bot_authed_users_table_id),
+        telemetry_table_id=telemetry_sensors_table_id,
+        sensor_id_ambient=sensor_id_ambient,
+        sensor_id_bottom_tube=sensor_id_bottom_tube,
+        error_string_id=error_string_id,
+        ambient_alert_temperature=ambient_alert_temperature,
+        bottom_tube_alert_temperature=bottom_tube_alert_temperature,
+        tz=tz)
+
+    monitoring_bot.compose_and_send_digest_to_all()

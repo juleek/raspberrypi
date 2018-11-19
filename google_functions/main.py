@@ -1,3 +1,4 @@
+import flask
 import pytz
 from flask import request
 
@@ -77,3 +78,15 @@ def on_telegram_alerting_bot_request(request: request):
 # noinspection PyShadowingNames
 def on_telegram_monitoring_bot_request(request: request):
     monitoring_telegram_bot.handle_request(request.get_json())
+
+
+def on_telegram_monitoring_bot_cron_request(request: request):
+    # print('Got request:{}'.format(request))
+    # print('Data:\n{}'.format(request.data))
+    # Got request:<Request 'http://europe-west1-tarasovka-monitoring.cloudfunctions.net' [POST]>
+    # Data:
+    # b''
+    monitoring_telegram_bot.compose_and_send_digest_to_all()
+    from flask import Response
+    return Response(status=200)
+

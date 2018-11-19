@@ -1,9 +1,9 @@
-matplotlib
-numpy
 cachetools==2.1.0
 certifi==2018.10.15
 chardet==3.0.4
 Click==7.0
+cycler==0.10.0
+dataclasses==0.6
 Flask==1.0.2
 google-api-core==1.5.0
 google-auth==1.5.1
@@ -17,10 +17,15 @@ grpcio==1.16.0
 idna==2.7
 itsdangerous==1.1.0
 Jinja2==2.10
+kiwisolver==1.0.1
 MarkupSafe==1.1.0
+matplotlib==3.0.2
+numpy==1.15.4
 protobuf==3.6.1
 pyasn1==0.4.4
 pyasn1-modules==0.2.2
+pyparsing==2.3.0
+python-dateutil==2.7.5
 pytz==2018.5
 requests==2.20.0
 rsa==4.0
