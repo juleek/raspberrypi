@@ -373,14 +373,15 @@ class MonitoringTelegramBot:
         ambient_max = max(filter(lambda t: t[1], rows), key=lambda t: t[1])[1]
         bottom_tube_min = min(filter(lambda t: t[2], rows), key=lambda t: t[2])[2]
         bottom_tube_max = max(filter(lambda t: t[2], rows), key=lambda t: t[2])[2]
-        all_error_strings = set(filter(lambda x: x[3], rows))
-        err_msg: str = '\n'.join(map(lambda x: x[3], list(all_error_strings)[:5]))
+        all_error_strings = set(filter(None, map(lambda x: x[3], rows)))
+        num_of_last_err_msgs_to_send: int = 5
+        err_msg: str = '\n'.join(list(all_error_strings)[:num_of_last_err_msgs_to_send])
 
         msg = 'BottomTube: Min: {}, Max: {}\n' \
               'Ambient: Min: {}, Max: {}' \
               '{}'.format(bottom_tube_min, bottom_tube_max,
                           ambient_min, ambient_max,
-                          '\n' + err_msg if err_msg else '')
+                          '\n\nLast error messages:\n' + err_msg if err_msg else '')
         # print(msg)
 
         for timestamp, ambient_temp, bottom_tube_temp, _ in rows:
