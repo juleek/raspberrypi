@@ -5,15 +5,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_library(QTMQTT_LIB NAMES Qt5Mqtt)
-if(QTMQTT_LIB)
-   message("Found QTMQTT_LIB: ${QTMQTT_LIB}")
-else()
-   message(FATAL_ERROR "${QTMQTT_LIB} library not found")
-endif()
-link_libraries(${QTMQTT_LIB})
-
-
 add_link_options(-fuse-ld=lld
 )
 
@@ -31,15 +22,6 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 # Create code from a list of Qt designer ui files
 # set(CMAKE_AUTOUIC ON)
-find_package(Qt5Core CONFIG REQUIRED)
-target_link_libraries(${Project} PRIVATE Qt5::Core)
-find_package(Qt5Network CONFIG REQUIRED)
-target_link_libraries(${Project} PRIVATE Qt5::Network)
-
-find_package(OpenSSL REQUIRED)
-target_link_libraries(${Project} PRIVATE OpenSSL::SSL)
-target_link_libraries(${Project} PRIVATE OpenSSL::Crypto)
-
 
 
 add_executable(${Project}
@@ -56,3 +38,20 @@ add_executable(${Project}
    TGCMqtt.h   
 )
 
+# ============= Qt =============
+find_library(QTMQTT_LIB NAMES Qt5Mqtt)
+if(QTMQTT_LIB)
+   message("Found QTMQTT_LIB: ${QTMQTT_LIB}")
+else()
+   message(FATAL_ERROR "${QTMQTT_LIB} library not found")
+endif()
+link_libraries(${QTMQTT_LIB})
+find_package(Qt5Core CONFIG REQUIRED)
+target_link_libraries(${Project} PRIVATE Qt5::Core)
+find_package(Qt5Network CONFIG REQUIRED)
+target_link_libraries(${Project} PRIVATE Qt5::Network)
+
+# ============= OpenSSL =============
+find_package(OpenSSL REQUIRED)
+target_link_libraries(${Project} PRIVATE OpenSSL::SSL)
+target_link_libraries(${Project} PRIVATE OpenSSL::Crypto)
