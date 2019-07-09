@@ -1,3 +1,4 @@
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 get_filename_component(Project ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 
 add_executable(${Project}
@@ -26,7 +27,7 @@ target_link_libraries(${Project} PRIVATE Qt5::Core)
 find_package(Qt5Network CONFIG REQUIRED)
 target_link_libraries(${Project} PRIVATE Qt5::Network)
 
-find_package(FindOpenSSL CONFIG REQUIRED)
+find_package(FindOpenSSL REQUIRED)
 target_link_libraries(${Project} PRIVATE OpenSSL::SSL)
 target_link_libraries(${Project} PRIVATE OpenSSL::Crypto)
 
