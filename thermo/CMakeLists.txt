@@ -17,13 +17,30 @@ link_libraries(${QTMQTT_LIB})
 add_link_options(-fuse-ld=lld
 )
 
-
 # target_compile_options
 add_compile_options(-Wall
                     -Wextra
                     -pedantic
                     -ftemplate-backtrace-limit=0
 )
+
+# ============= Qt =============
+# Find includes in corresponding build directories
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+# Instruct CMake to run moc automatically when needed
+set(CMAKE_AUTOMOC ON)
+# Create code from a list of Qt designer ui files
+# set(CMAKE_AUTOUIC ON)
+find_package(Qt5Core CONFIG REQUIRED)
+target_link_libraries(${Project} PRIVATE Qt5::Core)
+find_package(Qt5Network CONFIG REQUIRED)
+target_link_libraries(${Project} PRIVATE Qt5::Network)
+
+find_package(OpenSSL REQUIRED)
+target_link_libraries(${Project} PRIVATE OpenSSL::SSL)
+target_link_libraries(${Project} PRIVATE OpenSSL::Crypto)
+
+
 
 add_executable(${Project}
    main.cpp
@@ -38,20 +55,4 @@ add_executable(${Project}
    TGCMqtt.cpp
    TGCMqtt.h   
 )
-
-# ============= Qt =============
-# Find includes in corresponding build directories
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-# Instruct CMake to run moc automatically when needed
-set(CMAKE_AUTOMOC ON)
-# Create code from a list of Qt designer ui files
-set(CMAKE_AUTOUIC ON)
-find_package(Qt5Core CONFIG REQUIRED)
-target_link_libraries(${Project} PRIVATE Qt5::Core)
-find_package(Qt5Network CONFIG REQUIRED)
-target_link_libraries(${Project} PRIVATE Qt5::Network)
-
-find_package(OpenSSL REQUIRED)
-target_link_libraries(${Project} PRIVATE OpenSSL::SSL)
-target_link_libraries(${Project} PRIVATE OpenSSL::Crypto)
 
