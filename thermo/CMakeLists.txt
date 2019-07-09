@@ -11,7 +11,7 @@ if(QTMQTT_LIB)
 else()
    message(FATAL_ERROR "${QTMQTT_LIB} library not found")
 endif()
-link_libraries(${TCMALLOC_LIB})
+link_libraries(${QTMQTT_LIB})
 
 
 add_link_options(-fuse-ld=lld
