@@ -26,6 +26,11 @@ target_link_libraries(${Project} PRIVATE Qt5::Core)
 find_package(Qt5Network CONFIG REQUIRED)
 target_link_libraries(${Project} PRIVATE Qt5::Network)
 
+find_package(FindOpenSSL CONFIG REQUIRED)
+target_link_libraries(${Project} PRIVATE OpenSSL::SSL)
+target_link_libraries(${Project} PRIVATE OpenSSL::Crypto)
+
+
 find_library(QTMQTT_LIB NAMES Qt5Mqtt)
 if(QTMQTT_LIB)
    message("Found QTMQTT_LIB: ${QTMQTT_LIB}")
