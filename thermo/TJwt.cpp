@@ -1,20 +1,19 @@
 #include "TJwt.h"
-#include "TJwt_p.h"
+
 #include "MakeUnique.h"
+#include "TJwt_p.h"
 
-#include <QIODevice>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QtDebug>
 #include <cstring>
-
-
+#include <memory>
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/hmac.h>
 #include <openssl/pem.h>
 #include <openssl/sha.h>
-
+#include <QIODevice>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QtDebug>
 
 QDebug operator<<(QDebug Out, const THashData &Bits) {
    Out << Bits.ToBase64Url();
@@ -46,36 +45,36 @@ public:
 
 namespace {
    const EVP_MD *AlgoToOpenSSL(const TDigestAlgo Algo) {
-      switch (Algo) {
-         case TDigestAlgo::SHA256: return EVP_sha256();
-      }
+       switch (Algo) {
+       case TDigestAlgo::SHA256:
+           return EVP_sha256();
+       }
    }
-} // namespace
+   } // namespace
 
+   TDigestSigner::TDigestSigner(const TDigestAlgo Algo)
+       : d(new TDigestSignerPrivate)
+   {
+       d->Ctx = MakeUnique(EVP_MD_CTX_create());
+       if (d->Ctx == nullptr) {
+           Q_ASSERT(false);
+           d->Ok = false;
+           return;
+       }
 
-
-TDigestSigner::TDigestSigner(const TDigestAlgo Algo)
-    : d(new TDigestSignerPrivate) {
-   d->Ctx = MakeUnique(EVP_MD_CTX_create());
-   if (d->Ctx == nullptr) {
-      Q_ASSERT(false);
-      d->Ok = false;
-      return;
+       d->Ok = EVP_DigestInit(d->Ctx.get(), AlgoToOpenSSL(Algo));
+       if (d->Ok == false) {
+           Q_ASSERT(false);
+           return;
+       }
    }
-
-   d->Ok = EVP_DigestInit(d->Ctx.get(), AlgoToOpenSSL(Algo));
-   if (d->Ok == false) {
-      Q_ASSERT(false);
-      return;
-   }
-}
 TDigestSigner::~TDigestSigner() = default;
 
 TDigestSigner &TDigestSigner::AddData(const char *Data, size_t n) & {
-   if (d->Ok == false) {
-      Q_ASSERT(false);
-      return *this;
-   }
+    if (d->Ok == false) {
+        Q_ASSERT(false);
+        return *this;
+    }
 
    d->Ok = EVP_DigestUpdate(d->Ctx.get(), Data, n);
    Q_ASSERT(d->Ok);
@@ -91,10 +90,10 @@ TDigestSigner &TDigestSigner::AddData(QIODevice &Stream) & {
    buffer.resize(BUFFER_SIZE);
 
    for (; d->Ok;) {
-      const size_t Actual = Stream.read(const_cast<char *>(buffer.data()), buffer.size());
-      if (Actual == 0)
-         break;
-      AddData(buffer.data(), Actual);
+       const size_t Actual = Stream.read(const_cast<char *>(buffer.data()), buffer.size());
+       if (Actual == 0)
+           break;
+       AddData(buffer.data(), Actual);
    }
    Q_ASSERT(d->Ok);
    return *this;
@@ -113,8 +112,8 @@ TDigestSigner &&TDigestSigner::AddData(QIODevice &Stream) && {
 THashData CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKey) {
    TDigestSignerPrivate *d = Signer.d.get();
    if (d->Ok == false) {
-      Q_ASSERT(false);
-      return {};
+       Q_ASSERT(false);
+       return {};
    }
 
    QByteArray Digest;
@@ -127,27 +126,26 @@ THashData CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKe
 
    std::unique_ptr<BIO, TOpenSSLDeleter> Bio = MakeUnique(BIO_new_mem_buf(PrivateKey.data(), PrivateKey.size()));
    if (Bio == nullptr) {
-      Q_ASSERT(false);
-      d->Ok = false;
-      return {};
+       Q_ASSERT(false);
+       d->Ok = false;
+       return {};
    }
 
    std::unique_ptr<EC_KEY, TOpenSSLDeleter> ECKey =
        MakeUnique(PEM_read_bio_ECPrivateKey(Bio.get(), nullptr, nullptr, nullptr));
    if (ECKey == nullptr) {
-      Q_ASSERT(false);
-      d->Ok = false;
-      return {};
+       Q_ASSERT(false);
+       d->Ok = false;
+       return {};
    }
 
    std::unique_ptr<ECDSA_SIG, TOpenSSLDeleter> Signature =
        MakeUnique(ECDSA_do_sign(reinterpret_cast<unsigned char *>(Digest.data()), Digest.size(), ECKey.get()));
    if (Signature == nullptr) {
-      Q_ASSERT(false);
-      d->Ok = false;
-      return {};
+       Q_ASSERT(false);
+       d->Ok = false;
+       return {};
    }
-
 
    const BIGNUM *r;
    const BIGNUM *s;
@@ -160,15 +158,11 @@ THashData CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKe
    return Result;
 
    // ECDSA_SIG *sig;
-   // BIGNUM *r = BN_bin2bn(reinterpret_cast<const unsigned char *>(Result.Data.data()) + 4, 32, nullptr); // create new bn
-   // here BIGNUM *s = BN_bin2bn(reinterpret_cast<const unsigned char *>(Result.Data.data()) + 4 + 32 + 2, 32, nullptr);
-   // QByteArray ba;
-   // ba.resize(64);
-   // BN_bn2bin(r, reinterpret_cast<unsigned char *>(ba.data()));
-   // BN_bn2bin(s, reinterpret_cast<unsigned char *>(ba.data()) + 32);
-   // qDebug() << ba.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-   // BN_copy(sig->r, r);
-   // BN_copy(sig->s, s);
+   // BIGNUM *r = BN_bin2bn(reinterpret_cast<const unsigned char *>(Result.Data.data()) + 4, 32, nullptr); // create new
+   // bn here BIGNUM *s = BN_bin2bn(reinterpret_cast<const unsigned char *>(Result.Data.data()) + 4 + 32 + 2, 32,
+   // nullptr); QByteArray ba; ba.resize(64); BN_bn2bin(r, reinterpret_cast<unsigned char *>(ba.data())); BN_bn2bin(s,
+   // reinterpret_cast<unsigned char *>(ba.data()) + 32); qDebug() << ba.toBase64(QByteArray::Base64UrlEncoding |
+   // QByteArray::OmitTrailingEquals); BN_copy(sig->r, r); BN_copy(sig->s, s);
 }
 
 THashData CalculateSignature(const QByteArray &PrivateKey, const QByteArray &String, TDigestAlgo Algo) {
@@ -194,10 +188,10 @@ TJwt::TJwt(TJwt &&Another) {
    *this = std::move(Another);
 }
 TJwt &TJwt::operator=(TJwt &&Another) {
-   if (this == &Another)
-      return *this;
-   d = std::move(Another.d);
-   return *this;
+    if (this == &Another)
+        return *this;
+    d = std::move(Another.d);
+    return *this;
 }
 TJwt::TJwt(TAlgo Algo) noexcept {
    d = std::make_unique<TJwtPrivate>();
@@ -240,9 +234,10 @@ namespace {
    // --------------------------------------------------------------------------------------------------
 
    QString ToString(const TJwt::TAlgo Algo) {
-      switch (Algo) {
-         case TJwt::ES256: return TAlgoDetails<TJwt::ES256>::Name;
-      }
+       switch (Algo) {
+       case TJwt::ES256:
+           return TAlgoDetails<TJwt::ES256>::Name;
+       }
    }
    QString JsonObjectToString(const QJsonObject &Object) {
       QString Result = QJsonDocument(Object).toJson(QJsonDocument::Compact);
@@ -254,20 +249,21 @@ namespace {
    QString ComposePayload(const TJwtPrivate &d) {
       QJsonObject Payload;
       if (d.IssuedAt.isValid())
-         Payload["iat"] = d.IssuedAt.toMSecsSinceEpoch() / 1000;
+          Payload["iat"] = d.IssuedAt.toMSecsSinceEpoch() / 1000;
       if (d.Expiration.isValid())
-         Payload["exp"] = d.Expiration.toMSecsSinceEpoch() / 1000;
+          Payload["exp"] = d.Expiration.toMSecsSinceEpoch() / 1000;
       if (d.Audience.isEmpty() == false)
-         Payload["aud"] = d.Audience;
+          Payload["aud"] = d.Audience;
       return JsonObjectToString(Payload);
    }
    THashData ComposeSignature(const TJwt::TAlgo Algo, const QByteArray &StringToSign, QIODevice &Secret) {
-      switch (Algo) {
-         case TJwt::ES256: return CalculateSignature(Secret.readAll(), StringToSign);
-      }
+       switch (Algo) {
+       case TJwt::ES256:
+           return CalculateSignature(Secret.readAll(), StringToSign);
+       }
    }
    const QByteArray::Base64Options Base64Options = QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals;
-} // namespace
+   } // namespace
 
 QString TJwt::ComposeToken(QIODevice &Secret) const {
    const QString StrJsonHeader  = ComposeHeader(d->Algo);
