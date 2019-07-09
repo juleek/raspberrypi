@@ -1,6 +1,30 @@
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 get_filename_component(Project ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+find_library(QTMQTT_LIB NAMES Qt5Mqtt)
+if(QTMQTT_LIB)
+   message("Found QTMQTT_LIB: ${QTMQTT_LIB}")
+else()
+   message(FATAL_ERROR "${QTMQTT_LIB} library not found")
+endif()
+link_libraries(${TCMALLOC_LIB})
+
+
+add_link_options(-fuse-ld=lld
+)
+
+
+# target_compile_options
+add_compile_options(-Wall
+                    -Wextra
+                    -pedantic
+                    -ftemplate-backtrace-limit=0
+)
+
 add_executable(${Project}
    main.cpp
    MakeUnique.h
@@ -30,29 +54,4 @@ target_link_libraries(${Project} PRIVATE Qt5::Network)
 find_package(OpenSSL REQUIRED)
 target_link_libraries(${Project} PRIVATE OpenSSL::SSL)
 target_link_libraries(${Project} PRIVATE OpenSSL::Crypto)
-
-
-find_library(QTMQTT_LIB NAMES Qt5Mqtt)
-if(QTMQTT_LIB)
-   message("Found QTMQTT_LIB: ${QTMQTT_LIB}")
-else()
-   message(FATAL_ERROR "${QTMQTT_LIB} library not found")
-endif()
-link_libraries(${TCMALLOC_LIB})
-
-
-add_link_options(-fuse-ld=lld
-)
-
-
-# target_compile_options
-add_compile_options(-Wall
-                    -Wextra
-                    -pedantic
-                    -ftemplate-backtrace-limit=0
-)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
