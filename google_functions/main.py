@@ -1,3 +1,8 @@
+from pathlib import Path
+import sys
+
+sys.path.append(str([p for p in Path(__file__).resolve().parents if (p / '.root.dir').exists()][0]))
+
 import flask
 import pytz
 from flask import request
@@ -65,6 +70,7 @@ def on_new_telemetry(data, context) -> None:
     https://cloud.google.com/functions/docs/writing/background
     """
     # print (context)
+    # print (data)
     telemetry_processor.feed(data, context.event_id)
 
 

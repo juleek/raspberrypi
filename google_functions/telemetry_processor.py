@@ -1,5 +1,10 @@
+from pathlib import Path
+import sys
+
+sys.path.append(str([p for p in Path(__file__).resolve().parents if (p / '.root.dir').exists()][0]))
 # import sys
 # sys.path.append("..")
+
 import metrics
 import datetime
 import json
