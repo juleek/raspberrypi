@@ -11,6 +11,7 @@ namespace {
    const QString DEVICE_ID_MAIN = "device_tarpi";
 } // namespace
 
+
 int InlineTest(int argc, char **argv) {
    // OpenSSLTest();
    // ---------------------------------------------------------------------------------------------------------
