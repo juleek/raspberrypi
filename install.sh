@@ -47,15 +47,16 @@ then
 else
    echo "Commits of thermo C++ programme are different => building it"
    # RunVerbosely rm -rf /home/pi/build-thermo
-   # RunVerbosely mkdir -p /home/pi/build-thermo
-   # RunVerbosely cd /home/pi/build-thermo && /usr/bin/qbs build --command-echo-mode command-line -f ../raspberrypi/thermo/thermo.qbs && sudo systemctl restart thermo.service
+   RunVerbosely mkdir -p /home/pi/build-thermo && cd /home/pi/build-thermo
+   RunVerbosely CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake /home/pi/raspberrypi/thermo && make -j VERBOSE=1
+   RunVerbosely sudo systemctl restart thermo.service
    echo "thermo has been built and restarted"
 fi
 
 # Too critical to be updated on regular basis
-InstallIfNeeded /etc/systemd/system reversessh.service true
+# InstallIfNeeded /etc/systemd/system reversessh.service true
 
-# InstallIfNeeded /etc/systemd/system thermo.service true
+InstallIfNeeded /etc/systemd/system thermo.service true
 
 InstallIfNeeded /etc/systemd/system update_thermo.service
 InstallIfNeeded /etc/systemd/system update_thermo.timer true
