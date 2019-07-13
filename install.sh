@@ -47,8 +47,12 @@ then
 else
    echo "Commits of thermo C++ programme are different => building it"
    # RunVerbosely rm -rf /home/pi/build-thermo
-   RunVerbosely mkdir -p /home/pi/build-thermo && cd /home/pi/build-thermo
-   RunVerbosely "CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake /home/pi/raspberrypi/thermo" && make -j VERBOSE=1
+   RunVerbosely mkdir -p /home/pi/build-thermo
+   RunVerbosely cd /home/pi/build-thermo
+   RunVerbosely export CC=/usr/bin/clang
+   RunVerbosely export CXX=/usr/bin/clang++   
+   RunVerbosely cmake /home/pi/raspberrypi/thermo
+   RunVerbosely make -j VERBOSE=1
    RunVerbosely sudo systemctl restart thermo.service
    echo "thermo has been built and restarted"
 fi
