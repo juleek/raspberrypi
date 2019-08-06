@@ -6,6 +6,7 @@ sys.path.append(str([p for p in Path(__file__).resolve().parents if (p / '.root.
 import io
 import matplotlib.pyplot as mplplt
 import matplotlib.dates as mpldates
+from pandas.plotting import register_matplotlib_converters
 import numpy as np
 import requests
 import json
@@ -275,6 +276,7 @@ class PlotInfo:
 
 
 def make_plot(plot_info: PlotInfo):
+    register_matplotlib_converters()
     fig, axes = mplplt.subplots()
     fig.suptitle(plot_info.title, fontsize=plot_info.title_font_size)
 
