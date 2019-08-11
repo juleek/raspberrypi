@@ -36,6 +36,7 @@ int InlineTest(int argc, char **argv) {
 
    // ---------------------------------------------------------------------------------------------------------
 
+
    QCoreApplication app(argc, argv);
 
    TGCMqttSetup MqttSetup;
