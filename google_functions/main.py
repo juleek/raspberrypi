@@ -10,7 +10,7 @@ from flask import request
 import telemetry_processor as tp
 import big_query as bq
 import bots
-import secrets
+import bot_secrets
 
 # ========================================================
 # CONSTANTS
@@ -38,14 +38,14 @@ google_big_query_global: bq.GBigQuery = bq.GBigQuery(dataset_id=dataset_id,
                                                      dry_run=False)
 
 alerting_telegram_bot: bots.AlertingTelegramBot = bots.AlertingTelegramBot(
-    bot=bots.BigQueryTelegramBot(bot=bots.TelegramBot(secrets.alerting_telegram_bot_token),
+    bot=bots.BigQueryTelegramBot(bot=bots.TelegramBot(bot_secrets.alerting_telegram_bot_token),
                                  bq=google_big_query_global,
                                  authed_users_table_id=alerting_bot_authed_users_table_id),
     ambient_temp_threshold=ambient_alert_temperature,
     bottom_tube_temp_threshold=bottom_tube_alert_temperature)
 
 monitoring_telegram_bot: bots.MonitoringTelegramBot = bots.MonitoringTelegramBot(
-    bot=bots.BigQueryTelegramBot(bot=bots.TelegramBot(secrets.monitoring_telegram_bot_token),
+    bot=bots.BigQueryTelegramBot(bot=bots.TelegramBot(bot_secrets.monitoring_telegram_bot_token),
                                  bq=google_big_query_global,
                                  authed_users_table_id=monitoring_bot_authed_users_table_id),
     telemetry_table_id=telemetry_sensors_table_id,
@@ -65,34 +65,37 @@ telemetry_processor: tp.TelemetryProcessor = tp.TelemetryProcessor(bq=google_big
                                                                    error_string_id=error_string_id)
 
 
-def on_new_telemetry(data, context) -> None:
+def on_new_telemetry(data, context) -> flask.Response:
     """
     https://cloud.google.com/functions/docs/writing/background
     """
     # print (context)
     # print (data)
     telemetry_processor.feed(data, context.event_id)
+    return flask.Response(status=200)
 
 
 # noinspection PyShadowingNames
-def on_telegram_alerting_bot_request(request: request):
-    # print('Got request:{}'.format(request))
-    # print('Data:\n{}'.format(request.data))
+def on_telegram_alerting_bot_request(request: request) -> flask.Response:
+    #print(f'Got request:{request}')
+    #print(f'Data:\n{request.data}')
     alerting_telegram_bot.handle_request(request.get_json())
+    return flask.Response(status=200)
 
 
 # noinspection PyShadowingNames
-def on_telegram_monitoring_bot_request(request: request):
+def on_telegram_monitoring_bot_request(request: request) -> flask.Response:
+    #print(f'Got request:{request}')
+    #print(f'Data:\n{request.data}')
     monitoring_telegram_bot.handle_request(request.get_json())
+    return flask.Response(status=200)
 
-
-def on_telegram_monitoring_bot_cron_request(request: request):
+def on_telegram_monitoring_bot_cron_request(request: request) -> flask.Response:
     # print('Got request:{}'.format(request))
     # print('Data:\n{}'.format(request.data))
     # Got request:<Request 'http://europe-west1-tarasovka-monitoring.cloudfunctions.net' [POST]>
     # Data:
     # b''
     monitoring_telegram_bot.compose_and_send_digest_to_all()
-    from flask import Response
-    return Response(status=200)
+    return flask.Response(status=200)
 
