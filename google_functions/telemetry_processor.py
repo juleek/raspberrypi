@@ -58,7 +58,7 @@ class TelemetryProcessor:
                  sensor_id_ambient: str,
                  error_string_id: str) -> None:
         # self.metrics = metrics.GMetrics(project_id=project_id,
-                                        #metric_type_name=metric_type_name,
+                                        # metric_type_name=metric_type_name,
                                         #location=location,
                                         #namespace="global namespace")
 
