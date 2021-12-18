@@ -100,8 +100,8 @@ class TelemetryProcessor:
                                ambient_temperature=ambient_temperature,
                                bottom_tube_temperature=bottom_tube_temperature,
                                error_string=error_string)
-        #self.metrics.add_time_series(self.bq.sensor_id_ambient, ambient_temperature)
-        #self.metrics.add_time_series(self.bq.sensor_id_bottom_tube, bottom_tube_temperature)
+        # self.metrics.add_time_series(self.bq.sensor_id_ambient, ambient_temperature)
+        # self.metrics.add_time_series(self.bq.sensor_id_bottom_tube, bottom_tube_temperature)
 
         self.alerting_bot.alert_all_if_needed(ambient_temperature=ambient_temperature,
                                               bottom_tube_temperature=bottom_tube_temperature)
