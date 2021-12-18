@@ -1,6 +1,7 @@
 pytz
 Flask
 numpy
+pandas
 requests
 matplotlib
 google-cloud-core
