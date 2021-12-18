@@ -1,8 +1,5 @@
 from pathlib import Path
 import sys
-
-sys.path.append(str([p for p in Path(__file__).resolve().parents if (p / '.root.dir').exists()][0]))
-
 import io
 import matplotlib.pyplot as mplplt
 import matplotlib.dates as mpldates
@@ -61,6 +58,8 @@ class TelegramBot:
         return SendResult(is_ok=ok, http_code=response.status_code)
 
     def send_photo(self, to_chat_id: int, buffer, text_message: str = None) -> Optional[SendResult]:
+        print(f'send_photo: 1: Start')
+
         buffer.seek(0)
 
         url = 'https://api.telegram.org/bot{}/sendPhoto'.format(self.token)
@@ -77,6 +76,7 @@ class TelegramBot:
         # '\n'.join('{}: {}'.format(k, v) for k, v in prepared.headers.items()),prepared.body))
 
         s = requests.Session()
+        print(f'send_photo: 2: sending img')
         response = s.send(prepared)
         print('TelegramBot: Sent photo of size {} KiB to: {}. Response status_code: {}, data: "{}"'.
               format(len(prepared.body) / 1024, to_chat_id, response.status_code, response.text))
@@ -364,10 +364,12 @@ class MonitoringTelegramBot:
         return result
 
     def compose_and_send_digest_to_all(self):
+        print(f'compose_and_send_digest_to_all: 1: Reading data from BigQuery:')
         rows: List[Tuple] = self.fetch_rows(column_names=(self.sensor_id_ambient,
                                                           self.sensor_id_bottom_tube,
                                                           self.error_string_id),
                                             interval=timedelta(hours=24))
+        print(f'compose_and_send_digest_to_all: 2: Populating curves with data points')
 
         bottom_tube_line: PlotLine = PlotLine(legend="BottomTube",
                                               colour=(1, 0, 0),
@@ -399,6 +401,8 @@ class MonitoringTelegramBot:
             ambient_line.x.append(timestamp)
             ambient_line.y = np.append(ambient_line.y, ambient_temp)
 
+        print(f'compose_and_send_digest_to_all: 3: Rendering png')
+
         plot_info: PlotInfo = PlotInfo(title='Temp in Tarasovka on {}'.
                                        format(datetime.now(self.tz).strftime('%m.%d  %H:%M')),
                                        tz=self.tz)
@@ -408,8 +412,9 @@ class MonitoringTelegramBot:
         fig, axes, png_img = make_plot(plot_info)
 
         # self.bot.bot.send_photo(-208763401, buffer=png_buf)
+        print(f'compose_and_send_digest_to_all: 4: Sending msg')
         self.bot.send_photo_to_all(png_img=png_img, text_message=msg)
-
+        print(f'compose_and_send_digest_to_all: 5: End')
         # fig.savefig("/home/Void/devel/plot_dpi_300.png", dpi=plot_info.dpi, bbox_inches='tight')
         # mplplt.show()
 
