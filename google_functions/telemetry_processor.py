@@ -59,7 +59,7 @@ class TelemetryProcessor:
                  error_string_id: str) -> None:
         # self.metrics = metrics.GMetrics(project_id=project_id,
                                         # metric_type_name=metric_type_name,
-                                        #location=location,
+                                        # location=location,
                                         #namespace="global namespace")
 
         self.bq = GBigQueryForSensors(bq=bq,
