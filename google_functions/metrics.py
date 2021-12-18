@@ -5,6 +5,8 @@ sys.path.append(str([p for p in Path(__file__).resolve().parents if (p / '.root.
 
 import time
 from google.cloud import monitoring_v3
+from google.api import metric_pb2 as ga_metric
+
 
 
 class GMetrics:
@@ -16,19 +18,19 @@ class GMetrics:
         self.namespace = namespace
 
         self.place_label_id = "place"
-        self.project_name = self.client.project_path(self.project_id)
+        self.project_name = self.client.common_project_path(self.project_id)
         self.__create_descriptor()
 
     def __create_descriptor(self) -> None:
         # https: // github.com / googleapis / googleapis / blob / master / google / api / metric.proto
-        descriptor = monitoring_v3.types.MetricDescriptor()
+        descriptor = ga_metric.MetricDescriptor()
         descriptor.type = self.metric_type_name
-        descriptor.metric_kind = monitoring_v3.enums.MetricDescriptor.MetricKind.GAUGE
-        descriptor.value_type = monitoring_v3.enums.MetricDescriptor.ValueType.DOUBLE
+        descriptor.metric_kind = ga_metric.MetricDescriptor.MetricKind.GAUGE
+        descriptor.value_type = ga_metric.MetricDescriptor.ValueType.DOUBLE
         descriptor.description = 'Temperature readings.'
 
         # https: // github.com / googleapis / googleapis / blob / master / google / api / label.proto
-        place_label = monitoring_v3.types.LabelDescriptor()
+        place_label = monitoring_v3.LabelDescriptor()
         place_label.description = "Place of sensor"
         place_label.key = self.place_label_id
         descriptor.labels.extend([place_label])
@@ -59,7 +61,7 @@ class GMetrics:
         if not temperature:
             return
 
-        series = monitoring_v3.types.TimeSeries()
+        series = monitoring_v3.TimeSeries()
 
         # https://github.com/googleapis/googleapis/blob/master/google/monitoring/v3/metric.proto
         series.metric.type = self.metric_type_name
