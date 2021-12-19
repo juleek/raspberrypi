@@ -75,11 +75,27 @@ class TelegramBot:
         # print('{}\n{}\n{}\n\n{}'.format('-----------START-----------',prepared.method + ' ' + prepared.url,
         # '\n'.join('{}: {}'.format(k, v) for k, v in prepared.headers.items()),prepared.body))
 
-        s = requests.Session()
-        print(f'send_photo: 2: sending img')
-        response = s.send(prepared)
-        print('TelegramBot: Sent photo of size {} KiB to: {}. Response status_code: {}, data: "{}"'.
-              format(len(prepared.body) / 1024, to_chat_id, response.status_code, response.text))
+        response_received: bool = False
+        MAX_RETRIES: int = 3
+        print(f'TelegramBot: About to send POST request of size {len(prepared.body) / 1024} KiB')
+        for i in range(MAX_RETRIES):
+            try:
+                with requests.Session() as s:
+                    response = s.send(prepared, timeout=(1, 19))
+
+            except requests.ConnectTimeout:
+                print("Connection timed out")
+            except requests.ReadTimeout:
+                print("Read timed out")
+            except requests.Timeout:
+                print("Request timed out")
+            else:
+                response_received = True
+                print(f'TelegramBot: Sent photo to: {to_chat_id}. Response status_code: {response.status_code}, data: "{response.text}"')
+                break
+
+        if response_received == False:
+            return SendResult(is_ok=False, http_code=0)
 
         try:
             parsed_json = json.loads(response.text)
