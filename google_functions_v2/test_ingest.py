@@ -7,7 +7,7 @@ import datetime as dt
 
 
 class TestIngest(unittest.TestCase):
-    def test_onDatum_calls_consume_several_elem(self):
+    def test_onDatum_calls_consume_elems(self):
         for num_of_consumers in [0, 1, 2, 5]:
             device_datum = dd.DeviceDatum({'example': 25.2}, dt.datetime.now(), " ")
             consumers: t.List = []
