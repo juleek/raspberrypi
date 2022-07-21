@@ -28,14 +28,7 @@ class SensorsDBFake(sdb.SensorsDB):
         return sensors, messages
 
 
-    def delete(self, older_than: dt.timedelta) -> None:
-        del_before_this_time: dt.datetime = dt.datetime.now() - older_than
-
-        del_before_ind: int = bs.bisect(self.data, del_before_this_time, key=lambda dd: dd.time)
-
-        for i in range(0, del_before_ind):
-            del self.data[:del_before_ind]
-
-
-
+    def delete_before(self, date: dt.datetime) -> None:
+        del_before_ind: int = bs.bisect(self.data, date, key=lambda dd: dd.time)
+        del self.data[:del_before_ind]
 

@@ -172,3 +172,48 @@ class TestSensorsDBFake(unittest.TestCase):
         self.assertEqual(result[1], {self.err_datum_one_with_message.error_msg, self.err_datum_one_with_message_2.error_msg})
 
 
+    def test_delete_before_earlier_than_first(self):
+        self.db.write(self.good_datum_one_1)
+        self.db.write(self.good_datum_one_2)
+
+        self.db.delete_before(self.good_datum_one_1.time - dt.timedelta(seconds=1))
+
+        result = self.db.read_starting_from(self.good_datum_one_1.time - dt.timedelta(seconds=1))
+
+        sensor: sen.Sensor = sen.Sensor(temperatures=[
+            self.good_datum_one_1.name_to_temp[self.tube_1],
+            self.good_datum_one_2.name_to_temp[self.tube_1]],
+            name=self.tube_1,
+            timestamps=[self.good_datum_one_1.time, self.good_datum_one_2.time])
+
+        self.assertEqual(result[0], [sensor])
+        self.assertEqual(result[1], set())
+
+
+    def test_delete_before_greater_than_last(self):
+        self.db.write(self.good_datum_one_1)
+        self.db.write(self.good_datum_one_2)
+
+        self.db.delete_before(self.good_datum_one_2.time + dt.timedelta(seconds=1))
+
+        result = self.db.read_starting_from(self.good_datum_one_1.time - dt.timedelta(seconds=1))
+        self.assertEqual(result, ([], set()))
+
+
+    def test_delete_before_date_between_two_elemes(self):
+        self.db.write(self.good_datum_one_1)
+        self.db.write(self.good_datum_one_2)
+
+        date_between_two_elem = self.good_datum_one_1.time + (self.good_datum_one_2.time - self.good_datum_one_1.time) / 2
+
+        self.db.delete_before(date_between_two_elem)
+
+        result = self.db.read_starting_from(self.good_datum_one_1.time - dt.timedelta(seconds=1))
+
+        sensor: sen.Sensor = sen.Sensor(temperatures=[
+            self.good_datum_one_2.name_to_temp[self.tube_1]],
+            name=self.tube_1,
+            timestamps=[self.good_datum_one_2.time])
+
+        self.assertEqual(result[0], [sensor])
+        self.assertEqual(result[1], set())

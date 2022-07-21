@@ -21,8 +21,12 @@ class SensorsDB(abc.ABC):
 
 
     @abc.abstractmethod
-    def delete(self, older_than: dt.timedelta) -> None:
+    def delete_before(self, date: dt.datetime) -> None:
         pass
+
+    def delete(self, older_than: dt.timedelta) -> None:
+        return self.delete_before(dt.datetime.now() - older_than)
+
 
 
 class Consumer(ingest.Consumer):
