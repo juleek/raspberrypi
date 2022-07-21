@@ -12,8 +12,13 @@ class SensorsDB(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def read(self, period: dt.timedelta) -> t.Tuple[t.List[Sensor], t.Set[str]]:
+    def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[Sensor], t.Set[str]]:
         pass
+
+
+    def read_for_period(self, period: dt.timedelta) -> t.Tuple[t.List[Sensor], t.Set[str]]:
+        return self.read_starting_from(dt.datetime.now() - period)
+
 
     @abc.abstractmethod
     def delete(self, older_than: dt.timedelta) -> None:
