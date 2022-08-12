@@ -58,7 +58,7 @@ else
 fi
 
 # Too critical to be updated on regular basis
-# InstallIfNeeded /etc/systemd/system reversessh.service true
+InstallIfNeeded /etc/systemd/system reversessh.service true
 
 InstallIfNeeded /etc/systemd/system thermo.service true
 
