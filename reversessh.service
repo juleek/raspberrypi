@@ -7,24 +7,13 @@ After=network-online.target
 [Service]
 Type=simple
 User=pi
-ExecStart=/usr/bin/ssh -v -N -R localhost:32003:localhost:22 device_tarpi@35.189.98.217 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
-
-# ExecStart=bash -c "/usr/bin/ssh -v -N -R localhost:32003:localhost:22 $(ls ~/.ssh/ | gzip | base64 -w 0)@35.189.98.217 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
-
-# ExecStart=/usr/bin/expect -c 'spawn /usr/bin/ssh -v -N -R localhost:32003:localhost:22 device_tarpi@35.189.98.217 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ; expect "password:"; send "Cje6GsfEgC\r"; interact'
-
+ExecStart=/usr/bin/ssh -v -N -R localhost:32003:localhost:22 device_tarpi@34.89.73.119 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2
 Restart=always
 RestartSec=30
-
-
-
-
-
-
 
 [Install]
 WantedBy=multi-user.target
 
 
-# Connect from impedance to rpi :
+# Connect from impedance to rpi:
 # ssh -tt iot-gateway.europe-west2-a.tarasovka-monitoring ssh -ttp 32003 pi@127.0.0.1
