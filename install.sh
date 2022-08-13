@@ -57,6 +57,8 @@ else
    echo "thermo has been built and restarted"
 fi
 
+sudo apt update && sudo apt install -y sshpass
+
 # Too critical to be updated on regular basis
 InstallIfNeeded /etc/systemd/system reversessh.service true
 
