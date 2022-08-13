@@ -7,7 +7,10 @@ After=network-online.target
 [Service]
 Type=simple
 User=pi
-ExecStart=/usr/bin/sshpass -p "Cje6GsfEgC" /usr/bin/ssh -v -N -R localhost:32003:localhost:22 device_tarpi@35.189.98.217 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+# ExecStart=/usr/bin/ssh -v -N -R localhost:32003:localhost:22 device_tarpi@35.189.98.217 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+
+ExecStart=/usr/bin/expect -c 'spawn /usr/bin/ssh -v -N -R localhost:32003:localhost:22 device_tarpi@35.189.98.217 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no ; expect "password:"; send "Cje6GsfEgC\r"; interact'
+
 Restart=always
 RestartSec=30
 
