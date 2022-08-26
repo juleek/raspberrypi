@@ -3,6 +3,8 @@
 import sender as s
 import json
 import requests
+from logger import logger
+
 
 
 
@@ -13,9 +15,8 @@ class TelegramSender(s.Sender):
 
     def send_text(self, text: str) -> None:
         url = f"https://api.telegram.org/bot{self.bot_id}/sendMessage?chat_id={self.chat_id}&text={text}"
-        print(f'url: {url}')
         resp = requests.get(url)
-        print(f'status: {resp.status_code}\nheaders: {resp.headers}\nbody: {resp.content}')
+        logger.info(f'status: {resp.status_code}\nheaders: {resp.headers}\nbody: {resp.content}')
 
 
 
