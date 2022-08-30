@@ -1,21 +1,28 @@
+project(thermo CXX C)
 cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
-get_filename_component(Project ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/CMake)
+include(subproject_builder)
 
-set(CMAKE_CXX_STANDARD 17)
+
+# =================================================================
+# C++ setup
+
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_link_options(-fuse-ld=lld
+# add_link_options(-fuse-ld=lld)
+add_compile_options(
+   -Wall
+   -Wextra
+   -pedantic
+   -ftemplate-backtrace-limit=0
 )
 
-# target_compile_options
-add_compile_options(-Wall
-                    -Wextra
-                    -pedantic
-                    -ftemplate-backtrace-limit=0
-)
 
-# ============= Qt =============
+# =================================================================
+# Qt setup
+
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Instruct CMake to run moc automatically when needed
@@ -24,34 +31,7 @@ set(CMAKE_AUTOMOC ON)
 # set(CMAKE_AUTOUIC ON)
 
 
-add_executable(${Project}
-   main.cpp
-   MakeUnique.h
-   TJwt.cpp
-   TJwt.h
-   TJwt_p.h
-   TDriver.cpp
-   TDriver.h
-   TTempPoller.h
-   TTempPoller.cpp
-   TGCMqtt.cpp
-   TGCMqtt.h   
-)
+# =================================================================
+# The app itself:
 
-# ============= Qt =============
-find_library(QTMQTT_LIB NAMES Qt5Mqtt)
-if(QTMQTT_LIB)
-   message("Found QTMQTT_LIB: ${QTMQTT_LIB}")
-else()
-   message(FATAL_ERROR "${QTMQTT_LIB} library not found")
-endif()
-target_link_libraries(${Project} PRIVATE ${QTMQTT_LIB})
-find_package(Qt5Core CONFIG REQUIRED)
-target_link_libraries(${Project} PRIVATE Qt5::Core)
-find_package(Qt5Network CONFIG REQUIRED)
-target_link_libraries(${Project} PRIVATE Qt5::Network)
-
-# ============= OpenSSL =============
-find_package(OpenSSL REQUIRED)
-target_link_libraries(${Project} PRIVATE OpenSSL::SSL)
-target_link_libraries(${Project} PRIVATE OpenSSL::Crypto)
+add_subdirectory_if_not_added(app)

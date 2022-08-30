@@ -1,15 +1,21 @@
-#include <QCommandLineParser>
-#include <QCoreApplication>
-#include <QDebug>
-
 #include "TDriver.h"
 #include "TGCMqtt.h"
 #include "TTempPoller.h"
+#include "MakeUnique.h"
+
+#include <QCommandLineParser>
+#include <QCoreApplication>
+#include <QDebug>
+#include <QSocketNotifier>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <signal.h>
+
 
 namespace {
    const QString DEVICE_ID_TEST = "device_test_imp";
    const QString DEVICE_ID_MAIN = "device_tarpi";
-} // namespace
+}   // namespace
 
 
 
@@ -65,23 +71,58 @@ void HandleCommandLineOptions(QCoreApplication &app, TGCMqttSetup &MqttSetup) {
    Parser.addVersionOption();
    Parser.process(app);
 
-   if (Parser.isSet(MQTTPrivateKeyPathOption) == false) {
+   if(Parser.isSet(MQTTPrivateKeyPathOption) == false) {
       qDebug() << "There is no" << MQTTPrivateKeyPathOption.names() << " => exiting...";
       exit(1);
    }
-   MqttSetup.PrivateKeyPath = Parser.value(MQTTPrivateKeyPathOption); // "/home/Void/devel/gc/ec_private.pem";
+   MqttSetup.PrivateKeyPath = Parser.value(MQTTPrivateKeyPathOption);   // "/home/Void/devel/gc/ec_private.pem";
 
-   if (Parser.isSet(GCDeviceIdOption))
+   if(Parser.isSet(GCDeviceIdOption))
       MqttSetup.DeviceId = Parser.value(GCDeviceIdOption);
 
-   if (Parser.isSet(MQTTDryRunOption))
+   if(Parser.isSet(MQTTDryRunOption))
       MqttSetup.DryRun = true;
 }
+
+
+// -----------------------------------------------------------------------------------------------------------
+// Signal handler (Ctrl+C)
+namespace {
+   std::unique_ptr<QSocketNotifier> SigIntSocketNotifier;
+   int  SigIntFd[2];
+   void UnixSignalHandler(int) {
+      char a = 1;
+      ::write(SigIntFd[0], &a, sizeof(a));
+   }
+}   // namespace
+void OnSigInt() {
+   SigIntSocketNotifier->setEnabled(false);
+   qDebug() << "Signal INT received - exiting...";
+   qApp->quit();
+}
+void InitSignalHandlers() noexcept {
+   const int res = socketpair(AF_UNIX, SOCK_STREAM, 0, SigIntFd);
+   if(res != 0)
+      std::abort();
+
+   SigIntSocketNotifier = MakeUnique(new QSocketNotifier(SigIntFd[1], QSocketNotifier::Read));
+   QObject::connect(SigIntSocketNotifier.get(), &QSocketNotifier::activated, [](int) { OnSigInt(); });
+
+   struct sigaction Int;
+   Int.sa_handler = UnixSignalHandler;
+   sigemptyset(&Int.sa_mask);
+   Int.sa_flags = 0;
+   if(sigaction(SIGINT, &Int, 0) > 0)
+      std::abort();
+}
+// -----------------------------------------------------------------------------------------------------------
+
 
 int main(int argc, char **argv) {
    // return InlineTest(argc, argv);
 
    QCoreApplication app(argc, argv);
+   InitSignalHandlers();
 
    TGCMqttSetup MqttSetup;
    MqttSetup.ProjectId  = "tarasovka-monitoring";

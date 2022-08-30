@@ -8,10 +8,6 @@
 #include <QSocketNotifier>
 #include <QThread>
 #include <iostream>
-#include <signal.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 
 struct TTempPollerWrapper {
@@ -75,45 +71,9 @@ public:
    QTime                                SendSMSEndTime;
    bool                                 AllreadySent = false;
 
-
-   void InitSignalHandlers() noexcept;
-   void OnSigInt();
-
-   std::unique_ptr<QSocketNotifier> SigIntSocketNotifier;
 };
 
 
-
-namespace {
-   int  SigIntFd[2];
-   void UnixSignalHandler(int) {
-      char a = 1;
-      ::write(SigIntFd[0], &a, sizeof(a));
-      // std::cout << "UnixSignalHandler" << std::endl;
-   }
-} // namespace
-
-void TDriverPrivate::InitSignalHandlers() noexcept {
-   int SocketPairCreated = socketpair(AF_UNIX, SOCK_STREAM, 0, SigIntFd);
-   if (SocketPairCreated != 0)
-      std::abort();
-
-   SigIntSocketNotifier = MakeUnique(new QSocketNotifier(SigIntFd[1], QSocketNotifier::Read));
-   QObject::connect(SigIntSocketNotifier.get(), &QSocketNotifier::activated, [this](int) { OnSigInt(); });
-
-   struct sigaction Int;
-   Int.sa_handler = UnixSignalHandler;
-   sigemptyset(&Int.sa_mask);
-   Int.sa_flags = 0;
-   if (sigaction(SIGINT, &Int, 0) > 0)
-      std::abort();
-}
-void TDriverPrivate::OnSigInt() {
-   SigIntSocketNotifier->setEnabled(false);
-   qDebug() << "Signal INT received - exiting...";
-   // delete this;
-   qApp->quit();
-}
 
 namespace {
    void TempPollersToPublishItem(TPublishItem &PublishItem, std::vector<TTempPollerAndThreadPtr> &TempPollers) {
@@ -175,7 +135,6 @@ void TDriverPrivate::OnNewTemperatureGot(TTempPollerWrapper *Wrapper, QString Er
 
 TDriver::TDriver(const std::vector<TSensorInfo> &SensorInfos, const TGCMqttSetup &MqttSetup) noexcept
     : d(new TDriverPrivate) {
-   d->InitSignalHandlers();
    d->Mqtt = std::make_unique<TGCMqtt>(MqttSetup);
 
    for (const TSensorInfo &SensorInfo : SensorInfos) {
