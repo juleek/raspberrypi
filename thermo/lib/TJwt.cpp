@@ -1,6 +1,6 @@
 #include "TJwt.h"
 
-#include "MakeUnique.h"
+#include "memory.h"
 #include "TJwt_p.h"
 
 #include <cstring>

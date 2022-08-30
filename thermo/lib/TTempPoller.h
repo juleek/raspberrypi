@@ -9,9 +9,9 @@ struct TSensorInfo {
    QString Name;
 };
 
-std::tuple<QString, double> ProcessAndParseTemp(const QString &FileName);
+std::tuple<QString, double> ParseTempFrom(QIODevice &input);
 
-class TTempPoller : public QObject {
+class TTempPoller: public QObject {
 public:
    TTempPoller(TSensorInfo SensorInfo) noexcept;
 

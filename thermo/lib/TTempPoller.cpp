@@ -2,14 +2,13 @@
 
 #include <QDebug>
 #include <QFile>
-#include <QString>
 #include <QThread>
 #include <QTimer>
 #include <tuple>
 
 namespace {
    std::tuple<QString, double> ParseTempFromLine(QString LineWithTemp) {
-      if (LineWithTemp.endsWith("\n"))
+      if(LineWithTemp.endsWith("\n"))
          LineWithTemp.chop(1);
 
       QString BeforeTemp = " t=";
@@ -20,39 +19,45 @@ namespace {
       bool   Ok;
       double Temperature = LineTemp.toDouble(&Ok) / 1000.;
       // qDebug() << LineTemp << Temperature;
-      if (Ok == false)
+      if(Ok == false)
          return {"Failed to convert " + LineTemp + " to double", 0};
       return {QString(), Temperature};
    }
-} // namespace
-
-std::tuple<QString, double> ProcessAndParseTemp(const QString &FileName) {
-   QFile File(FileName);
-   bool  Ok;
-   Ok = File.open(QIODevice::ReadOnly);
-   if (Ok == false)
-      return {"Could not open file " + FileName, 0};
-
+}   // namespace
+std::tuple<QString, double> ParseTempFrom(QIODevice &input) {
    /// We can't readLine by line file, see https://bugreports.qt.io/browse/QTBUG-24367
    /// bool QIODevice::canReadLine() const [virtual]
    /// Returns true if a complete line of data can be read from the device; otherwise returns false.
    /// Note that unbuffered devices, which have no way of determining what can be read, always return false.
    ///
    /// so, just readAll:
-   QString     Content = File.readAll();
+   QString     Content = input.readAll();
    QTextStream StreamContent(&Content, QIODevice::ReadOnly);
 
    int     NumberOfLines = 0;
    QString Line;
-   for (; !StreamContent.atEnd(); ++NumberOfLines)
+   for(; !StreamContent.atEnd(); ++NumberOfLines)
       Line = StreamContent.readLine();
 
-   if (NumberOfLines != 2)
+   if(NumberOfLines != 2)
       return {"NumberOfLines != 2", 0};
 
    const std::tuple<QString, double> Result = ParseTempFromLine(Line);
    return Result;
 }
+namespace {
+   std::tuple<QString, double> ParseTempFromPath(const QString &FileName) {
+      QFile File(FileName);
+      bool  Ok;
+      Ok = File.open(QIODevice::ReadOnly);
+      if(Ok == false)
+         return {"Could not open file " + FileName + ": " + File.errorString(), 0};
+      return ParseTempFrom(File);
+   }
+}   // namespace
+
+
+
 
 TTempPoller::TTempPoller(TSensorInfo si) noexcept {
    SensorInfo  = std::move(si);
@@ -73,7 +78,7 @@ void TTempPoller::ScheduleNextMeasurement() noexcept {
 }
 
 void TTempPoller::OnTimerShot() {
-   std::tuple<QString, double> ErrStrAndTemp = ProcessAndParseTemp(SensorInfo.Path);
+   std::tuple<QString, double> ErrStrAndTemp = ParseTempFromPath(SensorInfo.Path);
    emit                        NewTemperatureGot(std::get<0>(ErrStrAndTemp), std::get<1>(ErrStrAndTemp));
    LastGet = QTime::currentTime();
    ScheduleNextMeasurement();

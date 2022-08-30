@@ -1,15 +1,23 @@
 add_static_library(
    memory.h
    memory.cpp
-   TJwt.cpp
-   TJwt.h
-   TJwt_p.h
-   TDriver.cpp
-   TDriver.h
+
    TTempPoller.h
    TTempPoller.cpp
-   TGCMqtt.cpp
-   TGCMqtt.h
+   TTempPollers.h
+   TTempPollers.cpp
+
+   TPublishItem.h
+   ISink.h
+   ISink.cpp
+   THttpSink.h
+   THttpSink.cpp
+
+   # TJwt.cpp
+   # TJwt.h
+   # TJwt_p.h
+   # TGCMqttSink.cpp
+   # TGCMqttSink.h
 )
 # add_subdirectory_if_not_added(ut)
 
