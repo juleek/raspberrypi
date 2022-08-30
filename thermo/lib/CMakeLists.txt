@@ -1,5 +1,6 @@
 add_static_library(
-   MakeUnique.h
+   memory.h
+   memory.cpp
    TJwt.cpp
    TJwt.h
    TJwt_p.h
