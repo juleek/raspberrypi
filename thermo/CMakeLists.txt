@@ -34,4 +34,5 @@ set(CMAKE_AUTOMOC ON)
 # =================================================================
 # The app itself:
 
+add_directory_if_not_added(contrib/googletest)
 add_subdirectory_if_not_added(app)

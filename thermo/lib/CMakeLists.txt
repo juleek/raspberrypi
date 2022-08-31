@@ -19,8 +19,6 @@ add_static_library(
    # TGCMqttSink.cpp
    # TGCMqttSink.h
 )
-# add_subdirectory_if_not_added(ut)
-
 
 # ============= Qt =============
 find_package(Qt6Core CONFIG REQUIRED)
@@ -33,3 +31,6 @@ target_link_libraries(${current_target} PRIVATE Qt6::Network)
 find_package(OpenSSL REQUIRED)
 target_link_libraries(${current_target} PRIVATE OpenSSL::SSL)
 target_link_libraries(${current_target} PRIVATE OpenSSL::Crypto)
+
+
+add_subdirectory_if_not_added(ut)
