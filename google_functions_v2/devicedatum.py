@@ -13,7 +13,7 @@ class DeviceDatum:
     @staticmethod
     def from_json(str_json: str) -> 'DeviceDatum':
         msg = json.loads(str_json)
-        time = dt.datetime.strptime(msg['time'], '%Y-%m-%d %H:%M:%S.%f')
+        time = dt.datetime.fromisoformat(msg['time'])
         return DeviceDatum(
             name_to_temp=msg['name_to_temp'],
             time=time,
