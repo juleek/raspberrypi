@@ -18,6 +18,9 @@ class TelegramSender(s.Sender):
         resp = requests.get(url)
         logger.info(f'status: {resp.status_code}\nheaders: {resp.headers}\nbody: {resp.content}')
 
+    def send_with_pic(self, text: str, pic) -> None:
+        pass
+
 
 
 def get_chat_id_from_update_msg(jsn: str) -> int:
