@@ -103,16 +103,3 @@ class SensorsDBBQ(sdb.SensorsDB):
         str_datetime: str = date.strftime("%Y-%m-%d %H:%M:%S.%f")
         query = f"DELETE FROM {self.table}  WHERE {self.COL_TIMESTAMP_NAME} < TIMESTAMP('{str_datetime}')"
         self.client.query(query)
-
-
-
-def main() -> None:
-    pass
-    # sensord_db: SensorsDBBQ = SensorsDBBQ(project="tarasovka", dataset_id="test", table_name="test_db", location="europe-west2")
-    # datum: DeviceDatum = DeviceDatum({"self.tube": 25.1}, dt.datetime(2011, 11, 4, 0, 0, tzinfo=pytz.UTC), "")
-    # sensord_db.write(datum)
-    # sensord_db.read_starting_from(dt.datetime.now())
-
-
-
-main()
