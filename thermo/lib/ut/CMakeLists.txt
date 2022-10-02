@@ -1,5 +1,6 @@
 add_unit_test(
    THttpSink.t.cpp
+   TJwt.t.cpp
 )
 depends_upon_public(
    lib

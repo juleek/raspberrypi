@@ -10,4 +10,7 @@ public:
    QDateTime   IssuedAt;
    QDateTime   Expiration;
    QString     Audience;
+   QString     TargetAudience;
+   QString     Sub;
+   QString     Iss;
 };

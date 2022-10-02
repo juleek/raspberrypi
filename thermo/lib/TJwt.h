@@ -28,33 +28,36 @@ QDebug operator<<(QDebug Out, const THashData &Bits);
 
 
 enum class TDigestAlgo { SHA256 };
+enum class TKeyType { EC, RSA, Any };
 
-class TDigestSignerPrivate;
-class TDigestSigner {
+class TDigestCalculatorPrivate;
+class TDigestCalculator {
 public:
-   TDigestSigner(const TDigestAlgo Algo);
-   ~TDigestSigner();
+   TDigestCalculator(const TDigestAlgo Algo);
+   ~TDigestCalculator();
 
    // clang-format off
-   TDigestSigner &AddData(const char *Data, size_t n) &;
-   TDigestSigner &AddData(const QByteArray &Bytes)    &;
-   TDigestSigner &AddData(QIODevice &Stream)          &;
+   TDigestCalculator &AddData(const char *Data, size_t n) &;
+   TDigestCalculator &AddData(const QByteArray &Bytes)    &;
+   TDigestCalculator &AddData(QIODevice &Stream)          &;
 
-   TDigestSigner &&AddData(const char *Data, size_t n) &&;
-   TDigestSigner &&AddData(const QByteArray &Bytes)    &&;
-   TDigestSigner &&AddData(QIODevice &Stream)          &&;
+   TDigestCalculator &&AddData(const char *Data, size_t n) &&;
+   TDigestCalculator &&AddData(const QByteArray &Bytes)    &&;
+   TDigestCalculator &&AddData(QIODevice &Stream)          &&;
    // clang-format on
 
 private:
-   std::unique_ptr<TDigestSignerPrivate> d;
-   friend THashData                      CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKey);
+   std::unique_ptr<TDigestCalculatorPrivate> d;
+   friend THashData CalculateSignature(TDigestCalculator &&Signer, const QByteArray &PrivateKey, const TKeyType KeyType);
 };
 
-
 // This operation is NOT reversible, internal state of the hasher will be changed thereafter
-THashData CalculateSignature(TDigestSigner &&Signer, const QByteArray &PrivateKey);
-THashData CalculateSignature(const QByteArray &PrivateKey, const QByteArray &String, TDigestAlgo Algo = TDigestAlgo::SHA256);
-THashData CalculateSignature(const QByteArray &PrivateKey, QIODevice &Stream, TDigestAlgo Algo = TDigestAlgo::SHA256);
+THashData CalculateSignature(TDigestCalculator &&Signer, const QByteArray &PrivateKey, const TKeyType KeyType);
+THashData CalculateSignature(const QByteArray &PrivateKey,
+                             const QByteArray &Data,
+                             const TKeyType    KeyType,
+                             const TDigestAlgo DigestAlgo);
+THashData CalculateSignature(const QByteArray &PrivateKey, QIODevice &Data, const TKeyType KeyType, const TDigestAlgo DigestAlgo);
 
 
 
@@ -62,9 +65,7 @@ class QDateTime;
 class TJwtPrivate;
 class TJwt {
 public:
-   enum TAlgo { // RS256,
-      ES256
-   };
+   enum TAlgo { ES256, RS256 };
 
    ~TJwt();
    TJwt(TJwt &&Another);
@@ -83,6 +84,15 @@ public:
 
    void           SetAudience(const QString &Audience);
    const QString &Audience();
+
+   void          SetTargetAudience(const QString &TargetAudience);
+   const QString TargetAudience();
+
+   void          SetIss(const QString &TargetAudience);
+   const QString Iss();
+
+   void          SetSub(const QString &TargetAudience);
+   const QString Sub();
 
    QString ComposeToken(QIODevice &Secret) const;
 

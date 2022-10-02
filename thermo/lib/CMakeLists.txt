@@ -13,11 +13,11 @@ add_static_library(
    THttpSink.h
    THttpSink.cpp
 
-   # TJwt.cpp
-   # TJwt.h
-   # TJwt_p.h
-   # TGCMqttSink.cpp
-   # TGCMqttSink.h
+    TJwt.cpp
+    TJwt.h
+    TJwt_p.h
+   TGCMqttSink.cpp
+   TGCMqttSink.h
 )
 
 # ============= Qt =============
