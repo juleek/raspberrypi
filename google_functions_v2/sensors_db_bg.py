@@ -6,7 +6,6 @@ import sensor as sen
 from collections import defaultdict
 import bigquerydb as bigdb
 import devicedatum as dd
-import pytz
 
 class SensorsDBBQ(sdb.SensorsDB):
     COL_TIMESTAMP_NAME: str = "Timestamp"
@@ -14,50 +13,46 @@ class SensorsDBBQ(sdb.SensorsDB):
     COL_TUBENAME_NAME: str = "TubeName"
     COL_TEMPERATURE_NAME: str = "Temperature"
     COL_TUBES_NAME: str = "Tubes"
-    TABLE_NAME: str = "main_db"
+    TABLE_NAME: str = "sensors_data_table"
+    TIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
 
-    def __init__(self, project, dataset_id, location):
-        self.project = project
-        self.dataset_id = dataset_id
-        self.location = location
-        self.bigq_db = bigdb.BigQueryDB(project=project, dataset_id=dataset_id, location=location)
-        self.client = self.bigq_db.client
-        self.table = self.create_sensorsdb()
+    def __init__(self, project: str, dataset_id: str, location: str):
+        self.db = bigdb.BigQueryDB(project=project, dataset_id=dataset_id, location=location)
+        self.table = self.create_sensors_table()
 
 
-    def create_sensorsdb(self) -> bigquery.Table:
+    def create_sensors_table(self) -> bigquery.Table:
 
-        def set_up_partitioning(table) -> bigquery.Table:
-            table.clustering_fields = [self.COL_TIMESTAMP_NAME]
+        def set_up_partitioning(tbl: bigquery.Table) -> bigquery.Table:
+            tbl.clustering_fields = [self.COL_TIMESTAMP_NAME]
 
-            table.time_partitioning = bigquery.TimePartitioning(
+            tbl.time_partitioning = bigquery.TimePartitioning(
                 type_=bigquery.TimePartitioningType.MONTH,
                 field=self.COL_TIMESTAMP_NAME,
                 expiration_ms=int((365*3 + 365/2) * 24 * 60 * 60 * 1000))
-            return table
+            return tbl
 
-        table = self.bigq_db.create_table(self.bigq_db.dataset,
-                                          table_name=self.TABLE_NAME,
-                                          schema=[bigquery.SchemaField(self.COL_TIMESTAMP_NAME, "TIMESTAMP", mode="REQUIRED")],
-                                          fields=[bigquery.SchemaField(self.COL_ERROR_MSG_NAME, "STRING", mode="NULLABLE"),
-                                                  bigquery.SchemaField(self.COL_TUBES_NAME, "RECORD", mode="REPEATED",
-                                                                       fields=[bigquery.SchemaField(self.COL_TUBENAME_NAME, "STRING", mode="REQUIRED"),
-                                                                               bigquery.SchemaField(self.COL_TEMPERATURE_NAME, "FLOAT", mode="REQUIRED")])],
-                                          modify_table_callback=set_up_partitioning)
+        table = self.db.create_table(table_name=self.TABLE_NAME,
+                                     schema=[bigquery.SchemaField(self.COL_TIMESTAMP_NAME, "TIMESTAMP", mode="REQUIRED")],
+                                     fields=[bigquery.SchemaField(self.COL_ERROR_MSG_NAME, "STRING", mode="NULLABLE"),
+                                             bigquery.SchemaField(self.COL_TUBES_NAME, "RECORD", mode="REPEATED",
+                                                                  fields=[bigquery.SchemaField(self.COL_TUBENAME_NAME, "STRING", mode="REQUIRED"),
+                                                                          bigquery.SchemaField(self.COL_TEMPERATURE_NAME, "FLOAT", mode="REQUIRED")])],
+                                     modify_table_callback=set_up_partitioning)
 
         return table
 
 
     def write(self, datum: dd.DeviceDatum) -> None:
-        tubes: t.List[{str, float}] = []
+        tubes: t.List[t.Dict[str, float]] = []
         for name, temp in datum.name_to_temp.items():
             tubes.append({self.COL_TUBENAME_NAME: name, self.COL_TEMPERATURE_NAME: temp})
 
-        str_datetime: str = datum.time.strftime("%Y-%m-%d %H:%M:%S.%f")
+        str_datetime: str = datum.time.strftime(self.TIME_FORMAT)
         if datum.error_msg == "":
-            self.client.insert_rows(self.table, [{self.COL_TIMESTAMP_NAME: str_datetime, self.COL_TUBES_NAME: tubes}])
+            self.db.client.insert_rows(self.table, [{self.COL_TIMESTAMP_NAME: str_datetime, self.COL_TUBES_NAME: tubes}])
         else:
-            self.client.insert_rows(self.table,
+            self.db.client.insert_rows(self.table,
                                     [{self.COL_TIMESTAMP_NAME: str_datetime,
                                       self.COL_ERROR_MSG_NAME: datum.error_msg,
                                       self.COL_TUBES_NAME: tubes}])
@@ -65,9 +60,9 @@ class SensorsDBBQ(sdb.SensorsDB):
 
 
     def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
-        str_datetime = date.strftime("%Y-%m-%d %H:%M:%S.%f")
+        str_datetime: str = date.strftime(self.TIME_FORMAT)
         query = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} WHERE {self.COL_TIMESTAMP_NAME} >= TIMESTAMP('{str_datetime}') ORDER BY {self.COL_TIMESTAMP_NAME}"
-        query_job = self.client.query(query)
+        query_job = self.db.client.query(query)
         name_to_sensor_temp: t.Dict[str, sen.Sensor] = defaultdict(lambda: sen.Sensor(temperatures=[], name="", timestamps=[]))
         messages: t.Set[str] = set()
 
@@ -83,9 +78,9 @@ class SensorsDBBQ(sdb.SensorsDB):
 
 
     def delete_before(self, date: dt.datetime) -> None:
-        str_datetime: str = date.strftime("%Y-%m-%d %H:%M:%S.%f")
+        str_datetime: str = date.strftime(self.TIME_FORMAT)
         query = f"DELETE FROM {self.table}  WHERE {self.COL_TIMESTAMP_NAME} < TIMESTAMP('{str_datetime}')"
-        self.client.query(query)
+        self.db.client.query(query)
 
 
 

@@ -17,9 +17,9 @@ class BigQueryDB:
     def create_table(self,
                      table_name: str,
                      fields: t.List[bigquery.SchemaField],
-                     schema = None,
+                     schema=None,
                      modify_table_callback: t.Callable[[bigquery.Table], bigquery.Table] = lambda x: x) -> bigquery.Table:
-        table_ref = dataset.table(table_name)
+        table_ref = self.dataset.table(table_name)
         table: bigquery.Table = bigquery.Table(table_ref, schema)
         table = modify_table_callback(table)
 
