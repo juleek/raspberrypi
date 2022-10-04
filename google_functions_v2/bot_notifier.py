@@ -9,12 +9,12 @@ import plot as pl
 import chat_id_db as chidb
 import secrets_bot as sec_bot
 
-NAME: str = "Notifier_bot"
-ID: str = sec_bot.notifier_bot_id
-BOTTOM_TUBE: str = "BottomTube"
-AMBIENT_TUBE: str = "Ambient"
-ambient_alert_temperature: float = 6
-bottom_tube_alert_temperature: float = 12
+BOT_NAME: str = "notifier_bot"
+BOT_SECRET: str = sec_bot.notifier_bot_id
+BOTTOM_TUBE_NAME: str = "BottomTube"
+AMBIENT_TUBE_NAME: str = "Ambient"
+AMBIENT_TEMP_THRESHOLD: float = 6.
+BOTTOM__TEMP_THRESHOLD: float = 12.
 
 
 def notify(db: sdbq.SensorsDBBQ, chat_db: chidb.ChatIdDB):
