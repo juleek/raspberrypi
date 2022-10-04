@@ -7,10 +7,10 @@ import typing as t
 import datetime as dt
 import plot as pl
 import chat_id_db as chidb
-import secrets_bot as sec_bot
+import secrets
 
 BOT_NAME: str = "notifier_bot"
-BOT_SECRET: str = sec_bot.notifier_bot_id
+BOT_SECRET: str = secrets.notifier_bot_id
 BOTTOM_TUBE_NAME: str = "BottomTube"
 AMBIENT_TUBE_NAME: str = "Ambient"
 AMBIENT_TEMP_THRESHOLD: float = 6.
@@ -18,19 +18,19 @@ BOTTOM__TEMP_THRESHOLD: float = 12.
 
 
 def notify(db: sdbq.SensorsDBBQ, chat_db: chidb.ChatIdDB):
-    chat_id: int = chat_db.read(NAME)
+    chat_id: int = chat_db.read(BOT_NAME)
     if chat_id is None:
         return
 
     sensors, error_msgs = db.read_for_period(dt.timedelta(hours=48))
     fig, axes, png_buf = pl.create_plot(sensors,
-                                        bottom_tube_alert_temperature,
-                                        ambient_alert_temperature,
-                                        BOTTOM_TUBE,
-                                        AMBIENT_TUBE)
+                                        BOTTOM__TEMP_THRESHOLD,
+                                        AMBIENT_TEMP_THRESHOLD,
+                                        BOTTOM_TUBE_NAME,
+                                        AMBIENT_TUBE_NAME)
     msg: str = create_msg(sensors, error_msgs)
 
-    sender = tel_s.TelegramSender(chat_id, ID)
+    sender = tel_s.TelegramSender(chat_id, BOT_SECRET)
     sender.send_with_pic(msg, png_buf)
 
 
@@ -38,7 +38,9 @@ def create_msg(sensors: t.List[sen.Sensor], error_msgs: t.Set[str]) -> str:
     lines: t.List[str] = []
     for sensor in sensors:
         lines.append(f'{sensor.name}: Min: {min(sensor.temperatures)}, Max: {max(sensor.temperatures)}')
-    lines.extend(error_msgs)
+    if error_msgs:
+        lines.append(f'\n\nThere are {len(error_msgs)} error messages:')
+        lines.extend(error_msgs)
     return "\n".join(lines)
 
 
