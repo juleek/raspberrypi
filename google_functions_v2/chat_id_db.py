@@ -9,22 +9,21 @@ import typing as t
 
 
 class ChatIdDB:
-    COL_BOT_NAME: str = "Bot_name"
-    COL_CHAT_ID: str = "Chat_ID"
-    TABLE_NAME: str = "chat_id_db"
+    COL_BOT_NAME: str = "bot_name"
+    COL_CHAT_ID: str = "chat_id"
+    TABLE_NAME: str = "chat_ids"
 
     def __init__(self, project, dataset_id, location):
         self.project = project
         self.dataset_id = dataset_id
         self.location = location
-        self.bigq_db = bigdb.BigQueryDB(project=project, dataset_id=dataset_id, location=location)
-        self.client = self.bigq_db.client
+        self.db = bigdb.BigQueryDB(project=project, dataset_id=dataset_id, location=location)
         self.table = self.create_chat_iddb()
         self.bot_id = sec_bot.notifier_bot_id
 
 
-    def create_chat_iddb(self) -> bigquery.Table:
-        return self.bigq_db.create_table(self.bigq_db.dataset,
+    def create_chat_ids_table(self) -> bigquery.Table:
+        return self.bigq_db.create_table(
                                           table_name=self.TABLE_NAME,
                                           fields=[bigquery.SchemaField(self.COL_BOT_NAME, "STRING", mode="REQUIRED"),
                                                   bigquery.SchemaField(self.COL_CHAT_ID, "INTEGER", mode="REQUIRED")])

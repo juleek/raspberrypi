@@ -4,7 +4,7 @@ from google.cloud import bigquery
 import typing as t
 
 
-class BigQueryDB():
+class BigQueryDB:
     def __init__(self, project: str, dataset_id: str, location: str):
         self.client = bigquery.Client(project=project, location=location)
         self.dataset: bigquery.Dataset = self.create_dataset(dataset_id)
@@ -15,11 +15,10 @@ class BigQueryDB():
         return self.client.create_dataset(dataset_ref, exists_ok=True)
 
     def create_table(self,
-                     dataset: bigquery.Dataset,
                      table_name: str,
                      fields: t.List[bigquery.SchemaField],
                      schema = None,
-                     modify_table_callback: t.Optional[t.Callable[[bigquery.Table], bigquery.Table]] = lambda x: x) -> bigquery.Table:
+                     modify_table_callback: t.Callable[[bigquery.Table], bigquery.Table] = lambda x: x) -> bigquery.Table:
         table_ref = dataset.table(table_name)
         table: bigquery.Table = bigquery.Table(table_ref, schema)
         table = modify_table_callback(table)
@@ -29,10 +28,10 @@ class BigQueryDB():
         original_schema: t.List[bigquery.SchemaField] = table.schema
         new_schema: t.List[bigquery.SchemaField] = original_schema[:]
 
-        column_names_in_sc: t.List[str] = [field.name for field in original_schema]
+        column_names: t.List[str] = [field.name for field in original_schema]
 
         for field in fields:
-            if field.name in column_names_in_sc:
+            if field.name in column_names:
                 continue
             new_schema.append(field)
 
