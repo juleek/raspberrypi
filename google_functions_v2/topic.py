@@ -1,5 +1,6 @@
 from google.cloud import pubsub_v1
 from google.api_core import exceptions
+from logger import logger
 
 
 def create_topic_if_not_exists(client: pubsub_v1.PublisherClient, topic_path: str):
@@ -10,10 +11,10 @@ def create_topic_if_not_exists(client: pubsub_v1.PublisherClient, topic_path: st
 
 
 def create_topic_and_publish_msg(project_id: str, topic_id: str, msg: str):
-    publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(project_id, topic_id)
+    publisher: pubsub_v1.PublisherClient = pubsub_v1.PublisherClient()
+    topic_path: str = publisher.topic_path(project_id, topic_id)
     create_topic_if_not_exists(publisher, topic_path)
 
     future = publisher.publish(topic_path, msg.encode())
     message_id = future.result()
-    print(f'message_id = {message_id}')
+    logger.info(f'message_id = {message_id}')
