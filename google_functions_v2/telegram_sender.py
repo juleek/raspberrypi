@@ -46,11 +46,11 @@ class TelegramSender(s.Sender):
                     response = s.send(prepared, timeout=(1, 19))
 
             except requests.ConnectTimeout:
-                print("Connection timed out")
+                logger.warning("Connection timed out")
             except requests.ReadTimeout:
-                print("Read timed out")
+                logger.warning("Read timed out")
             except requests.Timeout:
-                print("Request timed out")
+                logger.warning("Request timed out")
             else:
                 response_received = True
                 print(f'TelegramBot: Sent photo to: {self.chat_id}. Response status_code: {response.status_code}, data: "{response.text}"')

@@ -1,7 +1,5 @@
 #!/usr/bin/python3
-
 import sender as s
-
 
 
 class StdoutSender(s.Sender):
@@ -9,4 +7,4 @@ class StdoutSender(s.Sender):
         print(text)
 
     def send_with_pic(self, text: str, pic) -> None:
-        pass
+        print(text)
