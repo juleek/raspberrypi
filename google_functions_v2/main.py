@@ -27,10 +27,9 @@ def google_ingest(cloud_event):
                                                               dataset_id=DATASET_ID,
                                                               location=LOCATION,
                                                               table_name="sensors_db"))
-    consumer_alert: alt.Alerting = alt.Alerting(name_min_tuples=[{botnotif.AMBIENT_TUBE: botnotif.ambient_alert_temperature,
-                                                                  botnotif.BOTTOM_TUBE: botnotif.bottom_tube_alert_temperature}],
+    consumer_alert: alt.Alerting = alt.Alerting(name_to_min={botnotif.AMBIENT_TUBE: botnotif.ambient_alert_temperature,
+                                                             botnotif.BOTTOM_TUBE: botnotif.bottom_tube_alert_temperature},
                                                 sender=tel_s.TelegramSender(chat_id_db.read(alt.NAME), alt.ID))
-
 
     ingest = ing.Ingest([consumer_db, consumer_alert])
 
