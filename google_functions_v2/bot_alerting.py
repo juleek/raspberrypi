@@ -5,11 +5,11 @@ import sender as s
 import typing as t
 import secrets_bot as sec_bot
 
-NAME: str = "Alerting_bot"
-ID: str = sec_bot.alerting_bot_id
+BOT_NAME: str = "Alerting_bot"
+BOT_ID: str = sec_bot.alerting_bot_id
 
 class Alerting(ingest.Consumer):
-    def __init__(self, name_min_tuples: t.List[t.Tuple[str, float]], sender: s.Sender):
+    def __init__(self, name_min_tuples: t.List[t.Dict[str, float]], sender: s.Sender):
         self.name_min_tuples = name_min_tuples
         self.sender = sender
 
