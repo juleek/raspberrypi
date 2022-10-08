@@ -49,20 +49,16 @@ class SensorsDBBQ(sdb.SensorsDB):
             tubes.append({self.COL_TUBENAME_NAME: name, self.COL_TEMPERATURE_NAME: temp})
 
         str_datetime: str = datum.time.strftime(self.TIME_FORMAT)
-        if datum.error_msg == "":
-            self.db.client.insert_rows(self.table, [{self.COL_TIMESTAMP_NAME: str_datetime, self.COL_TUBES_NAME: tubes}])
-        else:
-            self.db.client.insert_rows(self.table,
-                                    [{self.COL_TIMESTAMP_NAME: str_datetime,
-                                      self.COL_ERROR_MSG_NAME: datum.error_msg,
-                                      self.COL_TUBES_NAME: tubes}])
-
+        columns: t.Dict[str, str] = {self.COL_TIMESTAMP_NAME: str_datetime, self.COL_TUBES_NAME: tubes}
+        if datum.error_msg != "":
+            columns[self.COL_ERROR_MSG_NAME] = datum.error_msg
+        self.db.client.insert_rows(self.table, [columns])
 
 
     def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
         str_datetime: str = date.strftime(self.TIME_FORMAT)
-        query = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} WHERE {self.COL_TIMESTAMP_NAME} >= TIMESTAMP('{str_datetime}') ORDER BY {self.COL_TIMESTAMP_NAME}"
-        query_job = self.db.client.query(query)
+        query: str = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} WHERE {self.COL_TIMESTAMP_NAME} >= TIMESTAMP('{str_datetime}') ORDER BY {self.COL_TIMESTAMP_NAME}"
+        query_job: bigquery.job.QueryJob = self.db.client.query(query)
         name_to_sensor_temp: t.Dict[str, sen.Sensor] = defaultdict(lambda: sen.Sensor(temperatures=[], name="", timestamps=[]))
         messages: t.Set[str] = set()
 
