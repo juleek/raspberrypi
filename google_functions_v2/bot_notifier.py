@@ -14,7 +14,7 @@ BOT_SECRET: str = secrets.notifier_bot_id
 BOTTOM_TUBE_NAME: str = "BottomTube"
 AMBIENT_TUBE_NAME: str = "Ambient"
 AMBIENT_TEMP_THRESHOLD: float = 6.
-BOTTOM__TEMP_THRESHOLD: float = 12.
+BOTTOM_TEMP_THRESHOLD: float = 12.
 
 
 def notify(db: sdbq.SensorsDBBQ, chat_db: chidb.ChatIdDB):
@@ -23,11 +23,11 @@ def notify(db: sdbq.SensorsDBBQ, chat_db: chidb.ChatIdDB):
         return
 
     sensors, error_msgs = db.read_for_period(dt.timedelta(hours=48))
-    fig, axes, png_buf = pl.create_plot(sensors,
-                                        BOTTOM__TEMP_THRESHOLD,
-                                        AMBIENT_TEMP_THRESHOLD,
-                                        BOTTOM_TUBE_NAME,
-                                        AMBIENT_TUBE_NAME)
+    fig, axes, png_buf = pl.create_plot(sensors=sensors,
+                                        bottom_tube_alert_temp=BOTTOM_TEMP_THRESHOLD,
+                                        ambient_tube_alert_temp=AMBIENT_TEMP_THRESHOLD,
+                                        bottom_tube=BOTTOM_TUBE_NAME,
+                                        ambient_tube=AMBIENT_TUBE_NAME)
     msg: str = create_msg(sensors, error_msgs)
 
     sender = tel_s.TelegramSender(chat_id, BOT_SECRET)
