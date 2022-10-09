@@ -61,41 +61,20 @@ THashData CalculateSignature(const QByteArray &PrivateKey, QIODevice &Data, cons
 
 
 
-class QDateTime;
-class TJwtPrivate;
+// https://developers.google.com/identity/protocols/oauth2/service-account#authorizingrequests
 class TJwt {
 public:
    enum TAlgo { ES256, RS256 };
 
-   ~TJwt();
-   TJwt(TJwt &&Another);
-   TJwt &operator=(TJwt &&Another);
+   TJwt::TAlgo Algo;
+   QString     Audience;
+   QString     TargetAudience;
+   QString     Sub;
+   QString     Iss;
+   QString     Scopes;
 
-   TJwt(TAlgo Algo = ES256) noexcept;
+   QDateTime IssuedAt   = QDateTime::currentDateTime();
+   QDateTime Expiration = QDateTime::currentDateTime().addSecs(60 * 60);
 
-   void  SetAlgo(TAlgo Algo);
-   TAlgo Algo() const;
-
-   void             SetIssuedAt(const QDateTime &DateTime = QDateTime::currentDateTime());
-   const QDateTime &IssuedAt() const;
-
-   void             SetExpiration(const QDateTime &DateTime);
-   const QDateTime &Expiration() const;
-
-   void           SetAudience(const QString &Audience);
-   const QString &Audience();
-
-   void          SetTargetAudience(const QString &TargetAudience);
-   const QString TargetAudience();
-
-   void          SetIss(const QString &TargetAudience);
-   const QString Iss();
-
-   void          SetSub(const QString &TargetAudience);
-   const QString Sub();
-
-   QString ComposeToken(QIODevice &Secret) const;
-
-private:
-   std::unique_ptr<TJwtPrivate> d;
+   QString ComposeSignedToken(QIODevice &Secret) const;
 };

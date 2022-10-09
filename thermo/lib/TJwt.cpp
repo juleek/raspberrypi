@@ -256,66 +256,6 @@ THashData CalculateSignature(const QByteArray &PrivateKey, QIODevice &Stream, co
 // ========================================================================================================================
 // ========================================================================================================================
 
-TJwt::~TJwt() = default;
-
-TJwt::TJwt(TJwt &&Another) {
-   *this = std::move(Another);
-}
-TJwt &TJwt::operator=(TJwt &&Another) {
-   if(this == &Another)
-      return *this;
-   d = std::move(Another.d);
-   return *this;
-}
-TJwt::TJwt(TAlgo Algo) noexcept {
-   d = std::make_unique<TJwtPrivate>();
-   SetAlgo(Algo);
-}
-void TJwt::SetAlgo(TAlgo Algo) {
-   d->Algo = Algo;
-}
-TJwt::TAlgo TJwt::Algo() const {
-   return d->Algo;
-}
-void TJwt::SetIssuedAt(const QDateTime &DateTime) {
-   d->IssuedAt = DateTime;
-}
-const QDateTime &TJwt::IssuedAt() const {
-   return d->IssuedAt;
-}
-void TJwt::SetExpiration(const QDateTime &DateTime) {
-   d->Expiration = DateTime;
-}
-const QDateTime &TJwt::Expiration() const {
-   return d->Expiration;
-}
-void TJwt::SetAudience(const QString &Audience) {
-   d->Audience = Audience;
-}
-const QString &TJwt::Audience() {
-   return d->Audience;
-}
-void TJwt::SetTargetAudience(const QString &TargetAudience) {
-   d->TargetAudience = TargetAudience;
-}
-const QString TJwt::TargetAudience() {
-   return d->TargetAudience;
-}
-void TJwt::SetIss(const QString &Iss) {
-   d->Iss = Iss;
-}
-const QString TJwt::Iss() {
-   return d->Iss;
-}
-void TJwt::SetSub(const QString &Sub) {
-   d->Sub = Sub;
-}
-const QString TJwt::Sub() {
-   return d->Sub;
-}
-
-
-
 
 namespace {
    QString ToString(const TJwt::TAlgo Algo) {
@@ -329,22 +269,30 @@ namespace {
       return Result;
    }
    QString ComposeHeader(TJwt::TAlgo Algo) {
-      return JsonObjectToString({{"alg", ToString(Algo)}, {"typ", "JWT"}});
+       return JsonObjectToString({
+                                  
+                                  {"alg", ToString(Algo)},
+           
+           {"typ", "JWT"}
+                                  // , {"kid", "35432192abedfffddb3f715322b177a840341302"}
+       });
    }
-   QString ComposePayload(const TJwtPrivate &d) {
+   QString ComposePayload(const TJwt &Jwt) {
       QJsonObject Payload;
-      if(d.IssuedAt.isValid())
-         Payload["iat"] = d.IssuedAt.toMSecsSinceEpoch() / 1000;
-      if(d.Expiration.isValid())
-         Payload["exp"] = d.Expiration.toMSecsSinceEpoch() / 1000;
-      if(d.Audience.isEmpty() == false)
-         Payload["aud"] = d.Audience;
-      if(d.TargetAudience.isEmpty() == false)
-         Payload["target_audience"] = d.TargetAudience;
-      if(d.Sub.isEmpty() == false)
-         Payload["sub"] = d.Sub;
-      if(d.Iss.isEmpty() == false)
-         Payload["iss"] = d.Iss;
+      if(Jwt.IssuedAt.isValid())
+         Payload["iat"] = Jwt.IssuedAt.toMSecsSinceEpoch() / 1000;
+      if(Jwt.Expiration.isValid())
+         Payload["exp"] = Jwt.Expiration.toMSecsSinceEpoch() / 1000;
+      if(Jwt.Audience.isEmpty() == false)
+         Payload["aud"] = Jwt.Audience;
+      if(Jwt.TargetAudience.isEmpty() == false)
+         Payload["target_audience"] = Jwt.TargetAudience;
+      if(Jwt.Sub.isEmpty() == false)
+         Payload["sub"] = Jwt.Sub;
+      if(Jwt.Iss.isEmpty() == false)
+         Payload["iss"] = Jwt.Iss;
+      if(Jwt.Scopes.isEmpty() == false)
+          Payload["scope"] = Jwt.Scopes;
       return JsonObjectToString(Payload);
    }
    THashData ComposeSignature(const TJwt::TAlgo Algo, const QByteArray &StringToSign, QIODevice &Secret) {
@@ -357,9 +305,9 @@ namespace {
    const QByteArray::Base64Options Base64Options = QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals;
 }   // namespace
 
-QString TJwt::ComposeToken(QIODevice &Secret) const {
-   const QString StrJsonHeader  = ComposeHeader(d->Algo);
-   const QString StrJsonPayload = ComposePayload(*d);
+QString TJwt::ComposeSignedToken(QIODevice &Secret) const {
+   const QString StrJsonHeader  = ComposeHeader(Algo);
+   const QString StrJsonPayload = ComposePayload(*this);
    // qDebug().noquote() << "JWT Header:" << StrJsonHeader;
    // qDebug().noquote() << "JWT Payload: " << StrJsonPayload;
 
@@ -369,7 +317,7 @@ QString TJwt::ComposeToken(QIODevice &Secret) const {
    // qDebug().noquote() << Base64Payload;
 
    QByteArray       Result          = Base64Header + "." + Base64Payload;
-   const QByteArray Base64Signature = ComposeSignature(d->Algo, Result, Secret).Data.toBase64(Base64Options);
+   const QByteArray Base64Signature = ComposeSignature(Algo, Result, Secret).Data.toBase64(Base64Options);
    Result += "." + Base64Signature;
    return Result;
 }

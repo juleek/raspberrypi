@@ -13,9 +13,11 @@ add_static_library(
    THttpSink.h
    THttpSink.cpp
 
-    TJwt.cpp
-    TJwt.h
-    TJwt_p.h
+   TJwt.cpp
+   TJwt.h
+   TJwt_p.h
+   TJwtUpdater.h
+   TJwtUpdater.cpp
    TGCMqttSink.cpp
    TGCMqttSink.h
 )
