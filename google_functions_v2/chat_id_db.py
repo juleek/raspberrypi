@@ -35,7 +35,7 @@ class ChatIdDB:
                     at https://console.cloud.google.com/bigquery'
 
 
-        sender.send_text(text,is_formating=False)
+        sender.send_text(text,is_markdown=False)
 
 
     def read(self, bot_name: str) -> t.Optional[int]:
