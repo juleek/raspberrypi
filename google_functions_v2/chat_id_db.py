@@ -11,14 +11,9 @@ class ChatIdDB:
     COL_CHAT_ID: str = "chat_id"
     TABLE_NAME: str = "chat_ids"
 
-    def __init__(self, project: str, dataset_id: str, location: str):
-        self.db = bigdb.BigQueryDB(project=project, dataset_id=dataset_id, location=location)
-        self.table = self.create_chat_ids_table()
-
-
-    def create_chat_ids_table(self) -> bigquery.Table:
-        return self.db.create_table(
-                                          table_name=self.TABLE_NAME,
+    def __init__(self, db: bigdb.BigQueryDB):
+        self.db = db
+        self.table = self.db.create_table(table_name=self.TABLE_NAME,
                                           fields=[bigquery.SchemaField(self.COL_BOT_NAME, "STRING", mode="REQUIRED"),
                                                   bigquery.SchemaField(self.COL_CHAT_ID, "INTEGER", mode="REQUIRED")])
 
@@ -35,7 +30,7 @@ class ChatIdDB:
                     at https://console.cloud.google.com/bigquery'
 
 
-        sender.send_text(text,is_markdown=False)
+        sender.send_text(text, is_markdown=True)
 
 
     def read(self, bot_name: str) -> t.Optional[int]:

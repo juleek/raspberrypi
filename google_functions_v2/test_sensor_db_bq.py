@@ -6,13 +6,14 @@ import sensor as sen
 import pytz
 import random
 import string
+import bigquerydb as bigqr
 
 class TestSensorsDBBQ(unittest.TestCase):
     def setUp(self):
         s = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
-        self.db: sdbq.SensorsDBBQ = sdbq.SensorsDBBQ(project="tarasovka", dataset_id="test", location="europe-west2")
-        self.tube_1 = "example"
-        self.tube_2 = "test"
+        self.db: sdbq.SensorsDBBQ = sdbq.SensorsDBBQ(bigqr.BigQueryDB(project="tarasovka", dataset_id="test", location="europe-west2"))
+        self.tube_1 = "1"
+        self.tube_2 = "2"
         self.good_datum_one_1: dd.DeviceDatum = dd.DeviceDatum({self.tube_1: 25.1}, dt.datetime(2011, 11, 4, 0, 0, tzinfo=pytz.UTC), "")
         self.good_datum_one_2: dd.DeviceDatum = dd.DeviceDatum({self.tube_1: 28.2}, dt.datetime(2011, 11, 5, 0, 0, tzinfo=pytz.UTC), "")
         self.good_datum_two: dd.DeviceDatum = dd.DeviceDatum({self.tube_1: 25.1, self.tube_2: 25.2}, dt.datetime(2011, 11, 6, 0, 0, tzinfo=pytz.UTC), "")
@@ -20,16 +21,16 @@ class TestSensorsDBBQ(unittest.TestCase):
         self.err_datum_one_with_message_2: dd.DeviceDatum = dd.DeviceDatum({self.tube_2: 26.1}, dt.datetime(2012, 12, 5, 0, 0, tzinfo=pytz.UTC), "error2")
 
 
-    # def test_empty_db_read_returns_empty(self):
-    #     result = self.db.read_starting_from(dt.datetime.now())
-    #     self.assertEqual(result, ([], set()))
-    #
-    #
-    # def test_read_with_period_greater_than_last_returns_empty(self):
-    #     self.db.write(self.good_datum_one_1)
-    #     self.db.write(self.good_datum_one_2)
-    #     result = self.db.read_starting_from(self.good_datum_one_2.time + dt.timedelta(seconds=1))
-        # self.assertEqual(result, ([], set()))
+    def test_empty_db_read_returns_empty(self):
+        result = self.db.read_starting_from(dt.datetime.now())
+        self.assertEqual(result, ([], set()))
+
+
+    def test_read_with_period_greater_than_last_returns_empty(self):
+        self.db.write(self.good_datum_one_1)
+        self.db.write(self.good_datum_one_2)
+        result = self.db.read_starting_from(self.good_datum_one_2.time + dt.timedelta(seconds=1))
+        self.assertEqual(result, ([], set()))
 
     # def test_read_with_period_earlier_than_first(self):
     #     self.db.write(self.good_datum_one_1)

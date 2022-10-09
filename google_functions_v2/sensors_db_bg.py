@@ -16,31 +16,25 @@ class SensorsDBBQ(sdb.SensorsDB):
     TABLE_NAME: str = "sensors_data_table"
     TIME_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
 
-    def __init__(self, project: str, dataset_id: str, location: str):
-        self.db = bigdb.BigQueryDB(project=project, dataset_id=dataset_id, location=location)
-        self.table = self.create_sensors_table()
+    def __init__(self, db: bigdb.BigQueryDB):
+        self.db = db
 
-
-    def create_sensors_table(self) -> bigquery.Table:
-
-        def set_up_partitioning(tbl: bigquery.Table) -> bigquery.Table:
+        def set_up_partitioning(tbl) -> bigquery.Table:
             tbl.clustering_fields = [self.COL_TIMESTAMP_NAME]
 
             tbl.time_partitioning = bigquery.TimePartitioning(
                 type_=bigquery.TimePartitioningType.MONTH,
                 field=self.COL_TIMESTAMP_NAME,
-                expiration_ms=int((365*3 + 365/2) * 24 * 60 * 60 * 1000))
+                expiration_ms=int((365 * 3 + 365 / 2) * 24 * 60 * 60 * 1000))
             return tbl
 
-        table = self.db.create_table(table_name=self.TABLE_NAME,
+        self.table = self.db.create_table(table_name=self.TABLE_NAME,
                                      schema=[bigquery.SchemaField(self.COL_TIMESTAMP_NAME, "TIMESTAMP", mode="REQUIRED")],
                                      fields=[bigquery.SchemaField(self.COL_ERROR_MSG_NAME, "STRING", mode="NULLABLE"),
                                              bigquery.SchemaField(self.COL_TUBES_NAME, "RECORD", mode="REPEATED",
                                                                   fields=[bigquery.SchemaField(self.COL_TUBENAME_NAME, "STRING", mode="REQUIRED"),
                                                                           bigquery.SchemaField(self.COL_TEMPERATURE_NAME, "FLOAT", mode="REQUIRED")])],
                                      modify_table_callback=set_up_partitioning)
-
-        return table
 
 
     def write(self, datum: dd.DeviceDatum) -> None:
