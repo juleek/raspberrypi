@@ -8,5 +8,5 @@ class Sender(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def send_text(self, text: str, is_markdown=False) -> None:
+    def send_text(self, text: str, is_markdown: bool) -> None:
         pass

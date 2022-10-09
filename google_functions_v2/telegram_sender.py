@@ -18,13 +18,15 @@ class TelegramSender(s.Sender):
         self.chat_id = chat_id
         self.bot_id = bot_id
 
-    def send_text(self, text: str) -> t.Optional[SendResult]:
+    def send_text(self, text: str, is_markdown: bool) -> t.Optional[SendResult]:
         url = f"https://api.telegram.org/bot{self.bot_id}/sendMessage"
         text_and_format = {
             'format': json,
             'data': {'chat_id': self.chat_id, 'text': text},
-            'parse_mode': 'MarkdownV2'
         }
+        if is_markdown:
+            text_and_format['parse_mode'] = 'MarkdownV2'
+
         req = requests.Request('POST', url, data=text_and_format)
         prepared = req.prepare()
 
