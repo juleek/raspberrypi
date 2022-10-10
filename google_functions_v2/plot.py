@@ -2,7 +2,6 @@
 
 from sensor import Sensor
 import typing as t
-import matplotlib as mpl
 import matplotlib.pyplot as mplplt
 import matplotlib.dates as mpldates
 from pandas.plotting import register_matplotlib_converters
@@ -11,7 +10,6 @@ import datetime as dt
 import sensor as sen
 from dataclasses import dataclass, field
 import pytz
-import main
 import io
 
 @dataclass

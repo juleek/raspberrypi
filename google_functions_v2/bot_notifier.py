@@ -7,10 +7,10 @@ import typing as t
 import datetime as dt
 import plot as pl
 import chat_id_db as chidb
-import secrets
+import secrets_bot
 
 BOT_NAME: str = "notifier_bot"
-BOT_SECRET: str = secrets.notifier_bot_id
+BOT_SECRET: str = secrets_bot.notifier_bot_id
 BOTTOM_TUBE_NAME: str = "BottomTube"
 AMBIENT_TUBE_NAME: str = "Ambient"
 AMBIENT_TEMP_THRESHOLD: float = 6.
