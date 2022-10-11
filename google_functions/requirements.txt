@@ -1,9 +1,0 @@
-pytz
-Flask
-numpy
-pandas
-requests
-matplotlib
-google-cloud-core
-google-cloud-bigquery
-google-cloud-monitoring
