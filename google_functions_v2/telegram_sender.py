@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import sender as s
+import sender as send
 import json
 import requests
 from logger import logger
@@ -8,34 +8,56 @@ from dataclasses import dataclass
 import typing as t
 
 
-@dataclass
-class SendResult:
-    is_ok: bool
-    http_code: int
-
-class TelegramSender(s.Sender):
+class TelegramSender(send.Sender):
     def __init__(self, chat_id: int, bot_id: str):
         self.chat_id = chat_id
         self.bot_id = bot_id
 
-    def send_text(self, text: str, is_markdown: bool) -> t.Optional[SendResult]:
+    def send_text(self, text: str, is_markdown: bool) -> send.SendResult:
         url = f"https://api.telegram.org/bot{self.bot_id}/sendMessage"
-        text_and_format = {
-            'format': json,
-            'data': {'chat_id': self.chat_id, 'text': text},
-        }
+        data = {'chat_id': self.chat_id, 'text': text}
         if is_markdown:
-            text_and_format['parse_mode'] = 'MarkdownV2'
+            data['parse_mode'] = 'MarkdownV2'
 
-        req = requests.Request('POST', url, data=text_and_format)
+        print(f'text_and_format = {data}')
+
+        req = requests.Request('POST', url, data=data)
         prepared = req.prepare()
 
-        # logger.info(f'status: {resp.status_code}, headers: {resp.headers}, body: {resp.content}')
+        response_received: bool = False
+        MAX_RETRIES: int = 3
+        print(f'TelegramBot: About to send POST request of size {len(prepared.body) / 1024} KiB')
+        for i in range(MAX_RETRIES):
+            try:
+                with requests.Session() as s:
+                    response = s.send(prepared, timeout=(1, 19))
 
-        return SendResult(is_ok=True, http_code=resp.status_code)
+            except requests.ConnectTimeout:
+                logger.warning("Connection timed out")
+            except requests.ReadTimeout:
+                logger.warning("Read timed out")
+            except requests.Timeout:
+                logger.warning("Request timed out")
+            else:
+                response_received = True
+                print(f'TelegramBot: Sent message to: {self.chat_id}. Response status_code: {response.status_code}, data: "{response.text}"')
+                break
+
+        if response_received == False:
+            return send.SendResult(is_ok=False, http_code=0)
+
+        try:
+            parsed_json = json.loads(response.text)
+        except json.JSONDecodeError as exc:
+            print('TelegramBot: Failed to decode JSON: {}: {}'.format(type(exc), exc))  # Log Error
+            return send.SendResult(is_ok=True, http_code=response.status_code)
+        if 'ok' not in parsed_json:
+            return send.SendResult(is_ok=True, http_code=response.status_code)
+        ok = parsed_json['ok']
+        return send.SendResult(is_ok=ok, http_code=response.status_code)
 
 
-    def send_with_pic(self, text: str, pic) -> t.Optional[SendResult]:
+    def send_with_pic(self, text: str, pic) -> send.SendResult:
         pic.seek(0)
         url = f'https://api.telegram.org/bot{self.bot_id}/sendPhoto'
         form_fields = {
@@ -66,24 +88,24 @@ class TelegramSender(s.Sender):
                 break
 
         if response_received == False:
-            return SendResult(is_ok=False, http_code=0)
+            return send.SendResult(is_ok=False, http_code=0)
 
         try:
             parsed_json = json.loads(response.text)
         except json.JSONDecodeError as exc:
             print('TelegramBot: Failed to decode JSON: {}: {}'.format(type(exc), exc))  # Log Error
-            return None
+            return send.SendResult(is_ok=True, http_code=response.status_code)
         if 'ok' not in parsed_json:
-            return None
+            return send.SendResult(is_ok=True, http_code=response.status_code)
         ok = parsed_json['ok']
-        return SendResult(is_ok=ok, http_code=response.status_code)
+        return send.SendResult(is_ok=ok, http_code=response.status_code)
 
 
-        # print(f"form_fields = {form_fields}")
-        # print(f"prepared.method = {prepared.method}, "
-        #       f"prepared.url = {prepared.url}, "
-        #       f"k, v in prepared.headers.items() = {prepared.headers.items()}")
-        # print(f'TelegramBot: About to send POST request of size {len(prepared.body) / 1024} KiB')
+        print(f"form_fields = {form_fields}")
+        print(f"prepared.method = {prepared.method}, "
+              f"prepared.url = {prepared.url}, "
+              f"k, v in prepared.headers.items() = {prepared.headers.items()}")
+        print(f'TelegramBot: About to send POST request of size {len(prepared.body) / 1024} KiB')
 
 
 
