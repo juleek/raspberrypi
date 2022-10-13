@@ -14,7 +14,7 @@ class TelegramSender(sender.Sender):
         self.bot_id = bot_id
 
 
-    def processing_of_request(self, req, type_of_sending: str) -> sender.SendResult:
+    def try_sending(self, req: requests.Request, type_of_sending: str) -> sender.SendResult:
         prepared = req.prepare()
 
         response_received: bool = False
@@ -56,7 +56,7 @@ class TelegramSender(sender.Sender):
         if is_markdown:
             data['parse_mode'] = 'MarkdownV2'
         req = requests.Request('POST', url, data=data)
-        return self.processing_of_request(req, "message")
+        return self.try_sending(req, "message")
 
 
     def send_with_pic(self, text: str, pic) -> sender.SendResult:
@@ -68,7 +68,7 @@ class TelegramSender(sender.Sender):
             'caption': (None, text)
         }
         req = requests.Request('POST', url, files=form_fields)
-        return self.processing_of_request(req, "photo")
+        return self.try_sending(req, "photo")
 
 
 
