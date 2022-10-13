@@ -22,7 +22,7 @@ def notify(db: sdbq.SensorsDBBQ, chat_db: chidb.ChatIdDB):
     if chat_id is None:
         return
 
-    sensors, error_msgs = db.read_for_period(dt.timedelta(hours=48))
+    sensors, error_msgs = db.read_for_period(dt.timedelta(hours=24))
     fig, axes, png_buf = pl.create_plot(sensors=sensors,
                                         bottom_tube_alert_temp=BOTTOM_TEMP_THRESHOLD,
                                         ambient_tube_alert_temp=AMBIENT_TEMP_THRESHOLD,
