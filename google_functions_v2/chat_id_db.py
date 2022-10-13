@@ -6,6 +6,7 @@ import bigquerydb as bigdb
 import sender as sen
 import telegram_sender as tels
 import secrets_bot
+import typing as t
 
 class ChatIdDB:
     COL_BOT_NAME: str = "bot_name"
