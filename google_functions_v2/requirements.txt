@@ -1,0 +1,15 @@
+google-cloud-bigquery
+google-cloud-pubsub
+functions-framework
+pytz
+Flask
+requests
+
+
+# numpy
+# pandas
+# matplotlib
+
+
+# google-cloud-core
+# google-cloud-monitoring
