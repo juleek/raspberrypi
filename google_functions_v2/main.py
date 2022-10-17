@@ -12,6 +12,7 @@ import topic as tp
 import base64
 import chat_id_db as chidb
 import bot_notifier as botnotif
+import bigquerydb as bigdb
 
 
 PROJECT: str = "tarasovka"
@@ -22,14 +23,12 @@ TOPIC_ID: str = "tarasovka_topic"
 
 @functions_framework.cloud_event
 def google_ingest(cloud_event):
-    chat_id_db: chidb.ChatIdDB = chidb.ChatIdDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
-    consumer_db: sdb.Consumer = sdb.Consumer(sdbq.SensorsDBBQ(project=PROJECT,
-                                                              dataset_id=DATASET_ID,
-                                                              location=LOCATION,
-                                                              table_name="sensors_db"))
-    consumer_alert: alt.Alerting = alt.Alerting(name_to_min={botnotif.AMBIENT_TUBE: botnotif.ambient_alert_temperature,
-                                                             botnotif.BOTTOM_TUBE: botnotif.bottom_tube_alert_temperature},
-                                                sender=tel_s.TelegramSender(chat_id_db.read(alt.NAME), alt.ID))
+    bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
+    chat_id_db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
+    consumer_db: sdb.Consumer = sdb.Consumer(sdbq.SensorsDBBQ(db=bigquerydb))
+    consumer_alert: alt.Alerting = alt.Alerting(name_to_min={botnotif.AMBIENT_TUBE_NAME: botnotif.AMBIENT_TEMP_THRESHOLD,
+                                                             botnotif.BOTTOM_TUBE_NAME: botnotif.BOTTOM_TEMP_THRESHOLD},
+                                                sender=tel_s.TelegramSender(chat_id_db.read(alt.BOT_NAME), alt.BOT_ID))
 
     ingest = ing.Ingest([consumer_db, consumer_alert])
 
@@ -50,24 +49,27 @@ def google_write_msg_to_topic(request: flask.Request):
 
 @functions_framework.http
 def on_notifier_bot_message(request: flask.Request):
+    bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
     chat_id: int = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
-    db: chidb.ChatIdDB = chidb.ChatIdDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
-    db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, botnotif.ID), botnotif.NAME)
+    db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
+    db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, botnotif.BOT_SECRET), botnotif.BOT_NAME)
     return 'OK'
+
 
 @functions_framework.http
 def on_alerting_bot_message(request: flask.Request):
+    bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
     chat_id: int = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
-    db: chidb.ChatIdDB = chidb.ChatIdDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
-    db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, alt.ID), alt.NAME)
+    db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
+    db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, alt.BOT_ID), alt.BOT_NAME)
 
     return 'OK'
-
 
 
 @functions_framework.http
 def on_cron(request: flask.Request):
-    botnotif.notify(sdbq.SensorsDBBQ(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION),
-                    chidb.ChatIdDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION))
+    bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
+    botnotif.notify(sdbq.SensorsDBBQ(db=bigquerydb),
+                    chidb.ChatIdDB(db=bigquerydb))
 
     return 'OK'
