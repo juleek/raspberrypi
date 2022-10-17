@@ -1,11 +1,8 @@
 #!/usr/bin/python3
 
-# import sensors_db_bg as sdbq
 from google.cloud import bigquery
 import bigquerydb as bigdb
 import sender as sen
-import telegram_sender as tels
-import secrets_bot
 import typing as t
 
 class ChatIdDB:
@@ -44,6 +41,8 @@ class ChatIdDB:
 
 
 # if __name__ == "__main__":
+#     import telegram_sender as tels
+#     import secrets_bot
 #     BOT_SECRET: str = secrets_bot.notifier_bot_id
 #     db_bigq = bigdb.BigQueryDB(project="tarasovka", dataset_id="tarasovka", location="europe-west2")
 #     db = ChatIdDB(db_bigq)
