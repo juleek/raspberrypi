@@ -8,6 +8,7 @@ import bigquerydb as bigdb
 import devicedatum as dd
 
 class SensorsDBBQ(sdb.SensorsDB):
+    """A class that works with a table that keeps temperature measurements."""
     COL_TIMESTAMP_NAME: str = "Timestamp"
     COL_ERROR_MSG_NAME: str = "ErrorMessage"
     COL_TUBENAME_NAME: str = "TubeName"

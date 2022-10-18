@@ -5,6 +5,7 @@ import typing as t
 
 
 class BigQueryDB:
+    """A class that creates client, dataset and table in bigquery."""
     def __init__(self, project: str, dataset_id: str, location: str):
         self.client = bigquery.Client(project=project, location=location)
         self.dataset: bigquery.Dataset = self.create_dataset(dataset_id)
