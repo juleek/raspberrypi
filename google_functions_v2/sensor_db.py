@@ -29,7 +29,11 @@ class SensorsDB(abc.ABC):
 
 
 
-class Consumer(ingest.Consumer):
+class DBConsumer(ingest.Consumer):
+    """
+    This is a database writing implementation of the abstract class Consumer:
+    on every DeviceDatum it writes DeviceDatum to DB.
+    """
     def __init__(self, db: SensorsDB):
         self.db = db
 
