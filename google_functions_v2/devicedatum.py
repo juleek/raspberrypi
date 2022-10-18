@@ -6,6 +6,8 @@ import json
 
 @dataclass
 class DeviceDatum:
+    """Class for keeping tube's name, temperatures, time when temperature was received and error messages.
+    Class needs for writing its contents into the database."""
     name_to_temp: t.Dict[str, float]
     time: dt.datetime
     error_msg: str
