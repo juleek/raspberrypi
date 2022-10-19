@@ -10,8 +10,8 @@ class SendResult:
     http_code: int
 
 class Sender(abc.ABC):
-    """Abstract class that has methods that we need for sending notifications to user.
-    This class will help to implement different types of communication apps that allows to send notifications, such as email, messenger and etc."""
+    """Abstract class that responsible for sending text and pic to user.
+    This class is helping to implement different types of communication apps that allows us to send notifications, such as email, messenger, sms and etc."""
 
     @abc.abstractmethod
     def send_with_pic(self, text: str, pic) -> SendResult:

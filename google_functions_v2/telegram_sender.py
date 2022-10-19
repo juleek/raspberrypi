@@ -9,7 +9,9 @@ import typing as t
 
 
 class TelegramSender(sender.Sender):
-    """Telegram implementation of the abstract class Sender"""
+    """
+    This is a Telegram implementation of class Sender.
+    """
     def __init__(self, chat_id: int, bot_id: str):
         self.chat_id = chat_id
         self.bot_id = bot_id
