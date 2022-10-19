@@ -6,7 +6,11 @@ import sender as sen
 import typing as t
 
 class ChatIdDB:
-    """A class that works with a table that keeps information about Bots names and Chat_ids."""
+    """
+    This is a class that is responsible for:
+    * updating table properties, in particular: provide table's fields
+    * keeping information about Bots names and Chat_ids in the created table
+    """
     COL_BOT_NAME: str = "bot_name"
     COL_CHAT_ID: str = "chat_id"
     TABLE_NAME: str = "chat_ids"
