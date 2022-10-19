@@ -6,8 +6,14 @@ import datetime as dt
 
 @dataclass
 class Sensor:
-    """Class for keeping tube name with its temperatures and time when temperature was received.
-        Class is storing data for creating a plot(graph) that we will use in a message."""
+    """
+    This class is needed is keeping information that relevant for a sensor, in particular:
+     * sensor's name
+     * list of temperatures that was sent by the sensor
+     * list of datetime when temperature was received
+
+    The data in this class is used in creating msg and plot.
+    """
     temperatures: t.List[float]
     name: str
     timestamps: t.List[dt.datetime]

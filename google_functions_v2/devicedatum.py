@@ -6,8 +6,11 @@ import json
 
 @dataclass
 class DeviceDatum:
-    """Class for keeping tube's name, temperatures, time when temperature was received and error messages.
-    Class needs for writing its contents into the database."""
+    """
+    The class is responsible for:
+    * converting data's format that received from IoT device
+    * keeping data in a new format "DeviceDatum". This format is convenient for filling the tables.
+    """
     name_to_temp: t.Dict[str, float]
     time: dt.datetime
     error_msg: str
