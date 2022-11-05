@@ -269,13 +269,7 @@ namespace {
       return Result;
    }
    QString ComposeHeader(TJwt::TAlgo Algo) {
-       return JsonObjectToString({
-                                  
-                                  {"alg", ToString(Algo)},
-           
-           {"typ", "JWT"}
-                                  // , {"kid", "35432192abedfffddb3f715322b177a840341302"}
-       });
+      return JsonObjectToString({{"alg", ToString(Algo)}, {"typ", "JWT"}});
    }
    QString ComposePayload(const TJwt &Jwt) {
       QJsonObject Payload;
@@ -292,7 +286,7 @@ namespace {
       if(Jwt.Iss.isEmpty() == false)
          Payload["iss"] = Jwt.Iss;
       if(Jwt.Scopes.isEmpty() == false)
-          Payload["scope"] = Jwt.Scopes;
+         Payload["scope"] = Jwt.Scopes;
       return JsonObjectToString(Payload);
    }
    THashData ComposeSignature(const TJwt::TAlgo Algo, const QByteArray &StringToSign, QIODevice &Secret) {

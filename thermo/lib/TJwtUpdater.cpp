@@ -2,6 +2,8 @@
 #include "memory.h"
 
 #include <QBuffer>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QTimer>
@@ -25,8 +27,10 @@ QString FormUrlEncode(std::initializer_list<std::pair<QString, QString>> KVs) {
 TJwtUpdater::TJwtUpdater(const QString &FunctionName, const QString &AccountEmail, const QByteArray &PrivateKey):
     FunctionName(FunctionName), AccountEmail(AccountEmail), PrivateKey(PrivateKey) {
    Nam = MakeUnique();
-   connect(Nam.get(), &QNetworkAccessManager::finished, this, &TJwtUpdater::OnResponse);
 }
+
+TJwtUpdater::~TJwtUpdater() = default;
+
 
 namespace {
    const QTime TOKEN_LIFETIME = QTime(1, 0, 0);
@@ -49,14 +53,63 @@ void TJwtUpdater::Start() {
    OnTimerShot();
 }
 
+
+QString ParseIdTokenFromJson(const QByteArray &HttpBody) {
+   QJsonParseError     JsonParseError;
+   const QJsonDocument JsonDocument = QJsonDocument::fromJson(HttpBody, &JsonParseError);
+   if(JsonParseError.error != QJsonParseError::NoError) {
+      qDebug() << "TJwtUpdater: Failed to parse response as JSON:" << JsonParseError.errorString();
+      return {};
+   }
+   if(JsonDocument.isObject() == false) {
+      qDebug() << "TJwtUpdater: The root of JSON document is not an object";
+      return {};
+   }
+
+   const QJsonValue &IdTokenValue = JsonDocument.object()["id_token"];
+   if(IdTokenValue.isUndefined()) {
+      qDebug() << "TJwtUpdater: The root of JSON document does not have \"id_token\"";
+      return {};
+   }
+   if(IdTokenValue.isString() == false) {
+      qDebug() << "TJwtUpdater: The root of JSON document has \"id_token\", but it is not a string";
+      return {};
+   }
+   return IdTokenValue.toString();
+}
+
+namespace {
+
+   void HandleResponse(QNetworkReply *Reply, TJwtUpdater *Self) {
+      const QByteArray Data = Reply->readAll();
+      qDebug() << "TJwtUpdater: Got reply for url:" << Reply->url() << "Headers:" << Reply->rawHeaderPairs()
+               << "status:" << Reply->error() << "content:" << Data.first(std::min(Data.size(), 1024ll));
+
+      if(Reply->error() != QNetworkReply::NoError) {
+         qDebug() << "TJwtUpdater: Got error:" << Reply->error() << ", error:" << Reply->errorString();
+         return;
+      }
+
+      const QString &Token = ParseIdTokenFromJson(Data);
+      if(Token.isEmpty())
+         return;
+
+      qDebug() << "TJwtUpdater: Obtained new token:" << Token;
+
+      emit Self->NewTokenObtained(Token);
+   }
+}   // namespace
 void TJwtUpdater::OnResponse(QNetworkReply *Reply) {
-   const QByteArray Data = Reply->readAll();
-   qDebug() << "TJwtUpdater: Got reply for url:" << Reply->url() << "Headers:" << Reply->rawHeaderPairs()
-            << "status:" << Reply->error() << "content:" << Data.first(std::min(Data.size(), 1024ll));
    // emit NewTemperatureGot(std::get<0>(ErrStrAndTemp), std::get<1>(ErrStrAndTemp));
+   HandleResponse(Reply, this);
    Reply->deleteLater();
    ScheduleNextMeasurement();
 }
+
+void TJwtUpdater::OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors) {
+   qDebug() << "TJwtUpdater: Got SSL Error for url:" << Reply->url() << ":" << Errors;
+}
+
 
 void TJwtUpdater::OnTimerShot() {
    LastGet = QDateTime::currentDateTime();
@@ -82,5 +135,7 @@ void TJwtUpdater::OnTimerShot() {
    qDebug() << "TJwtUpdater: Sending request to url:" << Request.url() << "with headers:" << Request.rawHeaderList()
             << "and body:" << Body;
 
-   Nam->post(Request, Body.toUtf8());
+   QNetworkReply *Reply = Nam->post(Request, Body.toUtf8());
+   connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply); });
+   connect(Reply, &QNetworkReply::sslErrors, [this, Reply](const QList<QSslError> &Errors) { OnSslError(Reply, Errors); });
 }

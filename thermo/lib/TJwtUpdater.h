@@ -1,18 +1,22 @@
 #pragma once
 
-#include <QObject>
 #include <QDateTime>
+#include <QObject>
 
 
 class QNetworkAccessManager;
 class QNetworkReply;
+class QSslError;
 
 
 QString FormUrlEncode(std::initializer_list<std::pair<QString, QString>> KVs);
+QString ParseIdTokenFromJson(const QByteArray &HttpBody);
 
 class TJwtUpdater: public QObject {
 public:
    TJwtUpdater(const QString &FunctionName, const QString &AccountEmail, const QByteArray &PrivateKey);
+   ~TJwtUpdater();
+
 
 signals:
    void NewTokenObtained(const QString &Token);
@@ -20,10 +24,10 @@ signals:
 public slots:
    void Start();
 
-private slots:
-   void OnResponse(QNetworkReply *reply);
-
 private:
+   void OnResponse(QNetworkReply *reply);
+   void OnSslError(QNetworkReply *reply, const QList<QSslError> &Errors);
+
    void      OnTimerShot();
    void      ScheduleNextMeasurement();
    QDateTime LastGet;
@@ -34,4 +38,6 @@ private:
    const QString FunctionName;
    const QString AccountEmail;
    QByteArray    PrivateKey;
+
+   Q_OBJECT
 };
