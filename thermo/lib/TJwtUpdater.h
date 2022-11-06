@@ -15,12 +15,12 @@ QString ParseIdTokenFromJson(const QByteArray &HttpBody);
 class TJwtUpdater: public QObject {
 public:
    struct TCfg {
-      const QString    FunctionName;
+      const QString    FuncHttpEndPoint;
       const QString    AccountEmail;
       const QByteArray PrivateKey;
    };
 
-   explicit TJwtUpdater(TCfg Cfg);
+   explicit TJwtUpdater(TCfg Cfg, QNetworkAccessManager &NetworkAccessManager);
    ~TJwtUpdater();
 
 
@@ -31,16 +31,16 @@ public slots:
    void Start();
 
 private:
+   const TCfg             Cfg;
+   QNetworkAccessManager &Nam;
+
+
    void OnResponse(QNetworkReply *reply);
    void OnSslError(QNetworkReply *reply, const QList<QSslError> &Errors);
 
    void      OnTimerShot();
    void      ScheduleNextMeasurement();
    QDateTime LastGet;
-
-   std::unique_ptr<QNetworkAccessManager> Nam;
-
-   const TCfg Cfg;
 
    Q_OBJECT
 };

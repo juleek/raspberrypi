@@ -47,14 +47,15 @@ int InlineTest(int argc, char **argv) {
 
    QCoreApplication app(argc, argv);
 
-   TJwtUpdater::TCfg Cfg = {.FunctionName = "https://europe-west2-tarasovka.cloudfunctions.net/gf-thermo-gen1",
-                            .AccountEmail = "thermo-app-test-acc@tarasovka.iam.gserviceaccount.com",
-                            .PrivateKey   = R"_HERE_DOC_(
+   TJwtUpdater::TCfg Cfg = {.FuncHttpEndPoint = "https://europe-west2-tarasovka.cloudfunctions.net/gf-thermo-gen1",
+                            .AccountEmail     = "thermo-app-test-acc@tarasovka.iam.gserviceaccount.com",
+                            .PrivateKey       = R"_HERE_DOC_(
 -----BEGIN PRIVATE KEY-----
 -----END PRIVATE KEY-----
 )_HERE_DOC_"};
-
-   TJwtUpdater Updater {std::move(Cfg)};
+   
+   QNetworkAccessManager NetworkAccessManager;
+   TJwtUpdater Updater {std::move(Cfg), NetworkAccessManager};
    Updater.Start();
    return app.exec();
 
@@ -72,12 +73,12 @@ int InlineTest(int argc, char **argv) {
 std::tuple<THttpSink::TCfg, TJwtUpdater::TCfg> CfgsFromCmdLineArgs(QCoreApplication &app) {
    QCommandLineOption GFPrivateKeyPathOption = {"GFPrivateKeyPath", "Path of the private key for Google Function", "String"};
    QCommandLineOption GFAccountEmailOption   = {"GFAccountEmail", "Service Account Email", "String"};
-   QCommandLineOption GFFunctionName         = {"GFHttpEndPoint", "Google Function Http end-point", "String"};
+   QCommandLineOption GFHttpEndPoint         = {"GFHttpEndPoint", "Google Function Http end-point", "String"};
    QCommandLineOption GFDryRunOption         = {"DryRun", "If true we will not publish any data to Google Cloud"};
    QCommandLineParser Parser;
    Parser.addOption(GFPrivateKeyPathOption);
    Parser.addOption(GFAccountEmailOption);
-   Parser.addOption(GFFunctionName);
+   Parser.addOption(GFHttpEndPoint);
    Parser.addOption(GFDryRunOption);
    Parser.addHelpOption();
    Parser.addVersionOption();
@@ -98,10 +99,10 @@ std::tuple<THttpSink::TCfg, TJwtUpdater::TCfg> CfgsFromCmdLineArgs(QCoreApplicat
    }
    const QByteArray PrivateKey = PrivateKeyFile.readAll();
 
-   THttpSink::TCfg   HttpSinkCfg   = {.DryRun = Parser.isSet(GFDryRunOption)};
-   TJwtUpdater::TCfg JwtUpdaterCfg = {.FunctionName = Parser.value(GFFunctionName),
-                                      .AccountEmail = Parser.value(GFAccountEmailOption),
-                                      .PrivateKey   = PrivateKey};
+   THttpSink::TCfg   HttpSinkCfg   = {.FuncHttpEndPoint = Parser.value(GFHttpEndPoint), .DryRun = Parser.isSet(GFDryRunOption)};
+   TJwtUpdater::TCfg JwtUpdaterCfg = {.FuncHttpEndPoint = Parser.value(GFHttpEndPoint),
+                                      .AccountEmail     = Parser.value(GFAccountEmailOption),
+                                      .PrivateKey       = PrivateKey};
 
 
    return {HttpSinkCfg, JwtUpdaterCfg};
@@ -150,8 +151,12 @@ int main(int argc, char **argv) {
 
    auto [HttpSinkCfg, JwtUpdaterCfg] = CfgsFromCmdLineArgs(app);
 
-   THttpSink Sink(std::move(HttpSinkCfg));
+   QNetworkAccessManager NetworkAccessManager;
 
+   TJwtUpdater JwtUpdater {std::move(JwtUpdaterCfg), NetworkAccessManager};
+   THttpSink   Sink {std::move(HttpSinkCfg), JwtUpdater, NetworkAccessManager};
+
+   JwtUpdater.Start();
 
    const std::vector<TSensorInfo> SensorInfos = {{"/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube"},
                                                  {"/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient"}};

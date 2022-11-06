@@ -1,7 +1,12 @@
 #include "THttpSink.h"
 
+#include "TJwtUpdater.h"
+
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 
 template <class T>
 class AsKeyValueRange {
@@ -30,9 +35,56 @@ QString ItemToJson(const TPublishItem &Item) {
 }
 
 
+// ===========================================================================================================
 
-THttpSink::THttpSink(TCfg c): Cfg(std::move(c)) {}
 
-void THttpSink::Publish(const TPublishItem &item) const {
-   Q_UNUSED(item);
+THttpSink::THttpSink(TCfg c, TJwtUpdater &JwtUp, QNetworkAccessManager &NetworkAccessManager):
+    Cfg(std::move(c)), Nam(NetworkAccessManager) {
+   connect(&JwtUp, &TJwtUpdater::NewTokenObtained, this, &THttpSink::OnNewJwtToken);
+}
+
+
+void THttpSink::OnNewJwtToken(const QString &Token) {
+   qDebug() << "TJwtUpdater::OnNewJwtToken: Got new token:" << Token;
+   JwtToken = Token;
+}
+
+
+
+void THttpSink::OnResponse(QNetworkReply *Reply) const {
+   const int        StatusCode = Reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+   qDebug().nospace() << "TJwtUpdater::OnResponse: Got reply for url: " << Reply->url()
+                      << ", Headers: " << Reply->rawHeaderPairs() << ", status: " << StatusCode << " " << Reply->error()
+                      << ", content: " << Reply->read(1024);
+
+   Reply->deleteLater();
+}
+void THttpSink::OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors) const {
+   qDebug() << "THttpSink::OnSslError: Failed to establish SSL connection: Got SSL Error for url:" << Reply->url() << ":"
+            << Errors;
+}
+void THttpSink::Publish(const TPublishItem &Item) const {
+   const QTime TIMEOUT = QTime(0, 1, 0);
+
+   if(JwtToken.isEmpty()) {
+      qDebug() << "THttpSink::Publish: Failed to publish item:" << Item << ": jwt token is empty";
+      return;
+   }
+
+   QNetworkRequest Request(QUrl(Cfg.FuncHttpEndPoint));
+   Request.setTransferTimeout(TIMEOUT.msecsSinceStartOfDay());
+   Request.setRawHeader("Authorization", ("Bearer " + JwtToken).toUtf8());
+   Request.setRawHeader("Content-Type", "application/json");
+
+   const QString Body = ItemToJson(Item);
+
+   qDebug().nospace() << "THttpSink::Publish: " << (Cfg.DryRun ? "NOT " : "") << "Sending data to:" << Request.url()
+                      << "with headers:" << Request.rawHeaderList() << "and body:" << Body;
+
+   if(Cfg.DryRun)
+      return;
+
+   QNetworkReply *Reply = Nam.post(Request, Body.toUtf8());
+   connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply); });
+   connect(Reply, &QNetworkReply::sslErrors, [this, Reply](const QList<QSslError> &Errors) { OnSslError(Reply, Errors); });
 }

@@ -11,3 +11,5 @@ struct TPublishItem {
    QHash<QString, double> NameToTemp;
    QString                ErrorString;
 };
+
+QDebug operator<<(QDebug Out, const TPublishItem &PublishItem);

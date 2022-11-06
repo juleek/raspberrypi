@@ -24,9 +24,7 @@ QString FormUrlEncode(std::initializer_list<std::pair<QString, QString>> KVs) {
 
 
 
-TJwtUpdater::TJwtUpdater(TCfg c): Cfg(std::move(c)) {
-   Nam = MakeUnique();
-}
+TJwtUpdater::TJwtUpdater(TCfg c, QNetworkAccessManager &NetworkAccessManager): Cfg(std::move(c)), Nam(NetworkAccessManager) {}
 
 TJwtUpdater::~TJwtUpdater() = default;
 
@@ -61,17 +59,17 @@ QString ParseIdTokenFromJson(const QByteArray &HttpBody) {
       return {};
    }
    if(JsonDocument.isObject() == false) {
-      qDebug() << "TJwtUpdater: The root of JSON document is not an object";
+      qDebug() << "TJwtUpdater: Failed to process JSON: The root of JSON document is not an object";
       return {};
    }
 
    const QJsonValue &IdTokenValue = JsonDocument.object()["id_token"];
    if(IdTokenValue.isUndefined()) {
-      qDebug() << "TJwtUpdater: The root of JSON document does not have \"id_token\"";
+      qDebug() << "TJwtUpdater: Failed to process JSON: The root of JSON document does not have \"id_token\"";
       return {};
    }
    if(IdTokenValue.isString() == false) {
-      qDebug() << "TJwtUpdater: The root of JSON document has \"id_token\", but it is not a string";
+      qDebug() << "TJwtUpdater: Failed to process JSON: The root of JSON document has \"id_token\", but it is not a string";
       return {};
    }
    return IdTokenValue.toString();
@@ -80,9 +78,11 @@ QString ParseIdTokenFromJson(const QByteArray &HttpBody) {
 namespace {
 
    void HandleResponse(QNetworkReply *Reply, TJwtUpdater *Self) {
-      const QByteArray Data = Reply->readAll();
-      qDebug() << "TJwtUpdater: Got reply for url:" << Reply->url() << "Headers:" << Reply->rawHeaderPairs()
-               << "status:" << Reply->error() << "content:" << Data.first(std::min(Data.size(), 1024ll));
+      const QByteArray Data       = Reply->readAll();
+      const int        StatusCode = Reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+      qDebug().nospace() << "TJwtUpdater: Got reply for url: " << Reply->url() << ", Headers: " << Reply->rawHeaderPairs()
+                         << ", status: " << StatusCode << " " << Reply->error()
+                         << ", content: " << Data.first(std::min(Data.size(), 1024ll));
 
       if(Reply->error() != QNetworkReply::NoError) {
          qDebug() << "TJwtUpdater: Got error:" << Reply->error() << ", error:" << Reply->errorString();
@@ -106,7 +106,8 @@ void TJwtUpdater::OnResponse(QNetworkReply *Reply) {
 }
 
 void TJwtUpdater::OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors) {
-   qDebug() << "TJwtUpdater: Got SSL Error for url:" << Reply->url() << ":" << Errors;
+   qDebug() << "TJwtUpdater::OnSslError: Failed to establish SSL connection: Got SSL Error for url:" << Reply->url() << ":"
+            << Errors;
 }
 
 
@@ -115,7 +116,7 @@ void TJwtUpdater::OnTimerShot() {
 
    TJwt Jwt = {.Algo           = TJwt::RS256,
                .Audience       = "https://www.googleapis.com/oauth2/v4/token",
-               .TargetAudience = Cfg.FunctionName,
+               .TargetAudience = Cfg.FuncHttpEndPoint,
                .Sub            = Cfg.AccountEmail,
                .Iss            = Cfg.AccountEmail};
 
@@ -134,10 +135,10 @@ void TJwtUpdater::OnTimerShot() {
    const QString Body =
        FormUrlEncode({{"grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"}, {"assertion", SignedToken}});
 
-   qDebug() << "TJwtUpdater: Sending request to url:" << Request.url() << "with headers:" << Request.rawHeaderList()
+   qDebug() << "TJwtUpdater::OnTimerShot: Sending request to url:" << Request.url() << "with headers:" << Request.rawHeaderList()
             << "and body:" << Body;
 
-   QNetworkReply *Reply = Nam->post(Request, Body.toUtf8());
+   QNetworkReply *Reply = Nam.post(Request, Body.toUtf8());
    connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply); });
    connect(Reply, &QNetworkReply::sslErrors, [this, Reply](const QList<QSslError> &Errors) { OnSslError(Reply, Errors); });
 }

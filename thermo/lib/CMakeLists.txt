@@ -8,6 +8,7 @@ add_static_library(
    TTempPollers.cpp
 
    TPublishItem.h
+   TPublishItem.cpp
    ISink.h
    ISink.cpp
    THttpSink.h
