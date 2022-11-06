@@ -1,4 +1,4 @@
-#include "TTempPoller.h"
+#include "TSensorPoller.h"
 
 #include <QDebug>
 #include <QFile>
@@ -59,25 +59,25 @@ namespace {
 
 
 
-TTempPoller::TTempPoller(TSensorInfo si) noexcept {
+TSensorPoller::TSensorPoller(TSensorInfo si) noexcept {
    SensorInfo  = std::move(si);
    Periodicity = QTime(0, 0, 30);
 }
 
-void TTempPoller::Bootstrap() {
+void TSensorPoller::Bootstrap() {
    qDebug().nospace() << "TempPoller started (and working) in thread: " << QThread::currentThreadId()
                       << ", Path: " << SensorInfo.Path << ", Name: " << SensorInfo.Name;
    ScheduleNextMeasurement();
 }
 
-void TTempPoller::ScheduleNextMeasurement() noexcept {
+void TSensorPoller::ScheduleNextMeasurement() noexcept {
    const QTime &Current = QTime::currentTime();
    const QTime &NextGet = LastGet.addMSecs(Periodicity.msecsSinceStartOfDay());
    const int    MSecs   = std::max(0, Current.msecsTo(NextGet));
    QTimer::singleShot(MSecs, this, SLOT(OnTimerShot()));
 }
 
-void TTempPoller::OnTimerShot() {
+void TSensorPoller::OnTimerShot() {
    std::tuple<QString, double> ErrStrAndTemp = ParseTempFromPath(SensorInfo.Path);
    emit                        NewTemperatureGot(std::get<0>(ErrStrAndTemp), std::get<1>(ErrStrAndTemp));
    LastGet = QTime::currentTime();

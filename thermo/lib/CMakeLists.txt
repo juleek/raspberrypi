@@ -2,10 +2,10 @@ add_static_library(
    memory.h
    memory.cpp
 
-   TTempPoller.h
-   TTempPoller.cpp
-   TTempPollers.h
-   TTempPollers.cpp
+   TSensorPoller.h
+   TSensorPoller.cpp
+   TSensorsPoller.h
+   TSensorsPoller.cpp
 
    TPublishItem.h
    TPublishItem.cpp
@@ -19,8 +19,6 @@ add_static_library(
    TJwt_p.h
    TJwtUpdater.h
    TJwtUpdater.cpp
-   TGCMqttSink.cpp
-   TGCMqttSink.h
 )
 
 # ============= Qt =============

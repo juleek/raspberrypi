@@ -1,7 +1,7 @@
 #include "../lib/THttpSink.h"
 #include "../lib/TJwtUpdater.h"
-#include "../lib/TTempPoller.h"
-#include "../lib/TTempPollers.h"
+#include "../lib/TSensorPoller.h"
+#include "../lib/TSensorsPoller.h"
 #include "../lib/memory.h"
 
 #include <QCommandLineParser>
@@ -15,13 +15,7 @@
 #include <unistd.h>
 
 
-namespace {
-   const QString DEVICE_ID_TEST = "device_test_imp";
-   const QString DEVICE_ID_MAIN = "device_tarpi";
-}   // namespace
-
-
-
+// ===========================================================================================================
 
 int InlineTest(int argc, char **argv) {
    // OpenSSLTest();
@@ -53,9 +47,9 @@ int InlineTest(int argc, char **argv) {
 -----BEGIN PRIVATE KEY-----
 -----END PRIVATE KEY-----
 )_HERE_DOC_"};
-   
+
    QNetworkAccessManager NetworkAccessManager;
-   TJwtUpdater Updater {std::move(Cfg), NetworkAccessManager};
+   TJwtUpdater           Updater {std::move(Cfg), NetworkAccessManager};
    Updater.Start();
    return app.exec();
 
@@ -64,11 +58,9 @@ int InlineTest(int argc, char **argv) {
 
 
 
-// -----------------------------------------------------------------------------------------------------------
 
 
-
-
+// ===========================================================================================================
 
 std::tuple<THttpSink::TCfg, TJwtUpdater::TCfg> CfgsFromCmdLineArgs(QCoreApplication &app) {
    QCommandLineOption GFPrivateKeyPathOption = {"GFPrivateKeyPath", "Path of the private key for Google Function", "String"};
@@ -140,8 +132,10 @@ void InitSignalHandlers() noexcept {
    if(sigaction(SIGINT, &Int, 0) > 0)
       std::abort();
 }
-// -----------------------------------------------------------------------------------------------------------
 
+
+
+// -----------------------------------------------------------------------------------------------------------
 
 int main(int argc, char **argv) {
    // return InlineTest(argc, argv);
@@ -160,6 +154,6 @@ int main(int argc, char **argv) {
 
    const std::vector<TSensorInfo> SensorInfos = {{"/sys/bus/w1/devices/28-000005eac50a/w1_slave", "BottomTube"},
                                                  {"/sys/bus/w1/devices/28-000005eaddc2/w1_slave", "Ambient"}};
-   new TDriver(SensorInfos, Sink);
+   TSensorsPoller                 SensorsPoller {SensorInfos, Sink};
    return app.exec();
 }

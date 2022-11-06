@@ -6,10 +6,10 @@
 struct TSensorInfo;
 class ISink;
 
-class TDriver: public QObject {
+class TSensorsPoller: public QObject {
 public:
-   TDriver(const std::vector<TSensorInfo> &SensorInfos, const ISink &sink) noexcept;
-   ~TDriver();
+   explicit TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, const ISink &sink) noexcept;
+   ~TSensorsPoller();
 
 signals:
    void BootstrapTempPollers();

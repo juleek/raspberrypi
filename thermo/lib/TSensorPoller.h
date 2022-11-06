@@ -11,9 +11,9 @@ struct TSensorInfo {
 
 std::tuple<QString, double> ParseTempFrom(QIODevice &input);
 
-class TTempPoller: public QObject {
+class TSensorPoller: public QObject {
 public:
-   TTempPoller(TSensorInfo SensorInfo) noexcept;
+   TSensorPoller(TSensorInfo SensorInfo) noexcept;
 
 signals:
    void NewTemperatureGot(QString ErrMsg, double Temp);

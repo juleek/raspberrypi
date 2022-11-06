@@ -1,16 +1,14 @@
-#include "TTempPollers.h"
+#include "TSensorsPoller.h"
 
 #include "ISink.h"
 #include "TPublishItem.h"
-#include "TTempPoller.h"
+#include "TSensorPoller.h"
 #include "memory.h"
 
 #include <QDebug>
 #include <QThread>
 #include <iostream>
 
-// #include <QCoreApplication>
-// #include <QSocketNotifier>
 
 namespace {
 
@@ -29,7 +27,7 @@ namespace {
       }
 
       const TSensorInfo SensorInfo;
-      TTempPoller       TempPoller;
+      TSensorPoller     TempPoller;
 
 
       void OnNewTemperatureGot(double t, const QString &err) {
@@ -77,7 +75,7 @@ namespace {
 
 
 
-struct TDriver::TImpl {
+struct TSensorsPoller::TImpl {
    void OnNewTemperatureGot(TPollerWithThread *Wrapper, QString ErrStr, double Temp) noexcept {
       qDebug().nospace() << "TDriver::OnNewTemperatureGot:"
                          << " Name: " << Wrapper->SensorInfo.Name << ", T: " << Temp << ", Path: " << Wrapper->SensorInfo.Path
@@ -127,18 +125,18 @@ struct TDriver::TImpl {
 
 
 
-TDriver::TDriver(const std::vector<TSensorInfo> &SensorInfos, const ISink &Sink) noexcept: d(new TImpl) {
+TSensorsPoller::TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, const ISink &Sink) noexcept: d(new TImpl) {
    d->Sink = &Sink;
 
    for(const TSensorInfo &SensorInfo: SensorInfos) {
       TPollerWithThreadPtr Ptr = MakeUnique(SensorInfo);
-      QObject::connect(&Ptr->TempPoller, &TTempPoller::NewTemperatureGot, [this, W = Ptr.get()](QString Err, double T) {
+      QObject::connect(&Ptr->TempPoller, &TSensorPoller::NewTemperatureGot, [this, W = Ptr.get()](QString Err, double T) {
          d->OnNewTemperatureGot(W, std::move(Err), T);
       });
-      QObject::connect(this, &TDriver::BootstrapTempPollers, &Ptr->TempPoller, &TTempPoller::Bootstrap);
+      QObject::connect(this, &TSensorsPoller::BootstrapTempPollers, &Ptr->TempPoller, &TSensorPoller::Bootstrap);
       d->TempPollers.push_back(std::move(Ptr));
    }
 
    emit BootstrapTempPollers();
 }
-TDriver::~TDriver() = default;
+TSensorsPoller::~TSensorsPoller() = default;
