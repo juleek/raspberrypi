@@ -24,8 +24,7 @@ QString FormUrlEncode(std::initializer_list<std::pair<QString, QString>> KVs) {
 
 
 
-TJwtUpdater::TJwtUpdater(const QString &FunctionName, const QString &AccountEmail, const QByteArray &PrivateKey):
-    FunctionName(FunctionName), AccountEmail(AccountEmail), PrivateKey(PrivateKey) {
+TJwtUpdater::TJwtUpdater(TCfg c): Cfg(std::move(c)) {
    Nam = MakeUnique();
 }
 
@@ -116,11 +115,14 @@ void TJwtUpdater::OnTimerShot() {
 
    TJwt Jwt = {.Algo           = TJwt::RS256,
                .Audience       = "https://www.googleapis.com/oauth2/v4/token",
-               .TargetAudience = FunctionName,
-               .Sub            = AccountEmail,
-               .Iss            = AccountEmail};
+               .TargetAudience = Cfg.FunctionName,
+               .Sub            = Cfg.AccountEmail,
+               .Iss            = Cfg.AccountEmail};
 
-   QBuffer KeyStream = {&PrivateKey};
+   // Reason for this copy is that QBuffer wants non-const QByteArray in its ctor
+   // but Cfg.PrivateKey is (deliberately) const.
+   QByteArray NonConstPrivateKey = Cfg.PrivateKey;
+   QBuffer    KeyStream          = {&NonConstPrivateKey};
    KeyStream.open(QBuffer::ReadOnly);
    const QString SignedToken = Jwt.ComposeSignedToken(KeyStream);
 

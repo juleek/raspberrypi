@@ -25,9 +25,13 @@ QString ItemToJson(const TPublishItem &Item) {
    }
    QJsonObject Root;
    Root[TPublishItem::NAME_TO_TEMP_KEY] = NameToTemp;
-   Root[TPublishItem::ERROR_MSG_KEY] = Item.ErrorString;
+   Root[TPublishItem::ERROR_MSG_KEY]    = Item.ErrorString;
    return QJsonDocument(Root).toJson();
 }
+
+
+
+THttpSink::THttpSink(TCfg c): Cfg(std::move(c)) {}
 
 void THttpSink::Publish(const TPublishItem &item) const {
    Q_UNUSED(item);

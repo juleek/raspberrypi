@@ -14,7 +14,13 @@ QString ParseIdTokenFromJson(const QByteArray &HttpBody);
 
 class TJwtUpdater: public QObject {
 public:
-   TJwtUpdater(const QString &FunctionName, const QString &AccountEmail, const QByteArray &PrivateKey);
+   struct TCfg {
+      const QString    FunctionName;
+      const QString    AccountEmail;
+      const QByteArray PrivateKey;
+   };
+
+   explicit TJwtUpdater(TCfg Cfg);
    ~TJwtUpdater();
 
 
@@ -34,10 +40,7 @@ private:
 
    std::unique_ptr<QNetworkAccessManager> Nam;
 
-
-   const QString FunctionName;
-   const QString AccountEmail;
-   QByteArray    PrivateKey;
+   const TCfg Cfg;
 
    Q_OBJECT
 };
