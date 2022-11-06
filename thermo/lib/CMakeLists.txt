@@ -22,11 +22,11 @@ add_static_library(
 )
 
 # ============= Qt =============
-find_package(Qt6Core CONFIG REQUIRED)
-target_link_libraries(${current_target} PUBLIC Qt6::Core)
+find_package(Qt5Core CONFIG REQUIRED)
+target_link_libraries(${current_target} PUBLIC Qt5::Core)
 
-find_package(Qt6Network CONFIG REQUIRED)
-target_link_libraries(${current_target} PRIVATE Qt6::Network)
+find_package(Qt5Network CONFIG REQUIRED)
+target_link_libraries(${current_target} PRIVATE Qt5::Network)
 
 # ============= OpenSSL =============
 find_package(OpenSSL REQUIRED)

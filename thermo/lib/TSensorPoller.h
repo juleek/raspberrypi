@@ -9,6 +9,7 @@ struct TSensorInfo {
    QString Name;
 };
 
+class QIODevice;
 std::tuple<QString, double> ParseTempFrom(QIODevice &input);
 
 class TSensorPoller: public QObject {

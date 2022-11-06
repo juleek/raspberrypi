@@ -81,8 +81,7 @@ namespace {
       const QByteArray Data       = Reply->readAll();
       const int        StatusCode = Reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
       qDebug().nospace() << "TJwtUpdater: Got reply for url: " << Reply->url() << ", Headers: " << Reply->rawHeaderPairs()
-                         << ", status: " << StatusCode << " " << Reply->error()
-                         << ", content: " << Data.first(std::min(Data.size(), 1024ll));
+                         << ", status: " << StatusCode << " " << Reply->error() << ", content: " << Data.left(1024);
 
       if(Reply->error() != QNetworkReply::NoError) {
          qDebug() << "TJwtUpdater: Got error:" << Reply->error() << ", error:" << Reply->errorString();
