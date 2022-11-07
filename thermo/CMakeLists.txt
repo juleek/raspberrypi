@@ -13,10 +13,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # add_link_options(-fuse-ld=lld)
 add_compile_options(
+   -stdlib=libc++
    -Wall
    -Wextra
    -pedantic
    -ftemplate-backtrace-limit=0
+)
+add_link_options(
+   -stdlib=libc++
 )
 
 
