@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass
 class SendResult:
-    """Class for keeping information about the result of receiving response."""
+    """Represents status of sending a notification via Sender."""
     is_ok: bool
     http_code: int
 
