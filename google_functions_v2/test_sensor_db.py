@@ -11,7 +11,7 @@ class TestSensorDBConsumer(unittest.TestCase):
 
         db = mc.Mock(spec=sdb.SensorsDB)
 
-        consumer = sdb.Consumer(db)
+        consumer = sdb.DBConsumer(db)
         consumer.consume(datum)
 
         db.write.assert_called_with(datum)

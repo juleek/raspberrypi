@@ -25,7 +25,7 @@ TOPIC_ID: str = "tarasovka_topic"
 def google_ingest(cloud_event):
     bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
     chat_id_db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
-    consumer_db: sdb.Consumer = sdb.Consumer(sdbq.SensorsDBBQ(db=bigquerydb))
+    consumer_db: sdb.DBConsumer = sdb.DBConsumer(sdbq.SensorsDBBQ(db=bigquerydb))
     consumer_alert: alt.Alerting = alt.Alerting(name_to_min={botnotif.AMBIENT_TUBE_NAME: botnotif.AMBIENT_TEMP_THRESHOLD,
                                                              botnotif.BOTTOM_TUBE_NAME: botnotif.BOTTOM_TEMP_THRESHOLD},
                                                 sender=tel_s.TelegramSender(chat_id_db.read(alt.BOT_NAME), alt.BOT_ID))

@@ -7,6 +7,12 @@ import datetime as dt
 import typing as t
 
 class SensorsDB(abc.ABC):
+    """
+    This is an abstract class that is responsible for:
+    * writing DeviceDatum to DB,
+    * reading data from DB for the provided period and return list of Sensors and error_messages,
+    * deleting data from DB (if needed).
+    """
     @abc.abstractmethod
     def write(self,  datum: DeviceDatum) -> None:
         pass
@@ -29,7 +35,11 @@ class SensorsDB(abc.ABC):
 
 
 
-class Consumer(ingest.Consumer):
+class DBConsumer(ingest.Consumer):
+    """
+    This is a database writing implementation of the abstract class Consumer:
+    on every DeviceDatum it writes DeviceDatum to DB.
+    """
     def __init__(self, db: SensorsDB):
         self.db = db
 
