@@ -7,9 +7,7 @@ import typing as t
 
 class ChatIdDB:
     """
-    This is a class that is responsible for:
-    * updating table properties, in particular: provide table's fields
-    * keeping information about Bots names and Chat_ids in the created table
+    This is a class that is responsible for reading/writing data messenger-related info from/to a DB.
     """
     COL_BOT_NAME: str = "bot_name"
     COL_CHAT_ID: str = "chat_id"
