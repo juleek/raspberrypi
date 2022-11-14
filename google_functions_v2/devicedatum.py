@@ -7,9 +7,7 @@ import json
 @dataclass
 class DeviceDatum:
     """
-    The class is responsible for:
-    * converting data's format that received from IoT device
-    * keeping data in a new format "DeviceDatum". This format is convenient for filling the tables.
+    The is the main struct that corresponds to a single "measurement" (data-point received from IoT device).
     """
     name_to_temp: t.Dict[str, float]
     time: dt.datetime
