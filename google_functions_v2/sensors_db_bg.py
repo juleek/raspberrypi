@@ -8,6 +8,9 @@ import bigquerydb as bigdb
 import devicedatum as dd
 
 class SensorsDBBQ(sdb.SensorsDB):
+    """
+    This is a class that is responsible for reading/writing DevideDatum objects (our primary telemetry data) from/to a DB.
+    """
     COL_TIMESTAMP_NAME: str = "Timestamp"
     COL_ERROR_MSG_NAME: str = "ErrorMessage"
     COL_TUBENAME_NAME: str = "TubeName"

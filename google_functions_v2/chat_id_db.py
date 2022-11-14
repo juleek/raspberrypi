@@ -6,6 +6,9 @@ import sender as sen
 import typing as t
 
 class ChatIdDB:
+    """
+    This is a class that is responsible for reading/writing data messenger-related info from/to a DB.
+    """
     COL_BOT_NAME: str = "bot_name"
     COL_CHAT_ID: str = "chat_id"
     TABLE_NAME: str = "chat_ids"
