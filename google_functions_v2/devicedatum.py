@@ -6,6 +6,9 @@ import json
 
 @dataclass
 class DeviceDatum:
+    """
+    The is the main struct that corresponds to a single "measurement" (data-point received from IoT device).
+    """
     name_to_temp: t.Dict[str, float]
     time: dt.datetime
     error_msg: str

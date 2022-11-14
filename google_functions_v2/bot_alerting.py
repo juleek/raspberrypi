@@ -23,4 +23,4 @@ class Alerting(ingest.Consumer):
             messages.append(f'"{name}" is {datum.name_to_temp[name]} degrees, which is {min_temp - datum.name_to_temp[name]} degrees lower than threshold {min_temp}!')
 
         if messages:
-            self.sender.send_text("\n".join(messages))
+            self.sender.send_text("\n".join(messages), is_markdown=False)
