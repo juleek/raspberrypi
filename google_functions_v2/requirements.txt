@@ -8,7 +8,7 @@ requests
 
 # numpy
 # pandas
-# matplotlib
+matplotlib
 
 
 # google-cloud-core
