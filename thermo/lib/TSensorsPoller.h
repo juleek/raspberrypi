@@ -5,6 +5,7 @@
 
 struct TSensorInfo;
 class ISink;
+struct TPollerWithThread;
 
 class TSensorsPoller: public QObject {
 public:
@@ -13,6 +14,9 @@ public:
 
 signals:
    void BootstrapTempPollers();
+
+private slots:
+   void OnNewTemperatureGot(const uint32_t Index, QString ErrStr, double Temp) noexcept;
 
 private:
    Q_OBJECT

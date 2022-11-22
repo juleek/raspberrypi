@@ -7,6 +7,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QThread>
 
 template <class T>
 class AsKeyValueRange {
@@ -69,7 +70,7 @@ void THttpSink::OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors)
 
 
 void THttpSink::Publish(const TPublishItem &Item) {
-   qDebug() << "THttpSink::Publish 1: thread:" << (void *)thread();
+   qDebug() << "THttpSink::Publish 1: thread:" << (void *)thread() << (void *)QThread::currentThread();
 
    const QTime TIMEOUT = QTime(0, 1, 0);
 

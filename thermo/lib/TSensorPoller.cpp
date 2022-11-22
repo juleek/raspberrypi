@@ -59,9 +59,10 @@ namespace {
 
 
 
-TSensorPoller::TSensorPoller(TSensorInfo si) noexcept {
-   qDebug() << "TSensorPoller: thread:" << (void *)thread();
+TSensorPoller::TSensorPoller(TSensorInfo si, const uint32_t Ind) noexcept {
+   qDebug() << "TSensorPoller: thread:" << (void *)thread() << (void *)QThread::currentThread();
    SensorInfo  = std::move(si);
+   Index = Ind;
    Periodicity = QTime(0, 0, 30);
 }
 
@@ -79,10 +80,10 @@ void TSensorPoller::ScheduleNextMeasurement() noexcept {
 }
 
 void TSensorPoller::OnTimerShot() {
-   qDebug() << "TSensorPoller::OnTimerShot: thread:" << (void *)thread();
+   qDebug() << "TSensorPoller::OnTimerShot: thread:" << (void *)thread() << (void *)QThread::currentThread();
 
    std::tuple<QString, double> ErrStrAndTemp = ParseTempFromPath(SensorInfo.Path);
-   emit                        NewTemperatureGot(std::get<0>(ErrStrAndTemp), std::get<1>(ErrStrAndTemp));
+   emit                        NewTemperatureGot(Index, std::get<0>(ErrStrAndTemp), std::get<1>(ErrStrAndTemp));
    LastGet = QTime::currentTime();
    ScheduleNextMeasurement();
 }
