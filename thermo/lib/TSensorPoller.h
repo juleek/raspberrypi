@@ -14,10 +14,10 @@ std::tuple<QString, double> ParseTempFrom(QIODevice &input);
 
 class TSensorPoller: public QObject {
 public:
-   TSensorPoller(TSensorInfo SensorInfo) noexcept;
+   TSensorPoller(TSensorInfo SensorInfo, const uint32_t MyInd) noexcept;
 
 signals:
-   void NewTemperatureGot(QString ErrMsg, double Temp);
+   void NewTemperatureGot(const uint32_t Index, QString ErrMsg, double Temp);
 
 public slots:
    void Bootstrap();
@@ -29,6 +29,7 @@ private:
    void ScheduleNextMeasurement() noexcept;
 
    TSensorInfo SensorInfo;
+   uint32_t    MyIndex;
    QTime       LastGet;
    QTime       Periodicity;
 

@@ -13,7 +13,7 @@
 namespace {
 
    struct TPollerWithThread {
-      TPollerWithThread(TSensorInfo si) noexcept: SensorInfo(si), TempPoller(si) {
+      TPollerWithThread(TSensorInfo si, const uint32_t Index) noexcept: SensorInfo(si), TempPoller(si, Index) {
          TempPoller.moveToThread(&Thread);
          Thread.start();
          qDebug().nospace() << "Created TempPoller and its thread (" << &Thread
@@ -76,64 +76,65 @@ namespace {
 
 
 struct TSensorsPoller::TImpl {
-   void OnNewTemperatureGot(TPollerWithThread *Wrapper, QString ErrStr, double Temp) noexcept {
-      qDebug().nospace() << "TDriver::OnNewTemperatureGot:"
-                         << " Name: " << Wrapper->SensorInfo.Name << ", T: " << Temp << ", Path: " << Wrapper->SensorInfo.Path
-                         << ", ErrStr: " << ErrStr;
-
-      // if (Wrapper->SensorInfo.Name == "Ambient")
-      Wrapper->OnNewTemperatureGot(Temp, ErrStr);
-
-      const auto cmp = [](const auto &f, const auto &s) {
-         return f->GetNumberOfConsecutiveReadings() < s->GetNumberOfConsecutiveReadings();
-      };
-      TPollerWithThread &MaxNumberSensor = **std::max_element(TempPollers.begin(), TempPollers.end(), cmp);
-      TPollerWithThread &MinNumberSensor = **std::min_element(TempPollers.begin(), TempPollers.end(), cmp);
-
-
-      static const size_t MAX_DIFFERENCE_BETWEEN_SENSORS = 4;
-      if(MinNumberSensor.GetNumberOfConsecutiveReadings() == 0 &&
-         MaxNumberSensor.GetNumberOfConsecutiveReadings() < MAX_DIFFERENCE_BETWEEN_SENSORS) {
-         // We know that there is at least one lagging sensor (MinNumberSensor.GetNumberOfConsecutiveReadings() == 0)
-         // but the diff between it and the most advanced one is less than thrashold => we are allowed to wait more time
-         qDebug() << "Not publishing the reading, because there are other unread sensors: " << MinNumberSensor.SensorInfo.Name;
-         return;
-      }
-
-      // Either all of the sensors have some data, or difference between them is larger than threshold
-      TPublishItem PublishItem;
-      if(MinNumberSensor.GetNumberOfConsecutiveReadings() == 0 &&
-         MaxNumberSensor.GetNumberOfConsecutiveReadings() >= MAX_DIFFERENCE_BETWEEN_SENSORS) {
-         PublishItem.ErrorString = QString("We were able to read %1 times from sensor %2:%3, but were "
-                                           "unable to read once from sensor %4:%5")
-                                       .arg(MaxNumberSensor.GetNumberOfConsecutiveReadings())
-                                       .arg(MaxNumberSensor.SensorInfo.Name, MaxNumberSensor.SensorInfo.Path)
-                                       .arg(MinNumberSensor.SensorInfo.Name, MinNumberSensor.SensorInfo.Path);
-      }
-
-      for(TPollerWithThreadPtr &Poller: TempPollers)
-         ConvertPollerDataToPublishItem(PublishItem, Poller);
-      // TGCMqtt: Publishing: "{\"Ambient\":22.875,\"BottomTube\":22.875}"
-      // TGCMqtt: Publishing: "{\"Ambient\":22.937,\"BottomTube\":23.375}"
-      Sink->Publish(PublishItem);
-   }
-
    std::vector<TPollerWithThreadPtr> TempPollers;
-   ISink                      *Sink;
+   ISink                            *Sink;
 };
 
 
 
+void TSensorsPoller::OnNewTemperatureGot(const uint32_t Index, QString ErrStr, double Temp) noexcept {
+   TPollerWithThread *Wrapper = d->TempPollers[Index].get();
+   qDebug().nospace() << "TDriver::OnNewTemperatureGot:"
+                      << " Name: " << Wrapper->SensorInfo.Name << ", T: " << Temp << ", Path: " << Wrapper->SensorInfo.Path
+                      << ", ErrStr: " << ErrStr;
+
+   // if (Wrapper->SensorInfo.Name == "Ambient")
+   Wrapper->OnNewTemperatureGot(Temp, ErrStr);
+
+   const auto cmp = [](const auto &f, const auto &s) {
+      return f->GetNumberOfConsecutiveReadings() < s->GetNumberOfConsecutiveReadings();
+   };
+   TPollerWithThread &MaxNumberSensor = **std::max_element(d->TempPollers.begin(), d->TempPollers.end(), cmp);
+   TPollerWithThread &MinNumberSensor = **std::min_element(d->TempPollers.begin(), d->TempPollers.end(), cmp);
+
+
+   static const size_t MAX_DIFFERENCE_BETWEEN_SENSORS = 4;
+   if(MinNumberSensor.GetNumberOfConsecutiveReadings() == 0 &&
+      MaxNumberSensor.GetNumberOfConsecutiveReadings() < MAX_DIFFERENCE_BETWEEN_SENSORS) {
+      // We know that there is at least one lagging sensor (MinNumberSensor.GetNumberOfConsecutiveReadings() == 0)
+      // but the diff between it and the most advanced one is less than thrashold => we are allowed to wait more time
+      qDebug() << "Not publishing the reading, because there are other unread sensors: " << MinNumberSensor.SensorInfo.Name;
+      return;
+   }
+
+   // Either all of the sensors have some data, or difference between them is larger than threshold
+   TPublishItem PublishItem;
+   if(MinNumberSensor.GetNumberOfConsecutiveReadings() == 0 &&
+      MaxNumberSensor.GetNumberOfConsecutiveReadings() >= MAX_DIFFERENCE_BETWEEN_SENSORS) {
+      PublishItem.ErrorString = QString("We were able to read %1 times from sensor %2:%3, but were "
+                                        "unable to read once from sensor %4:%5")
+                                    .arg(MaxNumberSensor.GetNumberOfConsecutiveReadings())
+                                    .arg(MaxNumberSensor.SensorInfo.Name, MaxNumberSensor.SensorInfo.Path)
+                                    .arg(MinNumberSensor.SensorInfo.Name, MinNumberSensor.SensorInfo.Path);
+   }
+
+   for(TPollerWithThreadPtr &Poller: d->TempPollers)
+      ConvertPollerDataToPublishItem(PublishItem, Poller);
+
+   d->Sink->Publish(PublishItem);
+}
 
 TSensorsPoller::TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, ISink &Sink) noexcept: d(new TImpl) {
    d->Sink = &Sink;
 
+   qRegisterMetaType<uint32_t>("uint32_t");
+
+   uint32_t Index = 0;
    for(const TSensorInfo &SensorInfo: SensorInfos) {
-      TPollerWithThreadPtr Ptr = MakeUnique(SensorInfo);
-      QObject::connect(&Ptr->TempPoller, &TSensorPoller::NewTemperatureGot, [this, W = Ptr.get()](QString Err, double T) {
-         d->OnNewTemperatureGot(W, std::move(Err), T);
-      });
-      QObject::connect(this, &TSensorsPoller::BootstrapTempPollers, &Ptr->TempPoller, &TSensorPoller::Bootstrap);
+      TPollerWithThreadPtr Ptr = MakeUnique(SensorInfo, Index);
+      ++Index;
+      connect(&Ptr->TempPoller, &TSensorPoller::NewTemperatureGot, this, &TSensorsPoller::OnNewTemperatureGot);
+      connect(this, &TSensorsPoller::BootstrapTempPollers, &Ptr->TempPoller, &TSensorPoller::Bootstrap);
       d->TempPollers.push_back(std::move(Ptr));
    }
 
