@@ -7,6 +7,7 @@
 struct TPublishItem {
    static const QLatin1String NAME_TO_TEMP_KEY;
    static const QLatin1String ERROR_MSG_KEY;
+   static const QLatin1String TIME_KEY;
 
    QHash<QString, double> NameToTemp;
    QString                ErrorString;

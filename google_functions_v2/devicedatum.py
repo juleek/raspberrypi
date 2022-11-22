@@ -16,8 +16,8 @@ class DeviceDatum:
     @staticmethod
     def from_json(str_json: str) -> 'DeviceDatum':
         msg = json.loads(str_json)
-        time = dt.datetime.fromisoformat(msg['time'])
+        time = dt.datetime.fromisoformat(msg['Time'])
         return DeviceDatum(
-            name_to_temp=msg['name_to_temp'],
+            name_to_temp=msg['NameToTemp'],
             time=time,
-            error_msg=msg['error_msg'] if "error_msg" in msg else "")
+            error_msg=msg['ErrorString'] if "ErrorString" in msg else "")

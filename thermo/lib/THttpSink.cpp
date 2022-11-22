@@ -31,6 +31,7 @@ QString ItemToJson(const TPublishItem &Item) {
    QJsonObject Root;
    Root[TPublishItem::NAME_TO_TEMP_KEY] = NameToTemp;
    Root[TPublishItem::ERROR_MSG_KEY]    = Item.ErrorString;
+   Root[TPublishItem::TIME_KEY]         = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
    return QJsonDocument(Root).toJson();
 }
 
