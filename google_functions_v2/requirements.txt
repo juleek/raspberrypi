@@ -6,8 +6,8 @@ Flask
 requests
 
 
-# numpy
-# pandas
+numpy
+pandas
 matplotlib
 
 
