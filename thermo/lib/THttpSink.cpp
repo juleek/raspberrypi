@@ -95,12 +95,13 @@ void THttpSink::Publish(const TPublishItem &Item) {
    if(Cfg.DryRun)
       return;
 
-   QNetworkReply *Reply = Nam.post(Request, Body.toUtf8());
    qDebug() << "THttpSink::Publish 4: thread:" << (void *)thread();
-   ReqTimeoutTimer.start(TIMEOUT.msecsSinceStartOfDay());
+   QNetworkReply *Reply = Nam.post(Request, Body.toUtf8());
    qDebug() << "THttpSink::Publish 5: thread:" << (void *)thread();
+   ReqTimeoutTimer.start(TIMEOUT.msecsSinceStartOfDay());
+   qDebug() << "THttpSink::Publish 6: thread:" << (void *)thread();
    connect(&ReqTimeoutTimer, &QTimer::timeout, [this, Reply]() { OnResponse(Reply, true); });
    connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply, false); });
    connect(Reply, &QNetworkReply::sslErrors, [this, Reply](const QList<QSslError> &Errors) { OnSslError(Reply, Errors); });
-   qDebug() << "THttpSink::Publish 6: thread:" << (void *)thread();
+   qDebug() << "THttpSink::Publish 7: thread:" << (void *)thread();
 }
