@@ -46,7 +46,7 @@ THttpSink::THttpSink(TCfg c, TJwtUpdater &JwtUp, QNetworkAccessManager &NetworkA
 
 
 void THttpSink::OnNewJwtToken(const QString &Token) {
-   qDebug() << "TJwtUpdater::OnNewJwtToken: Got new token:" << Token;
+   qDebug() << "THttpSink::OnNewJwtToken: Got new token:" << Token;
    JwtToken = Token;
 }
 
@@ -82,8 +82,8 @@ void THttpSink::Publish(const TPublishItem &Item) {
 
    const QString Body = ItemToJson(Item);
 
-   qDebug().nospace() << "THttpSink::Publish: " << (Cfg.DryRun ? "NOT " : "") << "Sending data to:" << Request.url()
-                      << "with headers:" << Request.rawHeaderList() << "and body:" << Body;
+   qDebug().nospace() << "THttpSink::Publish: " << (Cfg.DryRun ? "NOT " : "") << "Sending data to: " << Request.url()
+                      << " with headers: " << Request.rawHeaderList() << " and body: " << Body;
 
    if(Cfg.DryRun)
       return;
