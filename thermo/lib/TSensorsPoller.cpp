@@ -128,6 +128,8 @@ struct TSensorsPoller::TImpl {
 TSensorsPoller::TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, ISink &Sink) noexcept: d(new TImpl) {
    d->Sink = &Sink;
 
+   qDebug() << "TSensorsPoller: thread:" << (void *)thread();
+
    for(const TSensorInfo &SensorInfo: SensorInfos) {
       TPollerWithThreadPtr Ptr = MakeUnique(SensorInfo);
       QObject::connect(&Ptr->TempPoller, &TSensorPoller::NewTemperatureGot, [this, W = Ptr.get()](QString Err, double T) {

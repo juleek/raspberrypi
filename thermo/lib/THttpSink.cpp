@@ -69,6 +69,8 @@ void THttpSink::OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors)
 
 
 void THttpSink::Publish(const TPublishItem &Item) {
+   qDebug() << "THttpSink::Publish: thread:" << (void *)thread();
+
    const QTime TIMEOUT = QTime(0, 1, 0);
 
    if(JwtToken.isEmpty()) {
