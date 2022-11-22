@@ -5,8 +5,8 @@
 #include <QStringView>
 
 struct TPublishItem {
-   static constexpr QStringView NAME_TO_TEMP_KEY = u"NameToTemp";
-   static constexpr QStringView ERROR_MSG_KEY    = u"ErrorString";
+   static const QLatin1String NAME_TO_TEMP_KEY;
+   static const QLatin1String ERROR_MSG_KEY;
 
    QHash<QString, double> NameToTemp;
    QString                ErrorString;

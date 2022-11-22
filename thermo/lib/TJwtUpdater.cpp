@@ -24,7 +24,9 @@ QString FormUrlEncode(std::initializer_list<std::pair<QString, QString>> KVs) {
 
 
 
-TJwtUpdater::TJwtUpdater(TCfg c, QNetworkAccessManager &NetworkAccessManager): Cfg(std::move(c)), Nam(NetworkAccessManager) {}
+TJwtUpdater::TJwtUpdater(TCfg c, QNetworkAccessManager &NetworkAccessManager): Cfg(std::move(c)), Nam(NetworkAccessManager) {
+   ReqTimeoutTimer.setSingleShot(true);
+}
 
 TJwtUpdater::~TJwtUpdater() = default;
 
@@ -97,17 +99,25 @@ namespace {
       emit Self->NewTokenObtained(Token);
    }
 }   // namespace
-void TJwtUpdater::OnResponse(QNetworkReply *Reply) {
-   // emit NewTemperatureGot(std::get<0>(ErrStrAndTemp), std::get<1>(ErrStrAndTemp));
-   HandleResponse(Reply, this);
+
+
+// Three possible outcomes of a request: a response, ssl error, timeout:
+void TJwtUpdater::OnResponse(QNetworkReply *Reply, const bool TimedOut) {
+   ReqTimeoutTimer.stop();
+   if(TimedOut) {
+      qDebug() << "TJwtUpdater: Request has timed out, ignoring it...";
+   } else {
+      HandleResponse(Reply, this);
+   }
+
    Reply->deleteLater();
    ScheduleNextMeasurement();
 }
-
 void TJwtUpdater::OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors) {
    qDebug() << "TJwtUpdater::OnSslError: Failed to establish SSL connection: Got SSL Error for url:" << Reply->url() << ":"
             << Errors;
 }
+
 
 
 void TJwtUpdater::OnTimerShot() {
@@ -127,7 +137,10 @@ void TJwtUpdater::OnTimerShot() {
    const QString SignedToken = Jwt.ComposeSignedToken(KeyStream);
 
    QNetworkRequest Request(QUrl("https://www.googleapis.com/oauth2/v4/token"));
-   Request.setTransferTimeout(TIMEOUT.msecsSinceStartOfDay());
+
+   // Qt 5.11 (the version available on RaspberryPi) does not have setTransferTimeout => need to workaround it
+   // Request.setTransferTimeout(TIMEOUT.msecsSinceStartOfDay());
+
    Request.setRawHeader("Authorization", ("Bearer " + SignedToken).toUtf8());
    Request.setRawHeader("Content-Type", "application/x-www-form-urlencoded");
 
@@ -138,6 +151,8 @@ void TJwtUpdater::OnTimerShot() {
             << "and body:" << Body;
 
    QNetworkReply *Reply = Nam.post(Request, Body.toUtf8());
-   connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply); });
+   ReqTimeoutTimer.callOnTimeout([this, Reply]() { OnResponse(Reply, true); });
+   ReqTimeoutTimer.start(TIMEOUT.msecsSinceStartOfDay());
+   connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply, false); });
    connect(Reply, &QNetworkReply::sslErrors, [this, Reply](const QList<QSslError> &Errors) { OnSslError(Reply, Errors); });
 }

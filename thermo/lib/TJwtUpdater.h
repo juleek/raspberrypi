@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QObject>
+#include <QTimer>
 
 
 class QNetworkAccessManager;
@@ -35,12 +36,14 @@ private:
    QNetworkAccessManager &Nam;
 
 
-   void OnResponse(QNetworkReply *reply);
-   void OnSslError(QNetworkReply *reply, const QList<QSslError> &Errors);
+   void OnResponse(QNetworkReply *Reply, bool TimedOut);
+   void OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors);
 
    void      OnTimerShot();
    void      ScheduleNextMeasurement();
    QDateTime LastGet;
+
+   QTimer ReqTimeoutTimer;
 
    Q_OBJECT
 };
