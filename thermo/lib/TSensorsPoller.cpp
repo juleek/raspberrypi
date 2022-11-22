@@ -126,6 +126,8 @@ void TSensorsPoller::OnNewTemperatureGot(const uint32_t Index, QString ErrStr, d
 TSensorsPoller::TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, ISink &Sink) noexcept: d(new TImpl) {
    d->Sink = &Sink;
 
+   qRegisterMetaType<uint32_t>("uint32_t");
+
    qDebug() << "TSensorsPoller: thread:" << (void *)thread();
    uint32_t Index = 0;
    for(const TSensorInfo &SensorInfo: SensorInfos) {
