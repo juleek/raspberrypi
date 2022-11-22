@@ -6,5 +6,5 @@ class ISink {
 public:
    virtual ~ISink();
 
-   virtual void Publish(const TPublishItem &item) const = 0;
+   virtual void Publish(const TPublishItem &item) = 0;
 };

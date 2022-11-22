@@ -151,8 +151,8 @@ void TJwtUpdater::OnTimerShot() {
             << "and body:" << Body;
 
    QNetworkReply *Reply = Nam.post(Request, Body.toUtf8());
-   ReqTimeoutTimer.callOnTimeout([this, Reply]() { OnResponse(Reply, true); });
    ReqTimeoutTimer.start(TIMEOUT.msecsSinceStartOfDay());
+   connect(&ReqTimeoutTimer, &QTimer::timeout, [this, Reply]() { OnResponse(Reply, true); });
    connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply, false); });
    connect(Reply, &QNetworkReply::sslErrors, [this, Reply](const QList<QSslError> &Errors) { OnSslError(Reply, Errors); });
 }

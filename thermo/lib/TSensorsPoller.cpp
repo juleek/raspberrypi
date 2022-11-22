@@ -119,13 +119,13 @@ struct TSensorsPoller::TImpl {
    }
 
    std::vector<TPollerWithThreadPtr> TempPollers;
-   const ISink                      *Sink;
+   ISink                      *Sink;
 };
 
 
 
 
-TSensorsPoller::TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, const ISink &Sink) noexcept: d(new TImpl) {
+TSensorsPoller::TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, ISink &Sink) noexcept: d(new TImpl) {
    d->Sink = &Sink;
 
    for(const TSensorInfo &SensorInfo: SensorInfos) {

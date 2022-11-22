@@ -1,6 +1,7 @@
 #include "ISink.h"
 
 #include <QObject>
+#include <QTimer>
 
 QString ItemToJson(const TPublishItem &Item);
 
@@ -19,7 +20,7 @@ public:
 
    explicit THttpSink(TCfg Cfg, TJwtUpdater &JwtUpdater, QNetworkAccessManager &NetworkAccessManager);
 
-   void Publish(const TPublishItem &Item) const override;
+   void Publish(const TPublishItem &Item) override;
 
 public slots:
    void OnNewJwtToken(const QString &Token);
@@ -31,9 +32,10 @@ private:
 
    QString JwtToken;
 
-   void OnResponse(QNetworkReply *Reply) const;
+   void OnResponse(QNetworkReply *Reply, const bool TimedOut);
    void OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors) const;
 
+   QTimer ReqTimeoutTimer;
 
    Q_OBJECT
 };

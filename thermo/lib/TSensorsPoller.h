@@ -8,7 +8,7 @@ class ISink;
 
 class TSensorsPoller: public QObject {
 public:
-   explicit TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, const ISink &sink) noexcept;
+   explicit TSensorsPoller(const std::vector<TSensorInfo> &SensorInfos, ISink &sink) noexcept;
    ~TSensorsPoller();
 
 signals:

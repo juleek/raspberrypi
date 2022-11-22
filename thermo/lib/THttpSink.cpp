@@ -41,6 +41,7 @@ QString ItemToJson(const TPublishItem &Item) {
 THttpSink::THttpSink(TCfg c, TJwtUpdater &JwtUp, QNetworkAccessManager &NetworkAccessManager):
     Cfg(std::move(c)), Nam(NetworkAccessManager) {
    connect(&JwtUp, &TJwtUpdater::NewTokenObtained, this, &THttpSink::OnNewJwtToken);
+   ReqTimeoutTimer.setSingleShot(true);
 }
 
 
@@ -51,9 +52,10 @@ void THttpSink::OnNewJwtToken(const QString &Token) {
 
 
 
-void THttpSink::OnResponse(QNetworkReply *Reply) const {
-   const int        StatusCode = Reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-   qDebug().nospace() << "TJwtUpdater::OnResponse: Got reply for url: " << Reply->url()
+void THttpSink::OnResponse(QNetworkReply *Reply, const bool TimedOut) {
+   ReqTimeoutTimer.stop();
+   const int StatusCode = Reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+   qDebug().nospace() << "TJwtUpdater::OnResponse: Got reply for url: " << Reply->url() << ", TimedOut: " << TimedOut
                       << ", Headers: " << Reply->rawHeaderPairs() << ", status: " << StatusCode << " " << Reply->error()
                       << ", content: " << Reply->read(1024);
 
@@ -63,7 +65,9 @@ void THttpSink::OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors)
    qDebug() << "THttpSink::OnSslError: Failed to establish SSL connection: Got SSL Error for url:" << Reply->url() << ":"
             << Errors;
 }
-void THttpSink::Publish(const TPublishItem &Item) const {
+
+
+void THttpSink::Publish(const TPublishItem &Item) {
    const QTime TIMEOUT = QTime(0, 1, 0);
 
    if(JwtToken.isEmpty()) {
@@ -72,7 +76,7 @@ void THttpSink::Publish(const TPublishItem &Item) const {
    }
 
    QNetworkRequest Request(QUrl(Cfg.FuncHttpEndPoint));
-   Request.setTransferTimeout(TIMEOUT.msecsSinceStartOfDay());
+   // Request.setTransferTimeout(TIMEOUT.msecsSinceStartOfDay());
    Request.setRawHeader("Authorization", ("Bearer " + JwtToken).toUtf8());
    Request.setRawHeader("Content-Type", "application/json");
 
@@ -85,6 +89,8 @@ void THttpSink::Publish(const TPublishItem &Item) const {
       return;
 
    QNetworkReply *Reply = Nam.post(Request, Body.toUtf8());
-   connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply); });
+   ReqTimeoutTimer.start(TIMEOUT.msecsSinceStartOfDay());
+   connect(&ReqTimeoutTimer, &QTimer::timeout, [this, Reply]() { OnResponse(Reply, true); });
+   connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply, false); });
    connect(Reply, &QNetworkReply::sslErrors, [this, Reply](const QList<QSslError> &Errors) { OnSslError(Reply, Errors); });
 }
