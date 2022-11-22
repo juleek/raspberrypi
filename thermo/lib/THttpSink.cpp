@@ -56,7 +56,7 @@ void THttpSink::OnNewJwtToken(const QString &Token) {
 void THttpSink::OnResponse(QNetworkReply *Reply, const bool TimedOut) {
    ReqTimeoutTimer.stop();
    const int StatusCode = Reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-   qDebug().nospace() << "TJwtUpdater::OnResponse: Got reply for url: " << Reply->url() << ", TimedOut: " << TimedOut
+   qDebug().nospace() << "THttpSink::OnResponse: Got reply for url: " << Reply->url() << ", TimedOut: " << TimedOut
                       << ", Headers: " << Reply->rawHeaderPairs() << ", status: " << StatusCode << " " << Reply->error()
                       << ", content: " << Reply->read(1024);
 
