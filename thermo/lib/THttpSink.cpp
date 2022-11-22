@@ -69,7 +69,7 @@ void THttpSink::OnSslError(QNetworkReply *Reply, const QList<QSslError> &Errors)
 
 
 void THttpSink::Publish(const TPublishItem &Item) {
-   qDebug() << "THttpSink::Publish: thread:" << (void *)thread();
+   qDebug() << "THttpSink::Publish 1: thread:" << (void *)thread();
 
    const QTime TIMEOUT = QTime(0, 1, 0);
 
@@ -78,10 +78,14 @@ void THttpSink::Publish(const TPublishItem &Item) {
       return;
    }
 
+   qDebug() << "THttpSink::Publish 2: thread:" << (void *)thread();
+
    QNetworkRequest Request(QUrl(Cfg.FuncHttpEndPoint));
    // Request.setTransferTimeout(TIMEOUT.msecsSinceStartOfDay());
    Request.setRawHeader("Authorization", ("Bearer " + JwtToken).toUtf8());
    Request.setRawHeader("Content-Type", "application/json");
+
+   qDebug() << "THttpSink::Publish 3: thread:" << (void *)thread();
 
    const QString Body = ItemToJson(Item);
 
@@ -92,8 +96,11 @@ void THttpSink::Publish(const TPublishItem &Item) {
       return;
 
    QNetworkReply *Reply = Nam.post(Request, Body.toUtf8());
+   qDebug() << "THttpSink::Publish 4: thread:" << (void *)thread();
    ReqTimeoutTimer.start(TIMEOUT.msecsSinceStartOfDay());
+   qDebug() << "THttpSink::Publish 5: thread:" << (void *)thread();
    connect(&ReqTimeoutTimer, &QTimer::timeout, [this, Reply]() { OnResponse(Reply, true); });
    connect(Reply, &QNetworkReply::finished, [this, Reply]() { OnResponse(Reply, false); });
    connect(Reply, &QNetworkReply::sslErrors, [this, Reply](const QList<QSslError> &Errors) { OnSslError(Reply, Errors); });
+   qDebug() << "THttpSink::Publish 6: thread:" << (void *)thread();
 }
