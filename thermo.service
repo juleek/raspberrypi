@@ -8,8 +8,9 @@ After=network-online.target
 Type=simple
 User=pi
 # EnvironmentFile=/home/pi/keyinfo.txt
-ExecStart=/home/pi/build-thermo/thermo --MQTTPrivateKeyPath /home/pi/ec_private.pem --GCDeviceId device_tarpi
+# ExecStart=/home/pi/build-thermo/thermo --MQTTPrivateKeyPath /home/pi/ec_private.pem --GCDeviceId device_tarpi
 # --MQTTDryRun
+ExecStart=/home/pi/build-thermo/app/thermo --GFPrivateKeyPath /home/pi/thermo-app-priv.pem --GFAccountEmail thermo-app-acc@tarasovka.iam.gserviceaccount.com --GFHttpEndPoint https://europe-west2-tarasovka.cloudfunctions.net/google-write-msg-to-topic-mU1y9bOYcN
 Restart=always
 RestartSec=60
 
