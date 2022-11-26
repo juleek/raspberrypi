@@ -2,6 +2,7 @@
 import abc
 import devicedatum as dd
 import typing as t
+from logger import logger
 
 class Consumer(abc.ABC):
     """
@@ -24,5 +25,6 @@ class Ingest:
         self.consumers = consumers
 
     def onDatum(self, datum: dd.DeviceDatum) -> None:
+        logger.info(f'datum: {datum}')
         for consumer in self.consumers:
             consumer.consume(datum)
