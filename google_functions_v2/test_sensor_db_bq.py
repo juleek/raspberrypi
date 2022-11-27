@@ -8,6 +8,7 @@ import random
 import string
 import bigquerydb as bigqr
 
+@unittest.skip("This is a manual test")
 class TestSensorsDBBQ(unittest.TestCase):
     def setUp(self):
         s = ''.join(random.choice(string.ascii_lowercase) for i in range(10))

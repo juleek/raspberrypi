@@ -3,6 +3,7 @@ import chat_id_db as chiddb
 import stdout_sender as stdout
 import bigquerydb as bigqr
 
+@unittest.skip("This is a manual test")
 class TestChatIdDB(unittest.TestCase):
     def setUp(self):
         self.db: chiddb.ChatIdDB = chiddb.ChatIdDB(bigqr.BigQueryDB(project="tarasovka", dataset_id="test", location="europe-west2"))
