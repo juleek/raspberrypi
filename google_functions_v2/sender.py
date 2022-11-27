@@ -8,6 +8,7 @@ class SendResult:
     """Represents status of sending a notification via Sender."""
     is_ok: bool
     http_code: int
+    err_str: str
 
 class Sender(abc.ABC):
     """Abstract class that responsible for sending text and pic to user.

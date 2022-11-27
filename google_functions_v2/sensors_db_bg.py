@@ -6,6 +6,7 @@ import sensor as sen
 from collections import defaultdict
 import bigquerydb as bigdb
 import devicedatum as dd
+from logger import logger
 
 class SensorsDBBQ(sdb.SensorsDB):
     """
@@ -41,6 +42,7 @@ class SensorsDBBQ(sdb.SensorsDB):
 
 
     def write(self, datum: dd.DeviceDatum) -> None:
+        logger.info(f'datum: {datum}')
         tubes: t.List[t.Dict[str, float]] = []
         for name, temp in datum.name_to_temp.items():
             tubes.append({self.COL_TUBENAME_NAME: name, self.COL_TEMPERATURE_NAME: temp})
@@ -49,10 +51,13 @@ class SensorsDBBQ(sdb.SensorsDB):
         columns: t.Dict[str, str] = {self.COL_TIMESTAMP_NAME: str_datetime, self.COL_TUBES_NAME: tubes}
         if datum.error_msg != "":
             columns[self.COL_ERROR_MSG_NAME] = datum.error_msg
-        self.db.client.insert_rows(self.table, [columns])
+
+        errors = self.db.client.insert_rows(self.table, [columns])
+        logger.info(f'Written into {self.table.table_id}, result: {errors if errors else "Ok"}')
 
 
     def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
+        logger.info(f'date: {date}')
         str_datetime: str = date.strftime(self.TIME_FORMAT)
         query: str = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} WHERE {self.COL_TIMESTAMP_NAME} >= TIMESTAMP('{str_datetime}') ORDER BY {self.COL_TIMESTAMP_NAME}"
         query_job: bigquery.job.QueryJob = self.db.client.query(query)
@@ -66,14 +71,18 @@ class SensorsDBBQ(sdb.SensorsDB):
                 name_to_sensor_temp[item[self.COL_TUBENAME_NAME]].temperatures.append(item[self.COL_TEMPERATURE_NAME])
             if row[1]:
                 messages.add(row[1])
+        logger.info(f'Read {len(name_to_sensor_temp)} temperature measurements and {len(messages)} messages. '
+                    f'Query result: {query_job.error_result if query_job.error_result else "Ok"}')
         return list(name_to_sensor_temp.values()), messages
 
 
 
     def delete_before(self, date: dt.datetime) -> None:
+        logger.info(f'date: {date}')
         str_datetime: str = date.strftime(self.TIME_FORMAT)
         query = f"DELETE FROM {self.table}  WHERE {self.COL_TIMESTAMP_NAME} < TIMESTAMP('{str_datetime}')"
-        self.db.client.query(query)
+        query_job: bigquery.job.QueryJob = self.db.client.query(query)
+        logger.info(f'Query result: {query_job.error_result if query_job.error_result else "Ok"}')
 
 
 

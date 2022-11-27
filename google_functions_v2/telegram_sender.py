@@ -22,47 +22,53 @@ class TelegramSender(sender.Sender):
 
         response_received: bool = False
         MAX_RETRIES: int = 3
-        print(f'TelegramBot: About to send POST request of size {len(prepared.body) / 1024} KiB')
+        logger.debug(f'About to send POST request of size {len(prepared.body) / 1024} KiB: request: {req}')
         for i in range(MAX_RETRIES):
             try:
                 with requests.Session() as s:
                     response = s.send(prepared, timeout=(1, 19))
 
             except requests.ConnectTimeout:
-                logger.warning("Connection timed out")
+                logger.debug(f"Connection timed out")
             except requests.ReadTimeout:
-                logger.warning("Read timed out")
+                logger.debug(f"Read timed out")
             except requests.Timeout:
-                logger.warning("Request timed out")
+                logger.debug(f"Request timed out")
             else:
                 response_received = True
-                print(f'TelegramBot: Sent {type_of_sending} to: {self.chat_id}. Response status_code: {response.status_code}, data: "{response.text}"')
+                logger.debug(f'Sent {type_of_sending} to: {self.chat_id}. Response status_code: {response.status_code}, data: "{response.text}"')
                 break
 
-        if response_received == False:
-            return sender.SendResult(is_ok=False, http_code=0)
+        if not response_received:
+            return sender.SendResult(is_ok=False, http_code=0, err_str=f"Failed to send HTTP request: {req} {MAX_RETRIES} times")
 
         try:
             parsed_json = json.loads(response.text)
         except json.JSONDecodeError as exc:
-            print('TelegramBot: Failed to decode JSON: {}: {}'.format(type(exc), exc))  # Log Error
-            return sender.SendResult(is_ok=True, http_code=response.status_code)
+            return sender.SendResult(is_ok=False, http_code=response.status_code,
+                                     err_str=f"Failed to decode JSON: {response.text}: details: {type(exc)}, {exc}")
         if 'ok' not in parsed_json:
-            return sender.SendResult(is_ok=True, http_code=response.status_code)
+            return sender.SendResult(is_ok=False, http_code=response.status_code,
+                                     err_str=f"'Ok' is not in JSON response: {parsed_json}")
         ok = parsed_json['ok']
-        return sender.SendResult(is_ok=ok, http_code=response.status_code)
+        return sender.SendResult(is_ok=ok, http_code=response.status_code,
+                                 err_str="")
 
 
     def send_text(self, text: str, is_markdown: bool) -> sender.SendResult:
+        logger.info(f'text: {text}, is_markdown: {is_markdown}')
         url = f"https://api.telegram.org/bot{self.bot_id}/sendMessage"
         data = {'chat_id': self.chat_id, 'text': text}
         if is_markdown:
             data['parse_mode'] = 'MarkdownV2'
         req = requests.Request('POST', url, data=data)
-        return self.try_sending(req, "message")
+        result: sender.SendResult = self.try_sending(req, "message")
+        logger.info(f"Result: {result}")
+        return result
 
 
     def send_with_pic(self, text: str, pic) -> sender.SendResult:
+        logger.info(f'text: {text}')
         pic.seek(0)
         url = f'https://api.telegram.org/bot{self.bot_id}/sendPhoto'
         form_fields = {
@@ -71,7 +77,9 @@ class TelegramSender(sender.Sender):
             'caption': (None, text)
         }
         req = requests.Request('POST', url, files=form_fields)
-        return self.try_sending(req, "photo")
+        result: sender.SendResult = self.try_sending(req, "photo")
+        logger.info(f"Result: {result}")
+        return result
 
 
 
