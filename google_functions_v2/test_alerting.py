@@ -18,12 +18,12 @@ class TestAlerting(unittest.TestCase):
         self.datum_with_no_min_temp: dd.DeviceDatum = dd.DeviceDatum({self.tube_1: 7, self.tube_2: 13}, dt.datetime(2011, 11, 4, 0, 0, tzinfo=pytz.UTC), "")
 
 
-    def test_consumer_with_min_temp(self):
+    def test_alerting_sends_message_if_temp_below_threshold(self):
         self.alert_obj.consume(self.datum_with_min_temp)
         self.sender.send_text.assert_called()
         self.assertTrue(self.sender.send_text.call_args[0][0])
 
 
-    def test_consumer_with_no_min_temp(self):
+    def test_alerting_does_not_send_message_if_temp_above_threshold(self):
         self.alert_obj.consume(self.datum_with_no_min_temp)
         self.sender.send_text.assert_not_called()
