@@ -22,7 +22,7 @@ class Alerting(ingest.Consumer):
 
     def consume(self, datum: dd.DeviceDatum) -> None:
         messages: t.List[str] = []
-        for name, min_temp in self.name_to_min:
+        for name, min_temp in self.name_to_min.items():
             if name not in datum.name_to_temp:
                 continue
             if datum.name_to_temp[name] > min_temp:
