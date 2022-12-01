@@ -13,7 +13,7 @@ import base64
 import chat_id_db as chidb
 import bot_notifier as botnotif
 import bigquerydb as bigdb
-
+from logger import logger
 
 PROJECT: str = "tarasovka"
 DATASET_ID: str = "tarasovka"
@@ -49,6 +49,7 @@ def google_write_msg_to_topic(request: flask.Request):
 
 @functions_framework.http
 def on_notifier_bot_message(request: flask.Request):
+    logger.info(f'{request}')
     bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
     chat_id: int = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
     db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
@@ -58,6 +59,7 @@ def on_notifier_bot_message(request: flask.Request):
 
 @functions_framework.http
 def on_alerting_bot_message(request: flask.Request):
+    logger.info(f'{request}')
     bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
     chat_id: int = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
     db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
