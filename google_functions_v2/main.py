@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-
+import logging
 import functions_framework
 import ingest as ing
 import sensor_db as sdb
@@ -13,7 +13,9 @@ import base64
 import chat_id_db as chidb
 import bot_notifier as botnotif
 import bigquerydb as bigdb
-
+from logger import logger
+import typing as t
+import sys
 
 PROJECT: str = "tarasovka"
 DATASET_ID: str = "tarasovka"
@@ -40,36 +42,62 @@ def google_ingest(cloud_event):
 
 @functions_framework.http
 def google_write_msg_to_topic(request: flask.Request):
-    tp.create_topic_and_publish_msg(PROJECT,
-                                    TOPIC_ID,
-                                    request.data.decode("utf-8"))
+    try:
+        tp.create_topic_and_publish_msg(PROJECT,
+                                        TOPIC_ID,
+                                        request.data.decode("utf-8"))
 
-    return 'OK'
+        return 'OK'
+    except:
+        logger.info(f"Got Exception: {sys.exc_info()[0]}")
+        return 'OK'
 
 
 @functions_framework.http
 def on_notifier_bot_message(request: flask.Request):
-    bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
-    chat_id: int = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
-    db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
-    db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, botnotif.BOT_SECRET), botnotif.BOT_NAME)
-    return 'OK'
+    logger.info(f'{request}')
+    try:
+        bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
+        chat_id: t.Optional[int] = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
+        if chat_id == None:
+            return 'OK'
+        db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
+        db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, botnotif.BOT_SECRET), botnotif.BOT_NAME)
+        return 'OK'
+    except:
+        logger.info(f"Got Exception: {sys.exc_info()[0]}")
+        return 'OK'
 
 
 @functions_framework.http
 def on_alerting_bot_message(request: flask.Request):
-    bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
-    chat_id: int = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
-    db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
-    db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, alt.BOT_ID), alt.BOT_NAME)
-
-    return 'OK'
+    logger.info(f'{request.data.decode("utf-8")}')
+    try:
+        bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
+        chat_id: t.Optional[int] = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
+        if chat_id == None:
+            return 'OK'
+        db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
+        db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, alt.BOT_ID), alt.BOT_NAME)
+        return 'OK'
+    except:
+        logger.info(f"Got Exception: {sys.exc_info()[0]}")
+        return 'OK'
 
 
 @functions_framework.http
 def on_cron(request: flask.Request):
-    bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
-    botnotif.notify(sdbq.SensorsDBBQ(db=bigquerydb),
-                    chidb.ChatIdDB(db=bigquerydb))
+    try:
+        bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
+        botnotif.notify(sdbq.SensorsDBBQ(db=bigquerydb),
+                        chidb.ChatIdDB(db=bigquerydb))
+        return 'OK'
+    except:
+        logger.info(f"Got Exception: {sys.exc_info()[0]}")
+        return 'OK'
 
-    return 'OK'
+
+
+
+
+logger.setLevel(logging.DEBUG)
