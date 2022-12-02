@@ -83,6 +83,9 @@ class TelegramSender(sender.Sender):
 
 
 
-def get_chat_id_from_update_msg(jsn: str) -> int:
-    d = json.loads(jsn)
-    return d['message']['chat']['id']
+def get_chat_id_from_update_msg(jsn: str) -> t.Optional[int]:
+    try:
+        d = json.loads(jsn)
+        return d['message']['chat']['id']
+    except:
+        return None
