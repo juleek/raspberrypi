@@ -17,13 +17,17 @@ class SensorsDB(abc.ABC):
     def write(self,  datum: DeviceDatum) -> None:
         pass
 
+
     @abc.abstractmethod
     def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[Sensor], t.Set[str]]:
         pass
 
-
     def read_for_period(self, period: dt.timedelta) -> t.Tuple[t.List[Sensor], t.Set[str]]:
         return self.read_starting_from(dt.datetime.now() - period)
+
+    @abc.abstractmethod
+    def read_last_result(self) -> t.Tuple[t.List[Sensor], t.Set[str]]:
+        pass
 
 
     @abc.abstractmethod

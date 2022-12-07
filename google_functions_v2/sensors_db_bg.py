@@ -56,14 +56,10 @@ class SensorsDBBQ(sdb.SensorsDB):
         logger.info(f'Written into {self.table.table_id}, result: {errors if errors else "Ok"}')
 
 
-    def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
-        logger.info(f'date: {date}')
-        str_datetime: str = date.strftime(self.TIME_FORMAT)
-        query: str = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} WHERE {self.COL_TIMESTAMP_NAME} >= TIMESTAMP('{str_datetime}') ORDER BY {self.COL_TIMESTAMP_NAME}"
+    def __get_sensors_from(self, query: str) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
         query_job: bigquery.job.QueryJob = self.db.client.query(query)
         name_to_sensor_temp: t.Dict[str, sen.Sensor] = defaultdict(lambda: sen.Sensor(temperatures=[], name="", timestamps=[]))
         messages: t.Set[str] = set()
-
         for row in query_job:
             for item in row[2]:
                 name_to_sensor_temp[item[self.COL_TUBENAME_NAME]].name = item[self.COL_TUBENAME_NAME]
@@ -74,6 +70,18 @@ class SensorsDBBQ(sdb.SensorsDB):
         logger.info(f'Read {len(name_to_sensor_temp)} temperature measurements and {len(messages)} messages. '
                     f'Query result: {query_job.error_result if query_job.error_result else "Ok"}')
         return list(name_to_sensor_temp.values()), messages
+
+
+    def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
+        logger.info(f'date: {date}')
+        str_datetime: str = date.strftime(self.TIME_FORMAT)
+        query: str = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} WHERE {self.COL_TIMESTAMP_NAME} >= TIMESTAMP('{str_datetime}') ORDER BY {self.COL_TIMESTAMP_NAME}"
+        return self.__get_sensors_from(query)
+
+
+    def read_last_result(self) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
+        query: str = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} ORDER BY {self.COL_TIMESTAMP_NAME} DESC limit 1"
+        return self.__get_sensors_from(query)
 
 
 

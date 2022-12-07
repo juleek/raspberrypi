@@ -32,3 +32,6 @@ class SensorsDBFake(sdb.SensorsDB):
         del_before_ind: int = bs.bisect(self.data, date, key=lambda dd: dd.time)
         del self.data[:del_before_ind]
 
+    def read_last_result(self) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
+        pass
+
