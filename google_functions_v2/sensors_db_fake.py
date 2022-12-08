@@ -13,9 +13,10 @@ class SensorsDBFake(sdb.SensorsDB):
     def write(self,  datum: DeviceDatum) -> None:
         self.data.append(datum)
 
-    def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
+    def __get_sensors_from(self, date: dt.datetime) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
         ind: int = bs.bisect_left(self.data, date, key=lambda dd: dd.time)
-        name_to_sensor_temp: t.Dict[str, sen.Sensor] = defaultdict(lambda: sen.Sensor(temperatures=[], name="", timestamps=[]))
+        name_to_sensor_temp: t.Dict[str, sen.Sensor] = defaultdict(
+            lambda: sen.Sensor(temperatures=[], name="", timestamps=[]))
         messages: t.Set[str] = set()
         for i in range(ind, len(self.data)):
             for tube_name, temp in self.data[i].name_to_temp.items():
@@ -27,11 +28,16 @@ class SensorsDBFake(sdb.SensorsDB):
         sensors: t.List[sen.Sensor] = list(name_to_sensor_temp.values())
         return sensors, messages
 
+    def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
+        return self.__get_sensors_from(date)
+
 
     def delete_before(self, date: dt.datetime) -> None:
         del_before_ind: int = bs.bisect(self.data, date, key=lambda dd: dd.time)
         del self.data[:del_before_ind]
 
     def read_last_result(self) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
-        pass
+        last_result = self.data[-1]
+        time: dt.datetime = last_result.time
+        return self.__get_sensors_from(time)
 

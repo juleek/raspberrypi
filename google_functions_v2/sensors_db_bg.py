@@ -80,7 +80,7 @@ class SensorsDBBQ(sdb.SensorsDB):
 
 
     def read_last_result(self) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
-        query: str = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} ORDER BY {self.COL_TIMESTAMP_NAME} DESC limit 1"
+        query: str = f"SELECT {self.COL_TIMESTAMP_NAME}, {self.COL_ERROR_MSG_NAME}, {self.COL_TUBES_NAME} FROM {self.table} ORDER BY {self.COL_TIMESTAMP_NAME} DESC LIMIT 1"
         return self.__get_sensors_from(query)
 
 

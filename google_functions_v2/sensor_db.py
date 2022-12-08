@@ -17,7 +17,6 @@ class SensorsDB(abc.ABC):
     def write(self,  datum: DeviceDatum) -> None:
         pass
 
-
     @abc.abstractmethod
     def read_starting_from(self, date: dt.datetime) -> t.Tuple[t.List[Sensor], t.Set[str]]:
         pass
@@ -36,7 +35,6 @@ class SensorsDB(abc.ABC):
 
     def delete(self, older_than: dt.timedelta) -> None:
         return self.delete_before(dt.datetime.now() - older_than)
-
 
 
 class DBConsumer(ingest.Consumer):
