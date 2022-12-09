@@ -38,7 +38,4 @@ class SensorsDBFake(sdb.SensorsDB):
         del self.data[:del_before_ind]
 
     def read_last_result(self) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
-        if self.data:
-            return self.__get_sensors_from(len(self.data) - 1)
-        return [], set()
-
+        return self.__get_sensors_from(max(0, len(self.data) - 1))
