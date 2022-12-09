@@ -217,3 +217,27 @@ class TestSensorsDBFake(unittest.TestCase):
 
         self.assertEqual(result[0], [sensor])
         self.assertEqual(result[1], set())
+
+
+    def test_read_last_result(self):
+        self.db.write(self.good_datum_two)
+
+        result = self.db.read_last_result()
+
+        sensor_tube_1: sen.Sensor = sen.Sensor(temperatures=[
+            self.good_datum_two.name_to_temp[self.tube_1]],
+            name=self.tube_1,
+            timestamps=[self.good_datum_two.time])
+
+        sensor_tube_2: sen.Sensor = sen.Sensor(temperatures=[
+            self.good_datum_two.name_to_temp[self.tube_2]],
+            name=self.tube_2,
+            timestamps=[self.good_datum_two.time])
+
+        self.assertEqual(result[0], [sensor_tube_1, sensor_tube_2])
+        self.assertEqual(result[1], set())
+
+
+    def test_read_last_result_return_empty_if_db_is_empty(self):
+        result = self.db.read_last_result()
+        self.assertEqual(result, ([], set()))
