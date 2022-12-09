@@ -12,8 +12,7 @@ class SensorsDBFake(sdb.SensorsDB):
 
     def write(self,  datum: DeviceDatum) -> None:
         if self.data:
-            time_of_last_elem = self.data[len(self.data) - 1].time
-            assert(time_of_last_elem <= datum.time)
+            assert(self.data[-1].time <= datum.time)
         self.data.append(datum)
 
     def __get_sensors_from(self, ind: int) -> t.Tuple[t.List[sen.Sensor], t.Set[str]]:
