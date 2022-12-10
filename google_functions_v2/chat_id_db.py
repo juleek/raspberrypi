@@ -4,6 +4,7 @@ from google.cloud import bigquery
 import bigquerydb as bigdb
 import sender as sen
 import typing as t
+import datetime as dt
 
 class ChatIdDB:
     """
@@ -43,7 +44,13 @@ class ChatIdDB:
         return None
 
 
-# if __name__ == "__main__":
+    def exists(self, id: int) -> bool:
+        query: str = f"SELECT {self.COL_CHAT_ID} FROM {self.table} WHERE {self.COL_CHAT_ID} = {id}"
+        query_job: bigquery.job.QueryJob = self.db.client.query(query)
+        return len(list(query_job.result())) >= 1
+
+
+    # if __name__ == "__main__":
 #     import telegram_sender as tels
 #     import secrets_bot
 #     BOT_SECRET: str = secrets_bot.notifier_bot_id
