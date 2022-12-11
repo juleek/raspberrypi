@@ -89,7 +89,7 @@ class TestCreateMsgWithCurrTemp(unittest.TestCase):
         actual: str = botnotifier.create_msg_with_current_temp(self.sensors, set())
         check_sensor_part(self, actual)
 
-    def test_create_msg_with_sensors_and_error_msg_return_msg_with_sensors_and_errors(self):
+    def test_sensors_and_error_msg_return_msg_with_sensors_and_errors(self):
         actual: str = botnotifier.create_msg_with_current_temp(self.sensors, self.with_error_msgs)
         check_sensor_part(self, actual)
         check_error_part(self, actual)
