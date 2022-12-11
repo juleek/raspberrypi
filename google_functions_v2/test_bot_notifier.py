@@ -77,7 +77,7 @@ class TestCreateMsgWithCurrTemp(unittest.TestCase):
         self.with_error_msgs: t.Set[str] = {error_msg_1, error_msg_2}
 
 
-    def test_create_msg_with_empty_args_return_empty(self):
+    def test_empty_args_return_empty(self):
         actual: str = botnotifier.create_msg_with_current_temp([], set())
         self.assertEqual("", actual)
 
