@@ -51,7 +51,6 @@ def create_msg(sensors: t.List[sen.Sensor], error_msgs: t.Set[str]) -> str:
 
 def create_msg_with_current_temp(sensors: t.List[sen.Sensor], error_msgs: t.Set[str]) -> str:
     time_to_temp: col.OrderedDict[dt.datetime, t.List[t.Tuple[str, float]]] = col.OrderedDict()
-
     for sensor in sensors:
         assert(len(sensor.timestamps) == 1)
         assert(len(sensor.temperatures) == 1)
@@ -60,22 +59,27 @@ def create_msg_with_current_temp(sensors: t.List[sen.Sensor], error_msgs: t.Set[
     lines = []
     now = datetime.datetime.now(pytz.utc)
     for time, names_and_temps in time_to_temp.items():
-        time_ago = now - time
-        group: str = f'**{time_ago} ago ({time.strftime("%Y-%m-%d %H:%M")})**:\n'
+        time_ago: dt.timedelta = now - time
+        time_without_microseconds = str(time_ago).split(".")[0]
+        group: str = f'*{time_without_microseconds} ago \\({time.strftime("%H:%M %d.%m.%Y")}\\)*:\n'
         for name, temperature in names_and_temps:
-            group += f' * {name}: {temperature}&deg;C\n'
+            group += f'\\* {name}: {temperature}°C\n'
         lines.append(group)
 
     if error_msgs:
-        lines.append(f'\n**There are {len(error_msgs)} error messages**:')
+        lines.append(f'\n*There are {len(error_msgs)} error messages*:')
         for error in error_msgs:
-            lines.append(f'*{error}')
+            lines.append(f'* {error}')
     return "\n".join(lines)
 
 
 def send_current_temperature(sensorsdbbq: sensor_db.SensorsDB, sender: send.Sender):
     sensors, error_msgs = sensorsdbbq.read_last_result()
     text: str = create_msg_with_current_temp(sensors, error_msgs)
+    text = text.replace(".", "\\.")
+    text = text.replace("-", "\\-")
+    text = text.replace("`", "\\`")
+    print(f'text = {text}')
     sender.send_text(text, is_markdown=True)
 
 
@@ -113,7 +117,12 @@ def dispatch_command(jsn, chat_id: int, chat_id_db: chidb.ChatIdDB, sensors_db: 
 # '"date":1669981560,"text":"/getinfo","entities":[{"offset":0,"length":8,"type":"bot_command"}]}}'
 
 
-
+# import bigquerydb as bigdb
+# import sensors_db_bg as sdbq
 # if __name__ == "__main__":
-#     send_current_temperature_msg(bigdb.BigQueryDB(project="tarasovka", dataset_id="tarasovka", location="europe-west2",),
-#                    stdout_sender.StdoutSender())
+#     bigquerydb: bigdb.BigQueryDB = bigdb.BigQueryDB(project="tarasovka", dataset_id="tarasovka", location="europe-west2")
+#     send_current_temperature(sensorsdbbq=sdbq.SensorsDBBQ(bigquerydb), sender=tel_s.TelegramSender(-670407039, BOT_SECRET))
+
+    # time_to_temp:  col.OrderedDict[dt.datetime, t.List[t.Tuple[str, float]]] = col.OrderedDict({dt.datetime(2022, 11, 4, 0, 0, tzinfo=dt.timezone.utc): [("test1", 14.2)],
+    #                                                                                             dt.datetime(2022, 11, 5, 0, 0, tzinfo=dt.timezone.utc): [("test2", 6.2)]})
+    # error_msgs = ["asdf.qwer 1234!@#$@%^$%^", "...-*/-*/-~~~"]
