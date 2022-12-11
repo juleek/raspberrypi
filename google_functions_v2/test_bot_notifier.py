@@ -41,7 +41,7 @@ class TestCreateMsg(unittest.TestCase):
         actual: str = botnotifier.create_msg([], set())
         self.assertEqual("", actual)
 
-    def test_create_msg_with_empty_sensor_with_error_return_error_msg(self):
+    def test_empty_sensor_with_error_return_error_msg(self):
         actual: str = botnotifier.create_msg([], self.with_error_msgs)
         check_error_part(self, actual)
 
