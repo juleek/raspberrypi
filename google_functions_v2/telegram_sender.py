@@ -22,7 +22,7 @@ class TelegramSender(sender.Sender):
 
         response_received: bool = False
         MAX_RETRIES: int = 3
-        logger.debug(f'About to send POST request of size {len(prepared.body) / 1024} KiB: request: {req}')
+        logger.debug(f'About to send POST request of size {len(prepared.body) / 1024} KiB: request: Headers:{req.headers}')
         for i in range(MAX_RETRIES):
             try:
                 with requests.Session() as s:
@@ -36,7 +36,7 @@ class TelegramSender(sender.Sender):
                 logger.debug(f"Request timed out")
             else:
                 response_received = True
-                logger.debug(f'Sent {type_of_sending} to: {self.chat_id}. Response status_code: {response.status_code}, data: "{response.text}"')
+                logger.debug(f'Sent {type_of_sending} to: {self.chat_id}. Response status_code: {response.status_code}, data: {response.text}')
                 break
 
         if not response_received:
@@ -58,6 +58,10 @@ class TelegramSender(sender.Sender):
     def send_text(self, text: str, is_markdown: bool) -> sender.SendResult:
         logger.info(f'text: {text}, is_markdown: {is_markdown}')
         url = f"https://api.telegram.org/bot{self.bot_id}/sendMessage"
+        if is_markdown:
+            text = text.replace(".", "\\.")
+            text = text.replace("-", "\\-")
+            text = text.replace("`", "\\`")
         data = {'chat_id': self.chat_id, 'text': text}
         if is_markdown:
             data['parse_mode'] = 'MarkdownV2'
@@ -83,9 +87,17 @@ class TelegramSender(sender.Sender):
 
 
 
-def get_chat_id_from_update_msg(jsn: str) -> t.Optional[int]:
+
+def get_chatid_from_str(jsn: str) -> t.Optional[int]:
     try:
         d = json.loads(jsn)
+        return get_chatid_from_json(d)
+    except:
+        return None
+
+
+def get_chatid_from_json(d) -> t.Optional[int]:
+    try:
         return d['message']['chat']['id']
     except:
         return None

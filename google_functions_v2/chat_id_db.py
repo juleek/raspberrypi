@@ -43,10 +43,8 @@ class ChatIdDB:
         return None
 
 
-# if __name__ == "__main__":
-#     import telegram_sender as tels
-#     import secrets_bot
-#     BOT_SECRET: str = secrets_bot.notifier_bot_id
-#     db_bigq = bigdb.BigQueryDB(project="tarasovka", dataset_id="tarasovka", location="europe-west2")
-#     db = ChatIdDB(db_bigq)
-#     db.ask_to_add(chat_id=-748244195, sender=tels.TelegramSender(-748244195, BOT_SECRET), bot_name="notifier_bot")
+    def exists(self, id: int) -> bool:
+        query: str = f"SELECT {self.COL_CHAT_ID} FROM {self.table} WHERE {self.COL_CHAT_ID} = {id}"
+        query_job: bigquery.job.QueryJob = self.db.client.query(query)
+        return len(list(query_job.result())) >= 1
+
