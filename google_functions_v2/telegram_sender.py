@@ -58,6 +58,10 @@ class TelegramSender(sender.Sender):
     def send_text(self, text: str, is_markdown: bool) -> sender.SendResult:
         logger.info(f'text: {text}, is_markdown: {is_markdown}')
         url = f"https://api.telegram.org/bot{self.bot_id}/sendMessage"
+        if is_markdown:
+            text = text.replace(".", "\\.")
+            text = text.replace("-", "\\-")
+            text = text.replace("`", "\\`")
         data = {'chat_id': self.chat_id, 'text': text}
         if is_markdown:
             data['parse_mode'] = 'MarkdownV2'

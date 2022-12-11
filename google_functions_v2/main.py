@@ -104,18 +104,4 @@ def on_cron(request: flask.Request):
 
 
 
-# @functions_framework.http
-# def on_notifier_bot_message(request: flask.Request):
-#     bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
-#     chat_id: int = tel_s.get_chat_id_from_update_msg(request.data.decode("utf-8"))
-#     db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
-#     message = request.get_json()
-#     if message.text == '/gettemp':
-#         current_temp.send_current_temperature_msg(bigquerydb, tel_s.TelegramSender(chat_id, botnotif.BOT_SECRET))
-#     else:
-#         db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, botnotif.BOT_SECRET), botnotif.BOT_NAME)
-#
-#     return 'OK'
-
-
 logger.setLevel(logging.DEBUG)

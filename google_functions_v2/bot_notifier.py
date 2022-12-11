@@ -8,8 +8,7 @@ import datetime as dt
 import plot as pl
 import chat_id_db as chidb
 import secrets_bot
-import datetime
-import sender as send
+import sender
 import pytz
 import collections as col
 
@@ -48,6 +47,10 @@ def create_msg(sensors: t.List[sen.Sensor], error_msgs: t.Set[str]) -> str:
     return "\n".join(lines)
 
 
+def format_time_delta(time: dt.timedelta, digits: int) -> str:
+    seconds: float = time.total_seconds()
+    isec, fsec = divmod(round(seconds * 10 ** digits), 10 ** digits)
+    return f'{dt.timedelta(seconds=isec)}.{fsec:0{digits}.0f}'
 
 def create_msg_with_current_temp(sensors: t.List[sen.Sensor], error_msgs: t.Set[str]) -> str:
     time_to_temp: col.OrderedDict[dt.datetime, t.List[t.Tuple[str, float]]] = col.OrderedDict()
@@ -57,11 +60,10 @@ def create_msg_with_current_temp(sensors: t.List[sen.Sensor], error_msgs: t.Set[
         time_to_temp.setdefault(sensor.timestamps[0], []).append((sensor.name, sensor.temperatures[0]))
 
     lines = []
-    now = datetime.datetime.now(pytz.utc)
+    now = dt.datetime.now(pytz.utc)
     for time, names_and_temps in time_to_temp.items():
-        time_ago: dt.timedelta = now - time
-        time_without_microseconds = str(time_ago).split(".")[0]
-        group: str = f'*{time_without_microseconds} ago \\({time.strftime("%H:%M %d.%m.%Y")}\\)*:\n'
+        time_ago: str = format_time_delta(now - time, 1)
+        group: str = f'*{time_ago} ago \\({time.strftime("%H:%M:%S %d.%m")}\\)*:\n'
         for name, temperature in names_and_temps:
             group += f'\\* {name}: {temperature}°C\n'
         lines.append(group)
@@ -73,18 +75,14 @@ def create_msg_with_current_temp(sensors: t.List[sen.Sensor], error_msgs: t.Set[
     return "\n".join(lines)
 
 
-def send_current_temperature(sensorsdbbq: sensor_db.SensorsDB, sender: send.Sender):
+def send_current_temperature(sensorsdbbq: sensor_db.SensorsDB, sender: sender.Sender):
     sensors, error_msgs = sensorsdbbq.read_last_result()
     text: str = create_msg_with_current_temp(sensors, error_msgs)
-    text = text.replace(".", "\\.")
-    text = text.replace("-", "\\-")
-    text = text.replace("`", "\\`")
-    print(f'text = {text}')
     sender.send_text(text, is_markdown=True)
 
 
 
-def dispatch_command(jsn, chat_id: int, chat_id_db: chidb.ChatIdDB, sensors_db: sensor_db.SensorsDB, sender: send.Sender) -> None:
+def dispatch_command(jsn, chat_id: int, chat_id_db: chidb.ChatIdDB, sensors_db: sensor_db.SensorsDB, sender: sender.Sender) -> None:
     if chat_id_db.exists(chat_id) == False:
         chat_id_db.ask_to_add(chat_id, sender, BOT_NAME)
         return
@@ -95,34 +93,3 @@ def dispatch_command(jsn, chat_id: int, chat_id_db: chidb.ChatIdDB, sensors_db: 
     command_type: str = jsn['message']['entities'][0]["type"]
     if command_type == "bot_command" and text == "/gettemp":
         send_current_temperature(sensors_db, sender)
-
-
-
-# if __name__ == "__main__":
-#     create_msg([sen.Sensor(temperatures=[25.1, 25.1, 25.1, 28.2, 28.2, 25.1],
-#                             name='example',
-#                             timestamps=[dt.datetime(2011, 11, 4, 0, 0, tzinfo=dt.timezone.utc)]),
-#                  sen.Sensor(temperatures=[25.2, 26.1, 26.1],
-#                             name='test',
-#                             timestamps=[dt.datetime(2011, 11, 4, 0, 0, tzinfo=dt.timezone.utc)])],
-#                 {'error', 'error2'})
-
-# if __name__ == "__main__":
-#     notify(db=sensor_db.SensorsDB(project="tarasovka", dataset_id="tarasovka", location="europe-west2"),
-#            chat_db=chidb.ChatIdDB(project="tarasovka", dataset_id="tarasovka", location="europe-west2"))
-
-
-# '"message":{"message_id":29,"from":{"id":1759739764,"is_bot":false,"first_name":"Di","last_name":"Di"},' \
-# '"chat":{"id":-870776899,"title":"Alerting Tarasovka","type":"group","all_members_are_administrators":true},' \
-# '"date":1669981560,"text":"/getinfo","entities":[{"offset":0,"length":8,"type":"bot_command"}]}}'
-
-
-# import bigquerydb as bigdb
-# import sensors_db_bg as sdbq
-# if __name__ == "__main__":
-#     bigquerydb: bigdb.BigQueryDB = bigdb.BigQueryDB(project="tarasovka", dataset_id="tarasovka", location="europe-west2")
-#     send_current_temperature(sensorsdbbq=sdbq.SensorsDBBQ(bigquerydb), sender=tel_s.TelegramSender(-670407039, BOT_SECRET))
-
-    # time_to_temp:  col.OrderedDict[dt.datetime, t.List[t.Tuple[str, float]]] = col.OrderedDict({dt.datetime(2022, 11, 4, 0, 0, tzinfo=dt.timezone.utc): [("test1", 14.2)],
-    #                                                                                             dt.datetime(2022, 11, 5, 0, 0, tzinfo=dt.timezone.utc): [("test2", 6.2)]})
-    # error_msgs = ["asdf.qwer 1234!@#$@%^$%^", "...-*/-*/-~~~"]
