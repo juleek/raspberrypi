@@ -104,7 +104,7 @@ class TestSendCurrentTempMsg(unittest.TestCase):
         self.sender = mc.Mock(spec=sender.Sender)
 
 
-    def test_send_curr_temp_call_sender(self):
+    def test_send_curr_temp_calls_sender(self):
         s1: sen.Sensor = sen.Sensor(temperatures=[26.2],
                                     name="example",
                                     timestamps=[dt.datetime(2022, 11, 4, 0, 0, tzinfo=dt.timezone.utc)])
