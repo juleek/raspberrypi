@@ -37,7 +37,7 @@ class TestCreateMsg(unittest.TestCase):
         self.sensors: t.List[sen.Sensor] = [s1, s2]
         self.with_error_msgs: t.Set[str] = {error_msg_1, error_msg_2}
 
-    def test_create_msg_with_empty_args_return_empty(self):
+    def test_empty_args_return_empty(self):
         actual: str = botnotifier.create_msg([], set())
         self.assertEqual("", actual)
 
