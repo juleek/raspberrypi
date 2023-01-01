@@ -1,0 +1,10 @@
+# https://rust-lang.github.io/rustfmt/
+
+unstable_features = true
+fn_single_line = true
+indent_style = "Visual"
+enum_discrim_align_threshold = 50
+struct_field_align_threshold = 50
+max_width = 100
+tab_spaces = 3
+blank_lines_upper_bound = 5
