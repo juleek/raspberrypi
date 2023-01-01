@@ -74,6 +74,30 @@ pub fn parse_temperature_from_file(path: &std::path::Path) -> Result<f64> {
       .with_context(|| format!("Failed to {}: {path:?}", function_name!()))
 }
 
+#[derive(Debug)]
+struct Sensor {
+   path: String,
+   id: i32,
+}
+
+impl crate::Sensor for Sensor {
+   fn new(id: i32, path: &str) -> Self {
+      Sensor {
+         path: path.to_string(),
+         id,
+      }
+   }
+   fn id(&self) -> i32 {
+      self.id
+   }
+   fn path(&self) -> &str {
+      &self.path
+   }
+   fn read(&self) -> Result<f64> {
+      parse_temperature_from_file(std::path::Path::new(&self.path))
+   }
+}
+
 // ===========================================================================================================
 // tests
 
@@ -81,6 +105,20 @@ pub fn parse_temperature_from_file(path: &std::path::Path) -> Result<f64> {
 mod tests {
    #[allow(unused_imports)]
    use super::*;
+
+   mod Sensor {
+      #[allow(unused_imports)]
+      use super::super::*;
+
+      #[test]
+      fn id_can_be_fetched() {
+         crate::tests::Sensor::id_can_be_fetched::<Sensor>();
+      }
+      #[test]
+      fn path_can_be_fetched() {
+         crate::tests::Sensor::path_can_be_fetched::<Sensor>();
+      }
+   }
 
    mod parse_temperature_from_file {
       use super::super::*;
