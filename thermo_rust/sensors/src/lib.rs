@@ -4,9 +4,9 @@ use anyhow::Result;
 mod DS18B20;
 
 pub trait Sensor {
-   fn new(id: i32, path: &str) -> Self;
+   // fn new(id: i32, path: &str) -> Self;
    fn id(&self) -> i32;
-   fn path(&self) -> &str;
+   // fn path(&self) -> &str;
    fn read(&self) -> Result<f64>;
 }
 
@@ -19,15 +19,6 @@ mod tests {
    pub mod Sensor {
       #[allow(unused_imports)]
       use super::super::*;
-
-      pub fn id_can_be_fetched<T: Sensor>() {
-         let sensor = T::new(1234, "asdf");
-         assert_eq!(sensor.id(), 1234);
-      }
-      pub fn path_can_be_fetched<T: Sensor>() {
-         let sensor = T::new(1234, "asdf");
-         assert_eq!(sensor.path(), "asdf");
-      }
    }
 
    #[test]

@@ -76,22 +76,21 @@ pub fn parse_temperature_from_file(path: &std::path::Path) -> Result<f64> {
 
 #[derive(Debug)]
 struct Sensor {
-   path: String,
+   path: std::path::PathBuf,
    id: i32,
 }
 
-impl crate::Sensor for Sensor {
-   fn new(id: i32, path: &str) -> Self {
-      Sensor {
-         path: path.to_string(),
-         id,
-      }
+impl Sensor {
+   fn new(id: i32, path: std::path::PathBuf) -> Self {
+      Sensor { path, id }
    }
+   fn path(&self) -> &std::path::PathBuf {
+      &self.path
+   }
+}
+impl crate::Sensor for Sensor {
    fn id(&self) -> i32 {
       self.id
-   }
-   fn path(&self) -> &str {
-      &self.path
    }
    fn read(&self) -> Result<f64> {
       parse_temperature_from_file(std::path::Path::new(&self.path))
@@ -107,16 +106,18 @@ mod tests {
    use super::*;
 
    mod Sensor {
-      #[allow(unused_imports)]
+    #[allow(unused_imports)]
       use super::super::*;
 
       #[test]
       fn id_can_be_fetched() {
-         crate::tests::Sensor::id_can_be_fetched::<Sensor>();
+         let sensor = Sensor::new(1234, std::path::PathBuf::from("asdf"));
+         assert_eq!(<Sensor as crate::Sensor>::id(&sensor), 1234);
       }
       #[test]
       fn path_can_be_fetched() {
-         crate::tests::Sensor::path_can_be_fetched::<Sensor>();
+         let sensor = Sensor::new(1234, std::path::PathBuf::from("asdf"));
+         assert_eq!(sensor.path(), &std::path::PathBuf::from("asdf"));
       }
    }
 
