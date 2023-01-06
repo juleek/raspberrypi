@@ -9,4 +9,7 @@ edition = "2021"
 anyhow = "1.0.68"
 chrono = "0.4.23"
 timer = "0.2.0"
+crossbeam-channel = "0.5.6"
+ctrlc = "3.2.4"
+stdext = "0.3.1"
 sensors = { path = "../sensors" }
