@@ -1,14 +1,38 @@
 use anyhow::Result;
 
 #[allow(non_snake_case)]
-mod DS18B20;
+pub mod DS18B20;
+
+pub type IdType = i32;
+pub type TempType = f64;
+pub type Reading = Result<TempType>;
 
 pub trait Sensor {
    // fn new(id: i32, path: &str) -> Self;
-   fn id(&self) -> i32;
    // fn path(&self) -> &str;
-   fn read(&self) -> Result<f64>;
+   fn id(&self) -> IdType;
+   fn read(&self) -> Reading;
 }
+
+pub struct FakeSensor {
+   temperature: TempType,
+   id: IdType,
+}
+impl FakeSensor {
+   pub fn new(id: IdType, temperature: TempType) -> Self {
+      FakeSensor {id, temperature}
+   }
+}
+impl Sensor for FakeSensor {
+   fn id(&self) -> IdType {
+      self.id
+   }
+   fn read(&self) -> Reading {
+      std::thread::sleep(std::time::Duration::from_millis(250));
+      Ok(self.temperature)
+   }
+}
+
 
 #[cfg(test)]
 mod tests {

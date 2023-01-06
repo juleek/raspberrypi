@@ -2,6 +2,10 @@ use anyhow::{anyhow, Context, Result};
 use std::io::BufRead;
 use stdext::function_name;
 
+use crate::Reading;
+use crate::TempType;
+use crate::IdType;
+
 // -----------------------------------------------------------------------------------------------------------
 
 #[allow(dead_code)]
@@ -19,7 +23,7 @@ where
 // -----------------------------------------------------------------------------------------------------------
 
 #[allow(dead_code)]
-pub fn parse_temperature_from_stream<'a, It, O, E>(it: It) -> Result<f64>
+pub fn parse_temperature_from_stream<'a, It, O, E>(it: It) -> Reading
 where
    // We require Item to be owning (non-ref), because in the primary use-case, when we read strings from a
    // file, iterator yields io::Result<String> (not &io::Result<String>, not io::Result<&String>)
@@ -58,13 +62,13 @@ where
    // println!("Second line: {:?}", &second_line[pos+PATTERN.len()..]);
    let temperature: i64 = parse_from_str(&second_line[pos + PATTERN.len()..])
       .with_context(|| format!("Failed to {}", function_name!()))?;
-   Ok(temperature as f64 / 1000.)
+   Ok(temperature as TempType / 1000.)
 }
 
 // -----------------------------------------------------------------------------------------------------------
 
 #[allow(dead_code)]
-pub fn parse_temperature_from_file(path: &std::path::Path) -> Result<f64> {
+pub fn parse_temperature_from_file(path: &std::path::Path) -> Reading {
    let file: std::fs::File = match std::fs::File::open(path) {
       Ok(val) => val,
       Err(why) => return Err(anyhow!("Failed to {} {path:?}: {why}", function_name!())),
@@ -75,24 +79,24 @@ pub fn parse_temperature_from_file(path: &std::path::Path) -> Result<f64> {
 }
 
 #[derive(Debug)]
-struct Sensor {
+pub struct Sensor {
    path: std::path::PathBuf,
-   id: i32,
+   id: IdType,
 }
 
 impl Sensor {
-   fn new(id: i32, path: std::path::PathBuf) -> Self {
+   pub fn new(id: IdType, path: std::path::PathBuf) -> Self {
       Sensor { path, id }
    }
-   fn path(&self) -> &std::path::PathBuf {
+   pub fn path(&self) -> &std::path::PathBuf {
       &self.path
    }
 }
 impl crate::Sensor for Sensor {
-   fn id(&self) -> i32 {
+   fn id(&self) -> IdType {
       self.id
    }
-   fn read(&self) -> Result<f64> {
+   fn read(&self) -> Reading {
       parse_temperature_from_file(std::path::Path::new(&self.path))
    }
 }
