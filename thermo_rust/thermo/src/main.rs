@@ -11,7 +11,7 @@ fn set_ctrl_channel() -> Result<channel::Receiver<()>> {
       let _ = sender.send(());
    }) {
       Ok(_) => Ok(receiver),
-      Err(why) => Err(anyhow!("Failed to {}: {:?}", function_name!(), why)),
+      Err(ref why) => Err(anyhow!("Failed to {}: {:?}", function_name!(), why)),
    }
 }
 

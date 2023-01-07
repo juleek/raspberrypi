@@ -46,6 +46,7 @@ mod tests {
    use super::*;
 
    #[test]
+   #[ignore = "Uses sleep()"]
    fn test_sensor_poller() {
       let (tx, rx) = channel::bounded(100);
       // let sensor = sensors::FakeSensor::new(23, 2.5);
