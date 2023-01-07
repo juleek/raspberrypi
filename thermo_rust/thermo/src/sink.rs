@@ -2,6 +2,7 @@
 pub struct Item {
    pub NameToTemp: std::collections::HashMap<String, sensors::TempType>,
    pub ErrorString: String,
+   // pub Time: i64,
 }
 
 pub fn to_json(item: &Item) -> String {

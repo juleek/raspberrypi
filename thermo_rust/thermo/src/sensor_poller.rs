@@ -23,19 +23,15 @@ impl SensorPoller {
    }
 
    fn event_loop(&self) {
-      let mut counter: i32 = 0;
       loop {
-         counter += 1;
-         let timer_channel = channel::after(std::time::Duration::from_secs(1));
-         channel::select! {
-            recv(timer_channel) -> _ => (),
-         }
+         std::thread::sleep(std::time::Duration::from_secs(1));
+         //  let timer_channel = channel::after(std::time::Duration::from_secs(1));
+         //  channel::select! {
+         //     recv(timer_channel) -> _ => (),
+         //  }
          let temperature: Result<f64> = self.reader.read();
          println!("got: {temperature:?}");
          let _ = self.raid.send(ReqResp::Reading(temperature));
-         if counter > 10 {
-            break;
-         }
       }
    }
 }
@@ -46,7 +42,7 @@ mod tests {
    use super::*;
 
    #[test]
-   #[ignore = "Uses sleep()"]
+   #[ignore = "Integration test: Uses sleep()"]
    fn test_sensor_poller() {
       let (tx, rx) = channel::bounded(100);
       // let sensor = sensors::FakeSensor::new(23, 2.5);

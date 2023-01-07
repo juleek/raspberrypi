@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+sensors = { path = "../sensors" }
+
 anyhow = "1.0.68"
 chrono = "0.4.23"
 timer = "0.2.0"
@@ -14,4 +16,5 @@ ctrlc = "3.2.4"
 stdext = "0.3.1"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
-sensors = { path = "../sensors" }
+jsonwebtoken = "8.2.0"
+reqwest = { version = "0.11.13", features = ["blocking", "json"]}
