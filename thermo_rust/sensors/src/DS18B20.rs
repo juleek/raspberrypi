@@ -2,9 +2,9 @@ use anyhow::{anyhow, Context, Result};
 use std::io::BufRead;
 use stdext::function_name;
 
+use crate::IdType;
 use crate::Reading;
 use crate::TempType;
-use crate::IdType;
 
 // -----------------------------------------------------------------------------------------------------------
 
@@ -14,10 +14,8 @@ where
    T: std::str::FromStr, // Something that can be parsed and created from a string
    T::Err: std::fmt::Debug, // And error of doing so should be printable
 {
-   match str.parse::<T>() {
-      Ok(val) => Ok(val),
-      Err(e) => Err(anyhow!("Failed to {} {str}: {e:?}", function_name!())),
-   }
+   str.parse::<T>()
+      .map_err(|ref e| anyhow!("Failed to {} {str}: {e:?}", function_name!()))
 }
 
 // -----------------------------------------------------------------------------------------------------------
@@ -39,26 +37,20 @@ where
          function_name!()
       ));
    }
-   let second_line: &O = match &vec[1] {
-      Ok(val) => val,
-      Err(why) => {
-         return Err(anyhow!(
-            "Failed to {}: Failed to read second line: {why:?}",
-            function_name!()
-         ))
-      }
-   };
+   let second_line: &O = vec[1].as_ref().map_err(|why| {
+      anyhow!(
+         "Failed to {}: Failed to read second line: {why:?}",
+         function_name!()
+      )
+   })?;
+
    let second_line: &str = second_line.as_ref();
 
-   static PATTERN: &str = " t=";
-   let pos = match second_line.rfind(PATTERN) {
-      Some(val) => val,
-      None => {
-         return Err(anyhow!(
-            "Failed to {}: the \"{PATTERN}\" pattern has not been found in the second_line: {second_line}", function_name!()
-         ))
-      }
-   };
+   const PATTERN: &str = " t=";
+   let pos = second_line.rfind(PATTERN).ok_or_else(|| anyhow!(
+      "Failed to {}: the \"{PATTERN}\" pattern has not been found in the second_line: {second_line}", function_name!()
+   ))?;
+
    // println!("Second line: {:?}", &second_line[pos+PATTERN.len()..]);
    let temperature: i64 = parse_from_str(&second_line[pos + PATTERN.len()..])
       .with_context(|| format!("Failed to {}", function_name!()))?;
@@ -69,10 +61,9 @@ where
 
 #[allow(dead_code)]
 pub fn parse_temperature_from_file(path: &std::path::Path) -> Reading {
-   let file: std::fs::File = match std::fs::File::open(path) {
-      Ok(val) => val,
-      Err(why) => return Err(anyhow!("Failed to {} {path:?}: {why}", function_name!())),
-   };
+   let file: std::fs::File = std::fs::File::open(path)
+      .map_err(|ref why| anyhow!("Failed to {} {path:?}: {why}", function_name!()))?;
+
    let reader = std::io::BufReader::new(file);
    parse_temperature_from_stream(reader.lines())
       .with_context(|| format!("Failed to {}: {path:?}", function_name!()))
@@ -110,7 +101,7 @@ mod tests {
    use super::*;
 
    mod Sensor {
-    #[allow(unused_imports)]
+      #[allow(unused_imports)]
       use super::super::*;
 
       #[test]
