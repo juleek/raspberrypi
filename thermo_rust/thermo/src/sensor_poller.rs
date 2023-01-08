@@ -1,5 +1,6 @@
 use anyhow::Result;
 use crossbeam_channel as channel;
+use stdext::function_name;
 
 pub mod ReqResp {
    #[derive(Debug)]
@@ -29,9 +30,9 @@ impl SensorPoller {
          //  channel::select! {
          //     recv(timer_channel) -> _ => (),
          //  }
-         let temperature: Result<f64> = self.reader.read();
-         println!("got: {temperature:?}");
-         let _ = self.raid.send(ReqResp::Reading(temperature));
+         let reading = self.reader.read();
+         println!("{}: got: {reading:?}", function_name!());
+         let _ = self.raid.send(ReqResp::Reading(reading));
       }
    }
 }

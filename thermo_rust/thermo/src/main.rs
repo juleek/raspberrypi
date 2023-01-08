@@ -1,9 +1,6 @@
 use anyhow::{anyhow, Result};
 use crossbeam_channel as channel;
-use sensors::DS18B20;
 use stdext::function_name;
-use thermo::sensor_poller::ReqResp;
-use thermo::sensor_poller::SensorPoller;
 
 fn set_ctrl_channel() -> Result<channel::Receiver<()>> {
    let (sender, receiver) = channel::bounded(100);
@@ -15,42 +12,27 @@ fn set_ctrl_channel() -> Result<channel::Receiver<()>> {
    }
 }
 
-fn create_poller<'a>(
-   path: &std::path::Path,
-   remote: channel::Sender<ReqResp::Reading>,
-   id: &'a mut i32,
-) -> (SensorPoller, &'a mut i32) {
-   let reader = Box::new(DS18B20::Sensor::new(*id, std::path::PathBuf::from(path)));
-   let poller = SensorPoller::new(reader, remote);
-   *id += 1;
-   (poller, id)
-}
-
 fn main() -> Result<()> {
    let ctrl_c_events = set_ctrl_channel()?;
-   let (readings_remote, readings_local) = channel::bounded(100);
-   // let ticks = tick(Duration::from_secs(1));
 
-   let mut id = 0;
-   let (poller, id) = create_poller(
-      std::path::Path::new("/home/dimanne/test.txt"),
-      readings_remote,
-      &mut id,
-   );
+   let sensors_info = std::collections::HashMap::from([
+      (
+         String::from("BottomTube"),
+         //  std::path::PathBuf::from("/sys/bus/w1/devices/28-000005eac50a/w1_slave"),
+         std::path::PathBuf::from("/home/dimanne/bott.txt"),
+      ),
+      (
+         String::from("Ambient"),
+         //  std::path::PathBuf::from("/sys/bus/w1/devices/28-000005eaddc2/w1_slave"),
+         std::path::PathBuf::from("/home/dimanne/amb.txt"),
+      ),
+   ]);
 
-   poller.start();
+   let sink = Box::new(thermo::sink::StdOutSink);
 
-   loop {
-      channel::select! {
-          recv(readings_local) -> reading => {
-              println!("Got a reading: {reading:?}!");
-          }
-          recv(ctrl_c_events) -> _ => {
-              println!("Goodbye!");
-              break;
-          }
-      }
-   }
+   let mut sensors_poller =
+      thermo::sensors_poller::SensorsPoller::new(sink, ctrl_c_events, sensors_info);
+   sensors_poller.run();
 
    Ok(())
 }

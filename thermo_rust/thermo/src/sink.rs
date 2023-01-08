@@ -11,9 +11,29 @@ pub fn to_json(item: &Item) -> String {
 }
 
 pub trait Sink {
-   fn publish(item: Item);
+   fn publish(&mut self, item: Item);
 }
 
+pub struct StdOutSink;
+impl Sink for StdOutSink {
+   fn publish(&mut self, item: Item) {
+      println!("{item:?}");
+   }
+}
+
+struct FakeSink {
+   items: Vec<Item>,
+}
+impl FakeSink {
+   pub fn new() -> Self {
+      FakeSink { items: Vec::new() }
+   }
+}
+impl Sink for FakeSink {
+   fn publish(&mut self, item: Item) {
+      self.items.push(item);
+   }
+}
 
 #[cfg(test)]
 mod tests {
