@@ -5,7 +5,12 @@ pub mod DS18B20;
 
 pub type IdType = i32;
 pub type TempType = f64;
-pub type Reading = Result<TempType>;
+
+#[derive(Debug)]
+pub struct Reading {
+   measurement: Result<TempType>,
+   id: IdType,
+}
 
 pub trait Sensor {
    // fn new(id: i32, path: &str) -> Self;
@@ -20,7 +25,7 @@ pub struct FakeSensor {
 }
 impl FakeSensor {
    pub fn new(id: IdType, temperature: TempType) -> Self {
-      FakeSensor {id, temperature}
+      FakeSensor { id, temperature }
    }
 }
 impl Sensor for FakeSensor {
@@ -29,10 +34,12 @@ impl Sensor for FakeSensor {
    }
    fn read(&self) -> Reading {
       std::thread::sleep(std::time::Duration::from_millis(250));
-      Ok(self.temperature)
+      Reading {
+         measurement: Ok(self.temperature),
+         id: self.id,
+      }
    }
 }
-
 
 #[cfg(test)]
 mod tests {

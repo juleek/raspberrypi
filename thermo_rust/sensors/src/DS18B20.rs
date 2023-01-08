@@ -21,7 +21,7 @@ where
 // -----------------------------------------------------------------------------------------------------------
 
 #[allow(dead_code)]
-pub fn parse_temperature_from_stream<'a, It, O, E>(it: It) -> Reading
+pub fn parse_temperature_from_stream<'a, It, O, E>(it: It) -> Result<TempType>
 where
    // We require Item to be owning (non-ref), because in the primary use-case, when we read strings from a
    // file, iterator yields io::Result<String> (not &io::Result<String>, not io::Result<&String>)
@@ -60,7 +60,7 @@ where
 // -----------------------------------------------------------------------------------------------------------
 
 #[allow(dead_code)]
-pub fn parse_temperature_from_file(path: &std::path::Path) -> Reading {
+pub fn parse_temperature_from_file(path: &std::path::Path) -> Result<TempType> {
    let file: std::fs::File = std::fs::File::open(path)
       .map_err(|ref why| anyhow!("Failed to {} {path:?}: {why}", function_name!()))?;
 
@@ -88,7 +88,10 @@ impl crate::Sensor for Sensor {
       self.id
    }
    fn read(&self) -> Reading {
-      parse_temperature_from_file(std::path::Path::new(&self.path))
+      Reading {
+         measurement: parse_temperature_from_file(std::path::Path::new(&self.path)),
+         id: self.id,
+      }
    }
 }
 
