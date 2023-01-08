@@ -134,11 +134,7 @@ impl JwtUpdater {
 
          self.try_to_parse_resp(&body);
 
-         std::thread::sleep(std::time::Duration::from_secs(1));
-
-         if counter > 3 {
-            break;
-         }
+         std::thread::sleep(std::time::Duration::from_secs(10 * 60));
       }
    }
 }
