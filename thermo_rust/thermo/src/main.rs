@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use clap::Parser;
 use crossbeam_channel as channel;
 use stdext::function_name;
 
@@ -12,7 +13,29 @@ fn set_ctrl_channel() -> Result<channel::Receiver<()>> {
    }
 }
 
+#[derive(clap::Parser)]
+struct Cli {
+   /// Path of the private key for Google Function
+   #[arg(long = "gf/private_key_path")]
+   gf_private_key_path: std::path::PathBuf,
+
+   /// Service Account Email
+   #[arg(long = "gf/account_email")]
+   gf_account_email: String,
+
+   /// Google Function Http end-point
+   #[arg(long = "gf/http_end_point")]
+   gf_http_end_point: String,
+
+   /// If true we will not publish any data to Google Cloud
+   #[arg(long)]
+   #[arg(default_value_t = false)]
+   dry_run: bool,
+}
+
 fn main() -> Result<()> {
+   let cli = Cli::parse();
+
    let ctrl_c_events = set_ctrl_channel()?;
 
    let sensors_info = std::collections::HashMap::from([
