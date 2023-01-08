@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use crossbeam_channel as channel;
 use stdext::function_name;
 
@@ -15,6 +15,11 @@ struct Claims<'a> {
    iss: &'a str,
    iat: u64,
    exp: u64,
+}
+
+#[derive(serde::Deserialize)]
+struct ExchangedJwt<'a> {
+   id_token: &'a str, // Serde will use zero-copy parsing here! https://serde.rs/lifetimes.html
 }
 
 pub struct JwtUpdater {
@@ -46,6 +51,7 @@ impl JwtUpdater {
             .expect("Must be possible to create HTTP Client"),
       }
    }
+
    pub fn start(self) {
       std::thread::spawn(move || self.event_loop());
    }
@@ -65,6 +71,22 @@ impl JwtUpdater {
       let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
       jsonwebtoken::encode(&header, &claims, &self.private_key)
          .expect("Must be possible to encode a JWT")
+   }
+
+   fn try_to_parse_resp(&self, body: &bytes::Bytes) {
+      let exchanged_jwt: ExchangedJwt = match serde_json::from_slice(&body) {
+         Ok(v) => v,
+         Err(ref why) => {
+            println!(
+               "{}: Failed to deserialise response as json: {why:?}",
+               function_name!()
+            );
+            return;
+         }
+      };
+      let result = ReqResp::JWT(String::from(exchanged_jwt.id_token));
+      // println!("{}: Parsed JWT: {result:?}", function_name!());
+      let _ = self.raid.send(result);
    }
 
    fn event_loop(&self) {
@@ -88,19 +110,32 @@ impl JwtUpdater {
             .form(&params)
             .build()
             .expect("Must be possible to create a request");
-         println!("{}: {req:#?}\ndata: {:#?}", function_name!(), req.body());
+
+         println!(
+            "{}: Making request : {req:#?},data: {:#?}",
+            function_name!(),
+            req.body()
+         );
 
          let resp = self.client.execute(req);
 
-         let resp = resp.expect("msg");
-         println!("{}: resp: {:#?}", function_name!(), resp.bytes());
+         let resp_for_logs = format!("{resp:?}");
+         let mut body = bytes::Bytes::new();
+         if let Ok(r) = resp {
+            if let Ok(bytes) = r.bytes() {
+               body = bytes;
+            }
+         }
+         println!(
+            "{}: Got response: {resp_for_logs}, data: {:#?}",
+            function_name!(),
+            body
+         );
+
+         self.try_to_parse_resp(&body);
 
          std::thread::sleep(std::time::Duration::from_secs(1));
-         //  let timer_channel = channel::after(std::time::Duration::from_secs(1));
-         //  channel::select! {
-         //     recv(timer_channel) -> _ => (),
-         //  }
-         // let _ = self.raid.send(ReqResp::Reading(temperature));
+
          if counter > 3 {
             break;
          }
@@ -117,6 +152,7 @@ mod tests {
    const PRIVATE_KEY: &str = "";
 
    #[test]
+   #[ignore = "Integration test: Uses real service, requires file"]
    fn test_updater() {
       let file: std::fs::File = std::fs::File::open("/home/dimanne/devel/thermo-app-priv.pem")
          .expect("Must be possible to read key with PEM RSA key for JWT");
