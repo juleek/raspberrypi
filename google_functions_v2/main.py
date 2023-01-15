@@ -104,4 +104,4 @@ def on_cron(request: flask.Request):
 
 
 
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
