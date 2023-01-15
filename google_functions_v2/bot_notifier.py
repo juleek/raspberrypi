@@ -93,3 +93,4 @@ def dispatch_command(jsn, chat_id: int, chat_id_db: chidb.ChatIdDB, sensors_db: 
     command_type: str = jsn['message']['entities'][0]["type"]
     if command_type == "bot_command" and text == "/gettemp":
         send_current_temperature(sensors_db, sender)
+
