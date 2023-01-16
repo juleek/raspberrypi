@@ -93,7 +93,6 @@ def get_chatid_from_str(jsn: str) -> t.Optional[int]:
         d = json.loads(jsn)
         return get_chatid_from_json(d)
     except:
-        logger.info(f'Failed to parse jsn')
         return None
 
 
@@ -104,7 +103,9 @@ def get_chatid_from_json(d) -> t.Optional[int]:
         except:
             return None
     elif 'edited_message' in d:
-        return d['edited_message']['chat']['id']
+        try:
+            return d['edited_message']['chat']['id']
+        except:
+            return None
     else:
-        logger.info(f'Failed to get chat_id from message')
         return None
