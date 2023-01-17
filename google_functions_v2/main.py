@@ -61,7 +61,7 @@ def on_notifier_bot_message(request: flask.Request):
         jsn = json.loads(request.data.decode("utf-8"))
         chat_id: int = tel_s.get_chatid_from_json(jsn)
         if chat_id == None:
-            logger.info(f'Failed to parse chat-id')
+            logger.info(f'Failed to parse chat_id')
             return
         bigquerydb: bigdb.BigQueryDB = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
         chat_id_db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
@@ -81,7 +81,7 @@ def on_alerting_bot_message(request: flask.Request):
         bigquerydb = bigdb.BigQueryDB(project=PROJECT, dataset_id=DATASET_ID, location=LOCATION)
         chat_id: t.Optional[int] = tel_s.get_chatid_from_str(request.data.decode("utf-8"))
         if chat_id == None:
-            logger.info(f'Failed to parse chat-id')
+            logger.info(f'Failed to parse chat_id')
             return 'OK'
         db: chidb.ChatIdDB = chidb.ChatIdDB(db=bigquerydb)
         db.ask_to_add(chat_id, tel_s.TelegramSender(chat_id, alt.BOT_ID), alt.BOT_NAME)
