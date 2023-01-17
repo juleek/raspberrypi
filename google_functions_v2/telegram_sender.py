@@ -97,7 +97,15 @@ def get_chatid_from_str(jsn: str) -> t.Optional[int]:
 
 
 def get_chatid_from_json(d) -> t.Optional[int]:
-    try:
-        return d['message']['chat']['id']
-    except:
+    if 'message' in d:
+        try:
+            return d['message']['chat']['id']
+        except:
+            return None
+    elif 'edited_message' in d:
+        try:
+            return d['edited_message']['chat']['id']
+        except:
+            return None
+    else:
         return None
