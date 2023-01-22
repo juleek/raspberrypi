@@ -38,24 +38,29 @@ fn main() -> Result<()> {
 
    let ctrl_c_events = set_ctrl_channel()?;
 
-   let sensors_info = std::collections::HashMap::from([
-      (
-         String::from("BottomTube"),
-         //  std::path::PathBuf::from("/sys/bus/w1/devices/28-000005eac50a/w1_slave"),
+   let factory_bott: thermo::sensors_poller::SensorFactory = Box::new(|id| {
+      Box::new(sensors::DS18B20::Sensor::new(
+         id,
+         // std::path::PathBuf::from("/sys/bus/w1/devices/28-000005eac50a/w1_slave"),
          std::path::PathBuf::from("/home/dimanne/bott.txt"),
-      ),
-      (
-         String::from("Ambient"),
-         //  std::path::PathBuf::from("/sys/bus/w1/devices/28-000005eaddc2/w1_slave"),
+      )) as Box<dyn sensors::Sensor + std::marker::Send>
+   });
+   let factory_amb: thermo::sensors_poller::SensorFactory = Box::new(|id| {
+      Box::new(sensors::DS18B20::Sensor::new(
+         id,
+         // std::path::PathBuf::from("/sys/bus/w1/devices/28-000005eaddc2/w1_slave"),
          std::path::PathBuf::from("/home/dimanne/amb.txt"),
-      ),
-   ]);
+      )) as Box<dyn sensors::Sensor + std::marker::Send>
+   });
+   let sensors_factories: std::collections::HashMap<String, thermo::sensors_poller::SensorFactory> =
+      std::collections::HashMap::from([
+         (String::from("BottomTube"), factory_bott),
+         (String::from("Ambient"), factory_amb),
+      ]);
 
    let sink = Box::new(thermo::sink::StdOutSink);
 
-   let mut sensors_poller =
-      thermo::sensors_poller::SensorsPoller::new(sink, ctrl_c_events, sensors_info);
-   sensors_poller.run();
+   thermo::sensors_poller::run(sensors_factories, sink, ctrl_c_events);
 
    Ok(())
 }
