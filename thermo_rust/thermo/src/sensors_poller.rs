@@ -132,7 +132,6 @@ mod tests {
    use super::*;
 
    #[test]
-   // #[ignore = "Integration test: Uses sleep()"]
    fn single_sensor_check_data_provided_by_sensor_is_published() {
       // -----------------------------------------------------------------------------------------------------
       // Setup
@@ -142,12 +141,8 @@ mod tests {
       let mut counter = std::sync::Arc::new(std::sync::atomic::AtomicI32::default());
 
       let mut ctrlc_sender1 = ctrlc_sender.clone();
-      // let mut ctrlc_sender2 = ctrlc_sender.clone();
-
       let mut counter1 = counter.clone();
-      // let mut counter2 = counter.clone();
 
-      // Why do we need to specify Send + Sync here, but not in the main?
       // let callback1: Box<dyn FnMut() -> sensors::Reading + Send + Sync> = ;
       let factory1: crate::sensors_poller::SensorFactory = Box::new(|id| {
          // This is a lambda that get id and returns unique_ptr<MockSensor>:
@@ -193,11 +188,109 @@ mod tests {
       // -----------------------------------------------------------------------------------------------------
       // Check results:
       // println!("sink: {sink:?}");
-      assert!(sink.items.len() > 0);
+      assert!(!sink.items.is_empty());
       for (i, item) in sink.items.iter().enumerate() {
          assert!(item.NameToTemp.contains_key(SENSOR_NAME1));
-         assert_eq!(*item.NameToTemp.get(SENSOR_NAME1).unwrap(), i as sensors::TempType);
+         assert_eq!(
+            *item.NameToTemp.get(SENSOR_NAME1).unwrap(),
+            i as sensors::TempType
+         );
          assert!(item.ErrorString.is_empty());
       }
    }
+
+   #[test]
+   fn two_sensors_check_data_provided_by_sensor_is_published() {
+      // -----------------------------------------------------------------------------------------------------
+      // Setup
+
+      let (ctrlc_sender, ctrlc_receiver): (channel::Sender<()>, channel::Receiver<()>) =
+         channel::bounded(100);
+      // let mut counter = std::sync::Arc::new(std::sync::atomic::AtomicI32::default());
+      // let mut counter1 = counter.clone();
+      // let mut counter2 = counter.clone();
+
+      let mut ctrlc_sender1 = ctrlc_sender.clone();
+      let mut ctrlc_sender2 = ctrlc_sender.clone();
+
+      // let mut counter1 = std::sync::Arc::<i32>::default();
+      let mut counter1 = -1;
+      let mut counter2 = -1;
+
+      let factory1: crate::sensors_poller::SensorFactory = Box::new(move |id| {
+         Box::new(sensors::MockSensor::new(
+            id,
+            std::cell::RefCell::new(Box::new(move || {
+               counter1 += 1;
+               if counter1 == 5 {
+                  ctrlc_sender1
+                     .send(())
+                     .expect("Must be possible to send the message");
+               }
+               sensors::Reading {
+                  measurement: Ok(counter1 as sensors::TempType),
+                  id,
+               }
+            })),
+         )) as Box<dyn sensors::Sensor + std::marker::Send>
+      });
+      let factory2: crate::sensors_poller::SensorFactory = Box::new(move |id| {
+         Box::new(sensors::MockSensor::new(
+            id,
+            std::cell::RefCell::new(Box::new(move || {
+               counter2 += 1;
+               if counter2 == 5 {
+                  ctrlc_sender2
+                     .send(())
+                     .expect("Must be possible to send the message");
+               }
+               sensors::Reading {
+                  measurement: Ok(counter2 as sensors::TempType),
+                  id,
+               }
+            })),
+         )) as Box<dyn sensors::Sensor + std::marker::Send>
+      });
+      const SENSOR_NAME1: &str = "Sensor:BottomTube";
+      const SENSOR_NAME2: &str = "Sensor:Ambient";
+
+      let factories: std::collections::HashMap<String, SensorFactory> =
+         std::collections::HashMap::from([
+            (String::from(SENSOR_NAME1), factory1),
+            (String::from(SENSOR_NAME2), factory2),
+         ]);
+
+      let mut sink = sink::FakeSink::default();
+
+      // -----------------------------------------------------------------------------------------------------
+      // Run test:
+
+      run(
+         factories,
+         &mut sink,
+         ctrlc_receiver,
+         std::time::Duration::from_millis(1),
+      );
+
+      // -----------------------------------------------------------------------------------------------------
+      // Check results:
+      // println!("sink: {sink:?}");
+      assert!(!sink.items.is_empty());
+      for (i, item) in sink.items.iter().enumerate() {
+         assert!(item.NameToTemp.contains_key(SENSOR_NAME1));
+         assert!(item.NameToTemp.contains_key(SENSOR_NAME2));
+         assert_eq!(
+            *item.NameToTemp.get(SENSOR_NAME1).unwrap(),
+            i as sensors::TempType
+         );
+         assert_eq!(
+            *item.NameToTemp.get(SENSOR_NAME2).unwrap(),
+            i as sensors::TempType
+         );
+         assert!(item.ErrorString.is_empty());
+      }
+   }
+
+   #[test]
+   fn two_sensors_one_of_them_is_slow_check_error_is_reported() {}
 }
