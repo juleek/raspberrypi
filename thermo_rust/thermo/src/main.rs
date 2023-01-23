@@ -58,11 +58,11 @@ fn main() -> Result<()> {
          (String::from("Ambient"), factory_amb),
       ]);
 
-   let sink = Box::new(thermo::sink::StdOutSink);
+   let mut sink = thermo::sink::StdOutSink;
 
    thermo::sensors_poller::run(
       sensors_factories,
-      sink,
+      &mut sink,
       ctrl_c_events,
       std::time::Duration::from_secs(1),
    );

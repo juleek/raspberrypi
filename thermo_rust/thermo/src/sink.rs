@@ -21,13 +21,9 @@ impl Sink for StdOutSink {
    }
 }
 
-struct FakeSink {
-   items: Vec<Item>,
-}
-impl FakeSink {
-   pub fn new() -> Self {
-      FakeSink { items: Vec::new() }
-   }
+#[derive(Debug, Default)]
+pub struct FakeSink {
+   pub items: Vec<Item>,
 }
 impl Sink for FakeSink {
    fn publish(&mut self, item: Item) {

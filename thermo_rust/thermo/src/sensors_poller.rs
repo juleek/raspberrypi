@@ -94,7 +94,7 @@ fn on_new_temperature_got(
 
 pub fn run(
    sensor_factories: std::collections::HashMap<String, SensorFactory>,
-   mut sink: Box<dyn sink::Sink>,
+   sink: &mut dyn sink::Sink,
    exit_events: channel::Receiver<()>,
    sensor_polling_freq: std::time::Duration,
 ) {
@@ -116,7 +116,7 @@ pub fn run(
    loop {
       channel::select! {
           recv(local_reading_events) -> reading => {
-            on_new_temperature_got(&mut *sink, &mut wrappers, reading.expect("Must be possible to send messages via MessagePassing framework"));
+            on_new_temperature_got(sink, &mut wrappers, reading.expect("Must be possible to send messages via MessagePassing framework"));
           }
           recv(exit_events) -> _ => {
               println!("Goodbye!");
@@ -132,12 +132,20 @@ mod tests {
    use super::*;
 
    #[test]
-   #[ignore = "Integration test: Uses sleep()"]
-   fn test_run() {
-      // let (ctrlc_sender, ctrlc_receiver) = channel::bounded(100);
+   // #[ignore = "Integration test: Uses sleep()"]
+   fn single_sensor_check_data_provided_by_sensor_is_published() {
+      // -----------------------------------------------------------------------------------------------------
+      // Setup
 
-      let mut counter1 = std::sync::Arc::new(std::sync::atomic::AtomicI32::default());
-      let mut counter2 = counter1.clone();
+      let (ctrlc_sender, ctrlc_receiver): (channel::Sender<()>, channel::Receiver<()>) =
+         channel::bounded(100);
+      let mut counter = std::sync::Arc::new(std::sync::atomic::AtomicI32::default());
+
+      let mut ctrlc_sender1 = ctrlc_sender.clone();
+      // let mut ctrlc_sender2 = ctrlc_sender.clone();
+
+      let mut counter1 = counter.clone();
+      // let mut counter2 = counter.clone();
 
       // Why do we need to specify Send + Sync here, but not in the main?
       // let callback1: Box<dyn FnMut() -> sensors::Reading + Send + Sync> = ;
@@ -148,28 +156,48 @@ mod tests {
             id,
             // And read callback. RefCell for interior mutability. Box::new(|| ...) is std::function
             std::cell::RefCell::new(Box::new(move || {
+               // println!("In the read lambda!");
                // The read callback will modify the atomic
-               counter1.store(3, std::sync::atomic::Ordering::SeqCst);
+               let old = counter1.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+               if old == 5 {
+                  ctrlc_sender1
+                     .send(())
+                     .expect("Must be possible to send the message");
+               }
                // and return a reading:
                sensors::Reading {
-                  measurement: Ok(1.),
+                  measurement: Ok(old as sensors::TempType),
                   id,
                }
             })),
          )) as Box<dyn sensors::Sensor + std::marker::Send>
       });
 
-      // let sensor = sensors::FakeSensor::new(23, 2.5);
-      // let poller = SensorPoller::new(
-      //    Box::new(sensors::FakeSensor::new(23, 2.5)),
-      //    tx,
-      //    std::time::Duration::from_secs(1),
-      // );
+      const SENSOR_NAME1: &str = "Sensor:BottomTube";
 
-      // poller.start();
+      let factories: std::collections::HashMap<String, SensorFactory> =
+         std::collections::HashMap::from([(String::from(SENSOR_NAME1), factory1)]);
 
-      // for received in rx {
-      //    println!("Got: {:?}", received);
-      // }
+      let mut sink = sink::FakeSink::default();
+
+      // -----------------------------------------------------------------------------------------------------
+      // Run test:
+
+      run(
+         factories,
+         &mut sink,
+         ctrlc_receiver,
+         std::time::Duration::from_millis(1),
+      );
+
+      // -----------------------------------------------------------------------------------------------------
+      // Check results:
+      // println!("sink: {sink:?}");
+      assert!(sink.items.len() > 0);
+      for (i, item) in sink.items.iter().enumerate() {
+         assert!(item.NameToTemp.contains_key(SENSOR_NAME1));
+         assert_eq!(*item.NameToTemp.get(SENSOR_NAME1).unwrap(), i as sensors::TempType);
+         assert!(item.ErrorString.is_empty());
+      }
    }
 }

@@ -41,13 +41,10 @@ impl Sensor for FakeSensor {
 
 pub struct MockSensor {
    id: IdType,
-   read: std::cell::RefCell<Box<dyn FnMut() -> Reading + Send + Sync>>,
+   read: std::cell::RefCell<Box<dyn FnMut() -> Reading + Send>>,
 }
 impl MockSensor {
-   pub fn new(
-      id: IdType,
-      read: std::cell::RefCell<Box<dyn FnMut() -> Reading + Send + Sync>>,
-   ) -> Self {
+   pub fn new(id: IdType, read: std::cell::RefCell<Box<dyn FnMut() -> Reading + Send>>) -> Self {
       MockSensor { id, read }
    }
 }
