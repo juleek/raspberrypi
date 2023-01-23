@@ -60,7 +60,12 @@ fn main() -> Result<()> {
 
    let sink = Box::new(thermo::sink::StdOutSink);
 
-   thermo::sensors_poller::run(sensors_factories, sink, ctrl_c_events);
+   thermo::sensors_poller::run(
+      sensors_factories,
+      sink,
+      ctrl_c_events,
+      std::time::Duration::from_secs(1),
+   );
 
    Ok(())
 }

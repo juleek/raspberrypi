@@ -1,4 +1,3 @@
-use anyhow::Result;
 use crossbeam_channel as channel;
 use stdext::function_name;
 
@@ -10,14 +9,20 @@ pub mod ReqResp {
 pub struct SensorPoller {
    reader: Box<dyn sensors::Sensor + std::marker::Send>,
    raid: channel::Sender<ReqResp::Reading>,
+   to_sleep: std::time::Duration,
 }
 
 impl SensorPoller {
    pub fn new(
       reader: Box<dyn sensors::Sensor + std::marker::Send>,
       raid: channel::Sender<ReqResp::Reading>,
+      to_sleep: std::time::Duration,
    ) -> Self {
-      SensorPoller { reader, raid }
+      SensorPoller {
+         reader,
+         raid,
+         to_sleep,
+      }
    }
    pub fn start(self) {
       std::thread::spawn(move || self.event_loop());
@@ -25,7 +30,7 @@ impl SensorPoller {
 
    fn event_loop(&self) {
       loop {
-         std::thread::sleep(std::time::Duration::from_secs(1));
+         std::thread::sleep(self.to_sleep);
          //  let timer_channel = channel::after(std::time::Duration::from_secs(1));
          //  channel::select! {
          //     recv(timer_channel) -> _ => (),
@@ -47,7 +52,11 @@ mod tests {
    fn test_sensor_poller() {
       let (tx, rx) = channel::bounded(100);
       // let sensor = sensors::FakeSensor::new(23, 2.5);
-      let poller = SensorPoller::new(Box::new(sensors::FakeSensor::new(23, 2.5)), tx);
+      let poller = SensorPoller::new(
+         Box::new(sensors::FakeSensor::new(23, 2.5)),
+         tx,
+         std::time::Duration::from_secs(1),
+      );
 
       poller.start();
 

@@ -1,4 +1,4 @@
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Default)]
 pub struct Item {
    pub NameToTemp: std::collections::HashMap<String, sensors::TempType>,
    pub ErrorString: String,
