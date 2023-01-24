@@ -95,8 +95,6 @@ pub fn run(sensor_factories: std::collections::HashMap<String, SensorFactory>,
       poller.start();
    }
 
-   // let s = &mut *sink;
-
    loop {
       channel::select! {
           recv(local_reading_events) -> reading => {
@@ -118,57 +116,50 @@ mod tests {
    #[allow(unused_imports)]
    use super::*;
 
-   struct MockSensorFactory;
+   struct MockSensorFactory {
+      pub ctrlc_sender: channel::Sender<()>,
+   }
 
    impl FnOnce<(i32,)> for MockSensorFactory {
-      type Output = i32;
-      extern "rust-call" fn call_once(self, (id,): (i32,)) -> i32 { 42 }
+      type Output = Box<dyn sensors::Sensor + std::marker::Send>;
+      // This is a callable that gets id and returns unique_ptr<MockSensor>:
+      extern "rust-call" fn call_once(self,
+                                      (id,): (i32,))
+                                      -> Box<dyn sensors::Sensor + std::marker::Send> {
+         let mut counter1 = -1;
+         Box::new(sensors::MockSensor::new(id, // MockSensor is initialised with id:
+                                           // And read callback. RefCell for interior mutability. Box::new(|| ...) is std::function
+                                           std::cell::RefCell::new(Box::new(move || {
+                                              counter1 += 1; // The read callback will increment the counter:
+                                              if counter1 == 5 {
+                                                 let _ = self.ctrlc_sender.send(());
+                                              }
+                                              // and return a reading:
+                                              sensors::Reading { measurement:
+                                                                    Ok(counter1
+                                                                       as sensors::TempType),
+                                                                 id }
+                                           })))) //  as Box<dyn sensors::Sensor + std::marker::Send>
+      }
    }
 
    #[test]
    fn single_sensor_check_data_provided_by_sensor_is_published() {
       // -----------------------------------------------------------------------------------------------------
       // Setup
-
       let (ctrlc_sender, ctrlc_receiver): (channel::Sender<()>, channel::Receiver<()>) =
          channel::bounded(100);
-      let mut counter = std::sync::Arc::new(std::sync::atomic::AtomicI32::default());
 
-      let mut ctrlc_sender1 = ctrlc_sender.clone();
-      let mut counter1 = counter.clone();
-
-      // let callback1: Box<dyn FnMut() -> sensors::Reading + Send + Sync> = ;
-      let factory1: crate::sensors_poller::SensorFactory = Box::new(|id| {
-         // This is a lambda that get id and returns unique_ptr<MockSensor>:
-         Box::new(sensors::MockSensor::new(
-            // MockSensor is initialised with id:
-            id,
-            // And read callback. RefCell for interior mutability. Box::new(|| ...) is std::function
-            std::cell::RefCell::new(Box::new(move || {
-               // println!("In the read lambda!");
-               // The read callback will modify the atomic
-               let old = counter1.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-               if old == 5 {
-                  ctrlc_sender1.send(())
-                               .expect("Must be possible to send the message");
-               }
-               // and return a reading:
-               sensors::Reading { measurement: Ok(old as sensors::TempType),
-                                  id }
-            })),
-         )) as Box<dyn sensors::Sensor + std::marker::Send>
-      });
-
-      const SENSOR_NAME1: &str = "Sensor:BottomTube";
+      const F1_NAME: &str = "Sensor:BottomTube";
+      let f1: SensorFactory = Box::new(MockSensorFactory { ctrlc_sender: ctrlc_sender.clone(), });
 
       let factories: std::collections::HashMap<String, SensorFactory> =
-         std::collections::HashMap::from([(String::from(SENSOR_NAME1), factory1)]);
+         std::collections::HashMap::from([(String::from(F1_NAME), f1)]);
 
       let mut sink = sink::FakeSink::default();
 
       // -----------------------------------------------------------------------------------------------------
       // Run test:
-
       run(factories,
           &mut sink,
           ctrlc_receiver,
@@ -176,11 +167,10 @@ mod tests {
 
       // -----------------------------------------------------------------------------------------------------
       // Check results:
-      // println!("sink: {sink:?}");
       assert!(!sink.items.is_empty());
       for (i, item) in sink.items.iter().enumerate() {
-         assert!(item.NameToTemp.contains_key(SENSOR_NAME1));
-         assert_eq!(*item.NameToTemp.get(SENSOR_NAME1).unwrap(),
+         assert!(item.NameToTemp.contains_key(F1_NAME));
+         assert_eq!(*item.NameToTemp.get(F1_NAME).unwrap(),
                     i as sensors::TempType);
          assert!(item.ErrorString.is_empty());
       }
@@ -190,60 +180,19 @@ mod tests {
    fn two_sensors_check_data_provided_by_sensor_is_published() {
       // -----------------------------------------------------------------------------------------------------
       // Setup
-
       let (ctrlc_sender, ctrlc_receiver): (channel::Sender<()>, channel::Receiver<()>) =
          channel::bounded(100);
-      // let mut counter = std::sync::Arc::new(std::sync::atomic::AtomicI32::default());
-      // let mut counter1 = counter.clone();
-      // let mut counter2 = counter.clone();
-
-      let mut ctrlc_sender1 = ctrlc_sender.clone();
-      let mut ctrlc_sender2 = ctrlc_sender.clone();
-
-      // let mut counter1 = std::sync::Arc::<i32>::default();
-      let mut counter1 = -1;
-      let mut counter2 = -1;
-
-      let factory1: crate::sensors_poller::SensorFactory = Box::new(move |id| {
-         Box::new(sensors::MockSensor::new(
-            id,
-            std::cell::RefCell::new(Box::new(move || {
-               counter1 += 1;
-               if counter1 == 5 {
-                  ctrlc_sender1.send(())
-                               .expect("Must be possible to send the message");
-               }
-               sensors::Reading { measurement: Ok(counter1 as sensors::TempType),
-                                  id }
-            })),
-         )) as Box<dyn sensors::Sensor + std::marker::Send>
-      });
-      let factory2: crate::sensors_poller::SensorFactory = Box::new(move |id| {
-         Box::new(sensors::MockSensor::new(
-            id,
-            std::cell::RefCell::new(Box::new(move || {
-               counter2 += 1;
-               if counter2 == 5 {
-                  ctrlc_sender2.send(())
-                               .expect("Must be possible to send the message");
-               }
-               sensors::Reading { measurement: Ok(counter2 as sensors::TempType),
-                                  id }
-            })),
-         )) as Box<dyn sensors::Sensor + std::marker::Send>
-      });
-      const SENSOR_NAME1: &str = "Sensor:BottomTube";
-      const SENSOR_NAME2: &str = "Sensor:Ambient";
-
+      const F1_NAME: &str = "Sensor:BottomTube";
+      let f1: SensorFactory = Box::new(MockSensorFactory { ctrlc_sender: ctrlc_sender.clone(), });
+      const F2_NAME: &str = "Sensor:Ambient";
+      let f2: SensorFactory = Box::new(MockSensorFactory { ctrlc_sender: ctrlc_sender.clone(), });
       let factories: std::collections::HashMap<String, SensorFactory> =
-         std::collections::HashMap::from([(String::from(SENSOR_NAME1), factory1),
-                                          (String::from(SENSOR_NAME2), factory2)]);
-
+         std::collections::HashMap::from([(String::from(F1_NAME), f1),
+                                          (String::from(F2_NAME), f2)]);
       let mut sink = sink::FakeSink::default();
 
       // -----------------------------------------------------------------------------------------------------
       // Run test:
-
       run(factories,
           &mut sink,
           ctrlc_receiver,
@@ -251,19 +200,54 @@ mod tests {
 
       // -----------------------------------------------------------------------------------------------------
       // Check results:
-      // println!("sink: {sink:?}");
       assert!(!sink.items.is_empty());
       for (i, item) in sink.items.iter().enumerate() {
-         assert!(item.NameToTemp.contains_key(SENSOR_NAME1));
-         assert!(item.NameToTemp.contains_key(SENSOR_NAME2));
-         assert_eq!(*item.NameToTemp.get(SENSOR_NAME1).unwrap(),
+         assert!(item.NameToTemp.contains_key(F1_NAME));
+         assert!(item.NameToTemp.contains_key(F2_NAME));
+         assert_eq!(*item.NameToTemp.get(F1_NAME).unwrap(),
                     i as sensors::TempType);
-         assert_eq!(*item.NameToTemp.get(SENSOR_NAME2).unwrap(),
+         assert_eq!(*item.NameToTemp.get(F2_NAME).unwrap(),
                     i as sensors::TempType);
          assert!(item.ErrorString.is_empty());
       }
    }
 
    #[test]
-   fn two_sensors_one_of_them_is_slow_check_error_is_reported() {}
+   fn two_sensors_one_of_them_is_slow_check_error_is_reported() {
+      // -----------------------------------------------------------------------------------------------------
+      // Setup
+      let (ctrlc_sender, ctrlc_receiver): (channel::Sender<()>, channel::Receiver<()>) =
+         channel::bounded(100);
+      const F1_NAME: &str = "Sensor:BottomTube";
+      let f1: SensorFactory = Box::new(MockSensorFactory { ctrlc_sender: ctrlc_sender.clone(), });
+      const F2_NAME: &str = "Sensor:Ambient";
+      let f2: crate::sensors_poller::SensorFactory = Box::new(move |id| {
+         Box::new(sensors::MockSensor::new(id,
+                                           std::cell::RefCell::new(Box::new(move || {
+                                              std::thread::sleep(std::time::Duration::MAX);
+                                              sensors::Reading { measurement: Ok(0.),
+                                                                 id }
+                                           }))))
+         as Box<dyn sensors::Sensor + std::marker::Send>
+      });
+      let factories: std::collections::HashMap<String, SensorFactory> =
+         std::collections::HashMap::from([(String::from(F1_NAME), f1),
+                                          (String::from(F2_NAME), f2)]);
+      let mut sink = sink::FakeSink::default();
+
+      // -----------------------------------------------------------------------------------------------------
+      // Run test:
+      run(factories,
+          &mut sink,
+          ctrlc_receiver,
+          std::time::Duration::from_millis(1));
+
+      // -----------------------------------------------------------------------------------------------------
+      // Check results:
+      // Has to report an error like:
+      // [Item { NameToTemp: {"Sensor:BottomTube": 3.0}, ErrorString: "We were able to read 4 times from sensor
+      // Sensor:BottomTube, but were unable to read once from sensor Sensor:Ambient" }]
+      assert!(sink.items[0].ErrorString.contains(F2_NAME));
+      assert!(sink.items[0].NameToTemp.contains_key(F1_NAME));
+   }
 }
