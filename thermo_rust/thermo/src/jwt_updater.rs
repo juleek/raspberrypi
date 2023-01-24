@@ -9,12 +9,12 @@ pub mod ReqResp {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct Claims<'a> {
-   aud: &'a str,
+   aud:             &'a str,
    target_audience: &'a str,
-   sub: &'a str,
-   iss: &'a str,
-   iat: u64,
-   exp: u64,
+   sub:             &'a str,
+   iss:             &'a str,
+   iat:             u64,
+   exp:             u64,
 }
 
 #[derive(serde::Deserialize)]
@@ -24,21 +24,20 @@ struct ExchangedJwt<'a> {
 
 pub struct JwtUpdater {
    func_http_end_point: String,
-   account_email: String,
-   private_key: jsonwebtoken::EncodingKey,
-   raid: channel::Sender<ReqResp::JWT>,
-   client: reqwest::blocking::Client,
+   account_email:       String,
+   private_key:         jsonwebtoken::EncodingKey,
+   raid:                channel::Sender<ReqResp::JWT>,
+   client:              reqwest::blocking::Client,
 }
 
 const URL: &str = "https://www.googleapis.com/oauth2/v4/token";
 
 impl JwtUpdater {
-   pub fn new(
-      raid: channel::Sender<ReqResp::JWT>,
-      func_http_end_point: &str,
-      account_email: &str,
-      private_key: &str,
-   ) -> Self {
+   pub fn new(raid: channel::Sender<ReqResp::JWT>,
+              func_http_end_point: &str,
+              account_email: &str,
+              private_key: &str)
+              -> Self {
       JwtUpdater {
          func_http_end_point: func_http_end_point.to_owned(),
          account_email: account_email.to_owned(),
@@ -52,22 +51,18 @@ impl JwtUpdater {
       }
    }
 
-   pub fn start(self) {
-      std::thread::spawn(move || self.event_loop());
-   }
+   pub fn start(self) { std::thread::spawn(move || self.event_loop()); }
 
    fn create_jwt(&self) -> String {
-      let current_time = std::time::SystemTime::now()
-         .duration_since(std::time::UNIX_EPOCH)
-         .unwrap();
-      let claims = Claims {
-         aud: URL,
-         target_audience: &self.func_http_end_point,
-         sub: &self.account_email,
-         iss: &self.account_email,
-         iat: current_time.as_secs(),
-         exp: (current_time + std::time::Duration::from_secs(10 * 60)).as_secs(),
-      };
+      let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                                                     .unwrap();
+      let claims = Claims { aud:             URL,
+                            target_audience: &self.func_http_end_point,
+                            sub:             &self.account_email,
+                            iss:             &self.account_email,
+                            iat:             current_time.as_secs(),
+                            exp:             (current_time
+                                              + std::time::Duration::from_secs(10 * 60)).as_secs(), };
       let header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
       jsonwebtoken::encode(&header, &claims, &self.private_key)
          .expect("Must be possible to encode a JWT")
@@ -77,10 +72,8 @@ impl JwtUpdater {
       let exchanged_jwt: ExchangedJwt = match serde_json::from_slice(&body) {
          Ok(v) => v,
          Err(ref why) => {
-            println!(
-               "{}: Failed to deserialise response as json: {why:?}",
-               function_name!()
-            );
+            println!("{}: Failed to deserialise response as json: {why:?}",
+                     function_name!());
             return;
          }
       };
@@ -100,22 +93,17 @@ impl JwtUpdater {
          params.insert("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer");
          params.insert("assertion", &signed_token);
 
-         let req = self
-            .client
-            .post(URL)
-            .header(
-               reqwest::header::AUTHORIZATION,
-               format!("Bearer {signed_token}"),
-            )
-            .form(&params)
-            .build()
-            .expect("Must be possible to create a request");
+         let req = self.client
+                       .post(URL)
+                       .header(reqwest::header::AUTHORIZATION,
+                               format!("Bearer {signed_token}"))
+                       .form(&params)
+                       .build()
+                       .expect("Must be possible to create a request");
 
-         println!(
-            "{}: Making request : {req:#?},data: {:#?}",
-            function_name!(),
-            req.body()
-         );
+         println!("{}: Making request : {req:#?},data: {:#?}",
+                  function_name!(),
+                  req.body());
 
          let resp = self.client.execute(req);
 
@@ -126,11 +114,9 @@ impl JwtUpdater {
                body = bytes;
             }
          }
-         println!(
-            "{}: Got response: {resp_for_logs}, data: {:#?}",
-            function_name!(),
-            body
-         );
+         println!("{}: Got response: {resp_for_logs}, data: {:#?}",
+                  function_name!(),
+                  body);
 
          self.try_to_parse_resp(&body);
 

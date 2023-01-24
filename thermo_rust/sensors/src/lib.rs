@@ -9,7 +9,7 @@ pub type TempType = f64;
 #[derive(Debug)]
 pub struct Reading {
    pub measurement: Result<TempType>,
-   pub id: IdType,
+   pub id:          IdType,
 }
 
 pub trait Sensor {
@@ -19,28 +19,22 @@ pub trait Sensor {
 
 pub struct FakeSensor {
    temperature: TempType,
-   id: IdType,
+   id:          IdType,
 }
 impl FakeSensor {
-   pub fn new(id: IdType, temperature: TempType) -> Self {
-      FakeSensor { id, temperature }
-   }
+   pub fn new(id: IdType, temperature: TempType) -> Self { FakeSensor { id, temperature } }
 }
 impl Sensor for FakeSensor {
-   fn id(&self) -> IdType {
-      self.id
-   }
+   fn id(&self) -> IdType { self.id }
    fn read(&self) -> Reading {
       std::thread::sleep(std::time::Duration::from_millis(250));
-      Reading {
-         measurement: Ok(self.temperature),
-         id: self.id,
-      }
+      Reading { measurement: Ok(self.temperature),
+                id:          self.id, }
    }
 }
 
 pub struct MockSensor {
-   id: IdType,
+   id:   IdType,
    read: std::cell::RefCell<Box<dyn FnMut() -> Reading + Send>>,
 }
 impl MockSensor {
@@ -49,12 +43,8 @@ impl MockSensor {
    }
 }
 impl Sensor for MockSensor {
-   fn id(&self) -> IdType {
-      self.id
-   }
-   fn read(&self) -> Reading {
-      (self.read.borrow_mut())()
-   }
+   fn id(&self) -> IdType { self.id }
+   fn read(&self) -> Reading { (self.read.borrow_mut())() }
 }
 
 #[cfg(test)]

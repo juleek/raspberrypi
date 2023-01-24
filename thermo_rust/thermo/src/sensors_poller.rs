@@ -5,29 +5,23 @@ use crossbeam_channel as channel;
 pub type SensorFactory = Box<dyn FnOnce(i32) -> Box<dyn sensors::Sensor + std::marker::Send>>;
 
 struct Wrapper {
-   name: String,
+   name:            String,
    num_of_readings: i32,
-   temperature: sensors::TempType,
-   messages: Vec<String>,
+   temperature:     sensors::TempType,
+   messages:        Vec<String>,
 }
 
 impl Wrapper {
    pub fn new(name: String) -> Wrapper {
-      Wrapper {
-         name,
-         num_of_readings: 0,
-         messages: Vec::new(),
-         temperature: 0.,
-      }
+      Wrapper { name,
+                num_of_readings: 0,
+                messages: Vec::new(),
+                temperature: 0. }
    }
 
    // Read-only:
-   pub fn name(&self) -> &str {
-      &self.name
-   }
-   pub fn num_of_readings(&self) -> i32 {
-      self.num_of_readings
-   }
+   pub fn name(&self) -> &str { &self.name }
+   pub fn num_of_readings(&self) -> i32 { self.num_of_readings }
    pub fn move_state_to_sink_item(&mut self, item: &mut sink::Item) {
       self.num_of_readings = 0;
       if self.messages.is_empty() == false {
@@ -38,10 +32,8 @@ impl Wrapper {
          };
          item.ErrorString += &(sep.to_owned() + &std::mem::take(&mut self.messages).join(", "));
       }
-      item.NameToTemp.insert(
-         self.name().to_string(),
-         std::mem::take(&mut self.temperature),
-      );
+      item.NameToTemp.insert(self.name().to_string(),
+                             std::mem::take(&mut self.temperature));
    }
 
    // Populating:
@@ -55,20 +47,16 @@ impl Wrapper {
    }
 }
 
-fn on_new_temperature_got(
-   sink: &mut dyn sink::Sink,
-   wrappers: &mut [Wrapper],
-   reading: sensor_poller::ReqResp::Reading,
-) {
+fn on_new_temperature_got(sink: &mut dyn sink::Sink,
+                          wrappers: &mut [Wrapper],
+                          reading: sensor_poller::ReqResp::Reading) {
    wrappers[reading.0.id as usize].on_new_temperature_got(reading);
-   let max = wrappers
-      .iter()
-      .max_by_key(|e| e.num_of_readings)
-      .expect("Must be non empty");
-   let min = wrappers
-      .iter()
-      .min_by_key(|e| e.num_of_readings)
-      .expect("Must be non empty");
+   let max = wrappers.iter()
+                     .max_by_key(|e| e.num_of_readings)
+                     .expect("Must be non empty");
+   let min = wrappers.iter()
+                     .min_by_key(|e| e.num_of_readings)
+                     .expect("Must be non empty");
    const MAX_DIFFERENCE_BETWEEN_SENSORS: i32 = 4;
    if min.num_of_readings() == 0 && max.num_of_readings() < MAX_DIFFERENCE_BETWEEN_SENSORS {
       // We know that there is at least one lagging sensor (Min)
@@ -92,22 +80,18 @@ fn on_new_temperature_got(
    sink.publish(sink_item);
 }
 
-pub fn run(
-   sensor_factories: std::collections::HashMap<String, SensorFactory>,
-   sink: &mut dyn sink::Sink,
-   exit_events: channel::Receiver<()>,
-   sensor_polling_freq: std::time::Duration,
-) {
+pub fn run(sensor_factories: std::collections::HashMap<String, SensorFactory>,
+           sink: &mut dyn sink::Sink,
+           exit_events: channel::Receiver<()>,
+           sensor_polling_freq: std::time::Duration) {
    let (remote_reading_events, local_reading_events) = channel::bounded(100);
    let mut wrappers: Vec<Wrapper> = Vec::new();
 
    for (id, (name, factory)) in (0i32..).zip(sensor_factories) {
       wrappers.push(Wrapper::new(name));
-      let poller = sensor_poller::SensorPoller::new(
-         factory(id),
-         remote_reading_events.clone(),
-         sensor_polling_freq,
-      );
+      let poller = sensor_poller::SensorPoller::new(factory(id),
+                                                    remote_reading_events.clone(),
+                                                    sensor_polling_freq);
       poller.start();
    }
 
@@ -126,10 +110,20 @@ pub fn run(
    }
 }
 
+
+
+
 #[cfg(test)]
 mod tests {
    #[allow(unused_imports)]
    use super::*;
+
+   struct MockSensorFactory;
+
+   impl FnOnce<(i32,)> for MockSensorFactory {
+      type Output = i32;
+      extern "rust-call" fn call_once(self, (id,): (i32,)) -> i32 { 42 }
+   }
 
    #[test]
    fn single_sensor_check_data_provided_by_sensor_is_published() {
@@ -155,15 +149,12 @@ mod tests {
                // The read callback will modify the atomic
                let old = counter1.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                if old == 5 {
-                  ctrlc_sender1
-                     .send(())
-                     .expect("Must be possible to send the message");
+                  ctrlc_sender1.send(())
+                               .expect("Must be possible to send the message");
                }
                // and return a reading:
-               sensors::Reading {
-                  measurement: Ok(old as sensors::TempType),
-                  id,
-               }
+               sensors::Reading { measurement: Ok(old as sensors::TempType),
+                                  id }
             })),
          )) as Box<dyn sensors::Sensor + std::marker::Send>
       });
@@ -178,12 +169,10 @@ mod tests {
       // -----------------------------------------------------------------------------------------------------
       // Run test:
 
-      run(
-         factories,
-         &mut sink,
-         ctrlc_receiver,
-         std::time::Duration::from_millis(1),
-      );
+      run(factories,
+          &mut sink,
+          ctrlc_receiver,
+          std::time::Duration::from_millis(1));
 
       // -----------------------------------------------------------------------------------------------------
       // Check results:
@@ -191,10 +180,8 @@ mod tests {
       assert!(!sink.items.is_empty());
       for (i, item) in sink.items.iter().enumerate() {
          assert!(item.NameToTemp.contains_key(SENSOR_NAME1));
-         assert_eq!(
-            *item.NameToTemp.get(SENSOR_NAME1).unwrap(),
-            i as sensors::TempType
-         );
+         assert_eq!(*item.NameToTemp.get(SENSOR_NAME1).unwrap(),
+                    i as sensors::TempType);
          assert!(item.ErrorString.is_empty());
       }
    }
@@ -223,14 +210,11 @@ mod tests {
             std::cell::RefCell::new(Box::new(move || {
                counter1 += 1;
                if counter1 == 5 {
-                  ctrlc_sender1
-                     .send(())
-                     .expect("Must be possible to send the message");
+                  ctrlc_sender1.send(())
+                               .expect("Must be possible to send the message");
                }
-               sensors::Reading {
-                  measurement: Ok(counter1 as sensors::TempType),
-                  id,
-               }
+               sensors::Reading { measurement: Ok(counter1 as sensors::TempType),
+                                  id }
             })),
          )) as Box<dyn sensors::Sensor + std::marker::Send>
       });
@@ -240,14 +224,11 @@ mod tests {
             std::cell::RefCell::new(Box::new(move || {
                counter2 += 1;
                if counter2 == 5 {
-                  ctrlc_sender2
-                     .send(())
-                     .expect("Must be possible to send the message");
+                  ctrlc_sender2.send(())
+                               .expect("Must be possible to send the message");
                }
-               sensors::Reading {
-                  measurement: Ok(counter2 as sensors::TempType),
-                  id,
-               }
+               sensors::Reading { measurement: Ok(counter2 as sensors::TempType),
+                                  id }
             })),
          )) as Box<dyn sensors::Sensor + std::marker::Send>
       });
@@ -255,22 +236,18 @@ mod tests {
       const SENSOR_NAME2: &str = "Sensor:Ambient";
 
       let factories: std::collections::HashMap<String, SensorFactory> =
-         std::collections::HashMap::from([
-            (String::from(SENSOR_NAME1), factory1),
-            (String::from(SENSOR_NAME2), factory2),
-         ]);
+         std::collections::HashMap::from([(String::from(SENSOR_NAME1), factory1),
+                                          (String::from(SENSOR_NAME2), factory2)]);
 
       let mut sink = sink::FakeSink::default();
 
       // -----------------------------------------------------------------------------------------------------
       // Run test:
 
-      run(
-         factories,
-         &mut sink,
-         ctrlc_receiver,
-         std::time::Duration::from_millis(1),
-      );
+      run(factories,
+          &mut sink,
+          ctrlc_receiver,
+          std::time::Duration::from_millis(1));
 
       // -----------------------------------------------------------------------------------------------------
       // Check results:
@@ -279,14 +256,10 @@ mod tests {
       for (i, item) in sink.items.iter().enumerate() {
          assert!(item.NameToTemp.contains_key(SENSOR_NAME1));
          assert!(item.NameToTemp.contains_key(SENSOR_NAME2));
-         assert_eq!(
-            *item.NameToTemp.get(SENSOR_NAME1).unwrap(),
-            i as sensors::TempType
-         );
-         assert_eq!(
-            *item.NameToTemp.get(SENSOR_NAME2).unwrap(),
-            i as sensors::TempType
-         );
+         assert_eq!(*item.NameToTemp.get(SENSOR_NAME1).unwrap(),
+                    i as sensors::TempType);
+         assert_eq!(*item.NameToTemp.get(SENSOR_NAME2).unwrap(),
+                    i as sensors::TempType);
          assert!(item.ErrorString.is_empty());
       }
    }

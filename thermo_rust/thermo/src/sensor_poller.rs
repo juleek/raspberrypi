@@ -7,26 +7,21 @@ pub mod ReqResp {
 }
 
 pub struct SensorPoller {
-   reader: Box<dyn sensors::Sensor + std::marker::Send>,
-   raid: channel::Sender<ReqResp::Reading>,
+   reader:   Box<dyn sensors::Sensor + std::marker::Send>,
+   raid:     channel::Sender<ReqResp::Reading>,
    to_sleep: std::time::Duration,
 }
 
 impl SensorPoller {
-   pub fn new(
-      reader: Box<dyn sensors::Sensor + std::marker::Send>,
-      raid: channel::Sender<ReqResp::Reading>,
-      to_sleep: std::time::Duration,
-   ) -> Self {
-      SensorPoller {
-         reader,
-         raid,
-         to_sleep,
-      }
+   pub fn new(reader: Box<dyn sensors::Sensor + std::marker::Send>,
+              raid: channel::Sender<ReqResp::Reading>,
+              to_sleep: std::time::Duration)
+              -> Self {
+      SensorPoller { reader,
+                     raid,
+                     to_sleep }
    }
-   pub fn start(self) {
-      std::thread::spawn(move || self.event_loop());
-   }
+   pub fn start(self) { std::thread::spawn(move || self.event_loop()); }
 
    fn event_loop(&self) {
       loop {
@@ -52,11 +47,9 @@ mod tests {
    fn test_sensor_poller() {
       let (tx, rx) = channel::bounded(100);
       // let sensor = sensors::FakeSensor::new(23, 2.5);
-      let poller = SensorPoller::new(
-         Box::new(sensors::FakeSensor::new(23, 2.5)),
-         tx,
-         std::time::Duration::from_secs(1),
-      );
+      let poller = SensorPoller::new(Box::new(sensors::FakeSensor::new(23, 2.5)),
+                                     tx,
+                                     std::time::Duration::from_secs(1));
 
       poller.start();
 

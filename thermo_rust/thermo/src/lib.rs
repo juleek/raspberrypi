@@ -1,3 +1,5 @@
+#![feature(unboxed_closures, fn_traits)]
+
 //  use anyhow::Result;
 
 pub mod sensor_poller;
