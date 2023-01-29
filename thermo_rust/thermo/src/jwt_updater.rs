@@ -1,8 +1,7 @@
-use anyhow::{anyhow, Context, Result};
 use crossbeam_channel as channel;
-use stdext::function_name;
 
-pub mod ReqResp {
+
+pub mod req_resp {
    #[derive(Debug)]
    pub struct JWT(pub String);
 }
@@ -26,14 +25,14 @@ pub struct JwtUpdater {
    func_http_end_point: String,
    account_email:       String,
    private_key:         jsonwebtoken::EncodingKey,
-   raid:                channel::Sender<ReqResp::JWT>,
+   raid:                channel::Sender<req_resp::JWT>,
    client:              reqwest::blocking::Client,
 }
 
 const URL: &str = "https://www.googleapis.com/oauth2/v4/token";
 
 impl JwtUpdater {
-   pub fn new(raid: channel::Sender<ReqResp::JWT>,
+   pub fn new(raid: channel::Sender<req_resp::JWT>,
               func_http_end_point: &str,
               account_email: &str,
               private_key: &str)
@@ -69,24 +68,23 @@ impl JwtUpdater {
    }
 
    fn try_to_parse_resp(&self, body: &bytes::Bytes) {
-      let exchanged_jwt: ExchangedJwt = match serde_json::from_slice(&body) {
+      let exchanged_jwt: ExchangedJwt = match serde_json::from_slice(body) {
          Ok(v) => v,
          Err(ref why) => {
-            println!("{}: Failed to deserialise response as json: {why:?}",
-                     function_name!());
+            log::error!("Failed to deserialise response as json: {why:?}, ignoring this response");
             return;
          }
       };
-      let result = ReqResp::JWT(String::from(exchanged_jwt.id_token));
-      // println!("{}: Parsed JWT: {result:?}", function_name!());
+      let result = req_resp::JWT(String::from(exchanged_jwt.id_token));
+      log::info!("Sending out: {result:?}");
       let _ = self.raid.send(result);
    }
 
    fn event_loop(&self) {
-      let mut counter: i32 = 0;
+      log::warn!("event_loop started");
+      // let mut counter: i32 = 0;
       loop {
-         counter += 1;
-
+         // counter += 1;
          let signed_token = self.create_jwt();
 
          let mut params = std::collections::HashMap::new();
@@ -101,9 +99,7 @@ impl JwtUpdater {
                        .build()
                        .expect("Must be possible to create a request");
 
-         println!("{}: Making request : {req:#?},data: {:#?}",
-                  function_name!(),
-                  req.body());
+         log::info!("Making request: {req:?}, data: {:?}", req.body());
 
          let resp = self.client.execute(req);
 
@@ -114,9 +110,7 @@ impl JwtUpdater {
                body = bytes;
             }
          }
-         println!("{}: Got response: {resp_for_logs}, data: {:#?}",
-                  function_name!(),
-                  body);
+         log::info!("Got response: {resp_for_logs}, data: {body:?}");
 
          self.try_to_parse_resp(&body);
 
@@ -131,7 +125,7 @@ mod tests {
 
    const FUNC_HTTP_END_POINT: &str = "";
    const ACCOUNT_EMAIL: &str = "";
-   const PRIVATE_KEY: &str = "";
+   const _PRIVATE_KEY: &str = "";
 
    #[test]
    #[ignore = "Integration test: Uses real service, requires file"]
@@ -149,7 +143,7 @@ mod tests {
       poller.start();
 
       for received in rx {
-         println!("Got: {:?}", received);
+         println!("Got: {received:?}");
       }
    }
 }

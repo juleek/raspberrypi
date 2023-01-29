@@ -1,20 +1,19 @@
 use crossbeam_channel as channel;
-use stdext::function_name;
 
-pub mod ReqResp {
+pub mod req_resp {
    #[derive(Debug)]
    pub struct Reading(pub sensors::Reading);
 }
 
 pub struct SensorPoller {
    reader:   Box<dyn sensors::Sensor + std::marker::Send>,
-   raid:     channel::Sender<ReqResp::Reading>,
+   raid:     channel::Sender<req_resp::Reading>,
    to_sleep: std::time::Duration,
 }
 
 impl SensorPoller {
    pub fn new(reader: Box<dyn sensors::Sensor + std::marker::Send>,
-              raid: channel::Sender<ReqResp::Reading>,
+              raid: channel::Sender<req_resp::Reading>,
               to_sleep: std::time::Duration)
               -> Self {
       SensorPoller { reader,
@@ -24,15 +23,11 @@ impl SensorPoller {
    pub fn start(self) { std::thread::spawn(move || self.event_loop()); }
 
    fn event_loop(&self) {
+      log::warn!("Sensor: {}: event_loop started", self.reader.as_ref().id());
       loop {
          std::thread::sleep(self.to_sleep);
-         //  let timer_channel = channel::after(std::time::Duration::from_secs(1));
-         //  channel::select! {
-         //     recv(timer_channel) -> _ => (),
-         //  }
          let reading = self.reader.read();
-         println!("{}: got: {reading:?}", function_name!());
-         let _ = self.raid.send(ReqResp::Reading(reading));
+         let _ = self.raid.send(req_resp::Reading(reading));
       }
    }
 }

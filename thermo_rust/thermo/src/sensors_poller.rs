@@ -37,8 +37,8 @@ impl Wrapper {
    }
 
    // Populating:
-   pub fn on_new_temperature_got(&mut self, reading: sensor_poller::ReqResp::Reading) {
-      // println!("Got a reading: {reading:?}!");
+   pub fn on_new_temperature_got(&mut self, reading: sensor_poller::req_resp::Reading) {
+      log::info!("Sensor: {}, got a: {reading:?}", self.name);
       self.num_of_readings += 1;
       match reading.0.measurement {
          Ok(val) => self.temperature = val,
@@ -49,7 +49,7 @@ impl Wrapper {
 
 fn on_new_temperature_got(sink: &mut dyn sink::Sink,
                           wrappers: &mut [Wrapper],
-                          reading: sensor_poller::ReqResp::Reading) {
+                          reading: sensor_poller::req_resp::Reading) {
    wrappers[reading.0.id as usize].on_new_temperature_got(reading);
    let max = wrappers.iter()
                      .max_by_key(|e| e.num_of_readings)
@@ -64,7 +64,7 @@ fn on_new_temperature_got(sink: &mut dyn sink::Sink,
       return;
    }
 
-   let mut sink_item = sink::Item::default();
+   let mut sink_item = sink::Item::new_with_curr_time();
    if min.num_of_readings() == 0 {
       // max.num_of_readings() >= MAX_DIFFERENCE_BETWEEN_SENSORS
       sink_item.ErrorString = format!(
@@ -77,6 +77,9 @@ fn on_new_temperature_got(sink: &mut dyn sink::Sink,
    for w in wrappers.iter_mut().filter(|w| w.num_of_readings() != 0) {
       w.move_state_to_sink_item(&mut sink_item);
    }
+
+   log::info!("Publishing: {sink_item:?}");
+
    sink.publish(sink_item);
 }
 
@@ -88,6 +91,7 @@ pub fn run(sensor_factories: std::collections::HashMap<String, SensorFactory>,
    let mut wrappers: Vec<Wrapper> = Vec::new();
 
    for (id, (name, factory)) in (0i32..).zip(sensor_factories) {
+      log::warn!("Sensor id: {id}, name: {name}");
       wrappers.push(Wrapper::new(name));
       let poller = sensor_poller::SensorPoller::new(factory(id),
                                                     remote_reading_events.clone(),
@@ -101,7 +105,7 @@ pub fn run(sensor_factories: std::collections::HashMap<String, SensorFactory>,
             on_new_temperature_got(sink, &mut wrappers, reading.expect("Must be possible to send messages via MessagePassing framework"));
           }
           recv(exit_events) -> _ => {
-              println!("Goodbye!");
+              log::warn!("Ctrl+C pressed: exiting...");
               break;
           }
       }
