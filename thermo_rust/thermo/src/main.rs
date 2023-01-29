@@ -90,7 +90,7 @@ fn main() -> Result<()> {
    thermo::sensors_poller::run(sensors_factories,
                                &mut sink,
                                ctrl_c_events,
-                               std::time::Duration::from_secs(1));
+                               std::time::Duration::from_secs(30));
 
    Ok(())
 }
