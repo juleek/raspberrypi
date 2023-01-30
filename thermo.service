@@ -10,7 +10,7 @@ User=pi
 # EnvironmentFile=/home/pi/keyinfo.txt
 # ExecStart=/home/pi/build-thermo/thermo --MQTTPrivateKeyPath /home/pi/ec_private.pem --GCDeviceId device_tarpi
 # --MQTTDryRun
-ExecStart=/home/pi/build-thermo/app/thermo --GFPrivateKeyPath /home/pi/thermo-app-priv.pem --GFAccountEmail thermo-app-acc@tarasovka.iam.gserviceaccount.com --GFHttpEndPoint https://europe-west2-tarasovka.cloudfunctions.net/google-write-msg-to-topic-mU1y9bOYcN
+ExecStart=/home/pi/raspberrypi/thermo_rust/target/release/thermo --gf/private_key_path /home/pi/thermo-app-priv.pem --gf/account_email thermo-app-acc@tarasovka.iam.gserviceaccount.com --gf/http_end_point https://europe-west2-tarasovka.cloudfunctions.net/google-write-msg-to-topic-mU1y9bOYcN
 Restart=always
 RestartSec=60
 
