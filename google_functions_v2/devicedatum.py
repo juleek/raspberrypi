@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import datetime as dt
 import typing as t
 import json
+import dateutil.parser
 
 @dataclass
 class DeviceDatum:
@@ -16,7 +17,7 @@ class DeviceDatum:
     @staticmethod
     def from_json(str_json: str) -> 'DeviceDatum':
         msg = json.loads(str_json)
-        time = dt.datetime.fromisoformat(msg['Time'])
+        time = dateutil.parser.isoparse(msg['Time'])
         return DeviceDatum(
             name_to_temp=msg['NameToTemp'],
             time=time,
