@@ -44,7 +44,7 @@ def make_plot(plot_info: PlotInfo):
             x = np.append(x, mpldates.date2num(qw))
         # print(f'x = {x}')
         y: np.ndarray = np.sin(x) * 15 + 20 if not line.y.size else line.y
-        print(f'y = {y}')
+        # print(f'y = {y}')
         axes.plot_date(x,
                        y,
                        linestyle='-',
