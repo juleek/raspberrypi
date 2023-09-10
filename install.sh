@@ -50,7 +50,7 @@ else
    RunVerbosely mkdir -p /home/pi/build-thermo
    RunVerbosely cd /home/pi/build-thermo
    RunVerbosely export CC=/usr/bin/clang
-   RunVerbosely export CXX=/usr/bin/clang++   
+   RunVerbosely export CXX=/usr/bin/clang++
    RunVerbosely cmake /home/pi/raspberrypi/thermo
    RunVerbosely make -j VERBOSE=1
    RunVerbosely sudo systemctl restart thermo.service
@@ -58,7 +58,8 @@ else
 fi
 
 # Too critical to be updated on regular basis
-InstallIfNeeded /etc/systemd/system reversessh.service true
+# InstallIfNeeded /etc/systemd/system reversessh.service true
+InstallIfNeeded /etc/systemd/system reversessh-swiss.service true
 
 InstallIfNeeded /etc/systemd/system thermo.service true
 
@@ -69,4 +70,3 @@ InstallIfNeeded /etc/systemd/system update_thermo.timer true
 InstallIfNeeded /etc/systemd/system setup_3g_4g.service
 InstallIfNeeded /etc/systemd/system setup_3g_4g.timer true
 InstallIfNeeded /etc/systemd/system setup_3g_4g_on_boot.timer true
-
