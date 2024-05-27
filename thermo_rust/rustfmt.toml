@@ -1,0 +1,17 @@
+# https://rust-lang.github.io/rustfmt/
+
+unstable_features = true
+array_width = 90
+blank_lines_upper_bound = 4
+brace_style = "SameLineWhere"
+chain_width = 90
+fn_call_width = 90
+fn_single_line = true
+
+indent_style = "Visual"
+enum_discrim_align_threshold = 50
+struct_field_align_threshold = 50
+max_width = 111
+tab_spaces = 3
+struct_lit_single_line = true
+use_field_init_shorthand = true
