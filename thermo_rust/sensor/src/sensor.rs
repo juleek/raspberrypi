@@ -1,5 +1,27 @@
 use anyhow::{anyhow, Context, Result};
-use std::io::Read;
+// use std::io::Read;
+
+pub async fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: usize) -> Result<Vec<u8>> {
+   let mut buffer = vec![0; max_size];
+   let mut total_read = 0;
+   while total_read < max_size {
+      let bytes_read_res = reader.read(&mut buffer);
+      // Failed to read bytes? => return Err()
+      let bytes_read = bytes_read_res.with_context(|| {
+                          anyhow!("Successfully read: {total_read} bytes. Failed to read more.")
+                       })?;
+      total_read += bytes_read;
+      if bytes_read == 0 {
+         // Read 0 bytes? => eof => return what has been read so far:
+         break;
+      }
+   }
+
+   Ok(buffer)
+}
+
+
+
 
 fn parse(data: &str) -> Result<f64> {
    const MAX: usize = 2 * 1024;
