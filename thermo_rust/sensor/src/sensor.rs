@@ -1,22 +1,22 @@
 use anyhow::{anyhow, Context, Result};
 // use std::io::Read;
 
-pub async fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: usize) -> Result<Vec<u8>> {
+fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: usize) -> Result<Vec<u8>> {
    let mut buffer = vec![0; max_size];
    let mut total_read = 0;
    while total_read < max_size {
-      let bytes_read_res = reader.read(&mut buffer);
+      let bytes_read_res = reader.read(&mut buffer[total_read..]);
       // Failed to read bytes? => return Err()
       let bytes_read = bytes_read_res.with_context(|| {
-                          anyhow!("Successfully read: {total_read} bytes. Failed to read more.")
-                       })?;
+                                        anyhow!("Successfully read: {total_read} bytes. Failed to read more.")
+                                     })?;
       total_read += bytes_read;
       if bytes_read == 0 {
          // Read 0 bytes? => eof => return what has been read so far:
          break;
       }
    }
-
+   buffer.truncate(total_read);
    Ok(buffer)
 }
 
@@ -42,6 +42,24 @@ fn parse(data: &str) -> Result<f64> {
    };
    Ok(temperature)
 }
+
+
+// fn read_from_file(file_path: &std::path::Path, max_size:usize) -> Result<String> {
+//    let mut file = File::open(file_path)?;
+//    let mut buffer = vec![0; max_size];
+//    let bytes_read = file.read(mut buffer)?;
+//    buffer.truncate(bytes_read);
+//    let result= String::from_utf8(buffer).expect("Invalid UTF-8 data");
+//    Ok(result)
+
+// let message: String = std::fs::read_to_string(file_path)?;
+// Ok(message)
+// }
+// fn main() {
+//    let path = std::path::PathBuf::from("1.txt");
+//    let text = read_from_file(&path, 2*1024)?;
+//    let temperature = parse(&text);
+// }
 
 
 #[cfg(test)]
@@ -95,6 +113,84 @@ mod tests {
          println!("{res:?}");
          assert!(res.is_err());
       }
+   }
+
+
+   type Chunk = Vec<u8>;
+
+   struct FakeRead {
+      chunks: Vec<Chunk>,
+   }
+
+   impl FakeRead {
+      pub fn from(chunks: Vec<Chunk>) -> Self { FakeRead { chunks } }
+   }
+
+   impl std::io::Read for FakeRead {
+      fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+         let chunk = match self.chunks.first_mut() {
+            None => return Ok(0),
+            Some(x) => x,
+         };
+
+         let to_put = std::cmp::min(buf.len(), chunk.len());
+         buf[..to_put].copy_from_slice(&chunk[..to_put]);
+         chunk.drain(..to_put);
+         if chunk.is_empty() {
+            self.chunks.remove(0);
+         }
+
+         Ok(to_put)
+      }
+   }
+
+
+   #[test]
+   fn test_read_exactly_ignoring_early_eof_reader_has_less_than_buffer_size_single_chunk() -> Result<()> {
+      let mut read = FakeRead::from(vec!["123".as_bytes().to_vec()]);
+      let res = read_exactly_ignoring_early_eof(&mut read, 5)?;
+      assert_eq!(res, "123".as_bytes());
+      Ok(())
+   }
+
+   #[test]
+   fn test_read_exactly_ignoring_early_eof_reader_has_less_than_buffer_size_multiple_chunks() -> Result<()> {
+      let mut read = FakeRead::from(vec!["123".as_bytes().to_vec(), "3".as_bytes().to_vec()]);
+      let res = read_exactly_ignoring_early_eof(&mut read, 5)?;
+      assert_eq!(res, "1233".as_bytes());
+      Ok(())
+   }
+
+   #[test]
+   fn test_read_exactly_ignoring_early_eof_reader_has_more_than_buffer_size_single_chunk() -> Result<()> {
+      let mut read = FakeRead::from(vec!["12345".as_bytes().to_vec()]);
+      let res = read_exactly_ignoring_early_eof(&mut read, 2)?;
+      assert_eq!(res, "12".as_bytes());
+      Ok(())
+   }
+
+   #[test]
+   fn test_read_exactly_ignoring_early_eof_reader_has_more_than_buffer_size_multiple_chunks() -> Result<()> {
+      let mut read = FakeRead::from(vec!["1".as_bytes().to_vec(), "2345".as_bytes().to_vec()]);
+      let res = read_exactly_ignoring_early_eof(&mut read, 2)?;
+      assert_eq!(res, "12".as_bytes());
+      Ok(())
+   }
+
+   #[test]
+   fn test_read_exactly_ignoring_early_eof_reader_returns_buffer_size_single_chunk() -> Result<()> {
+      let mut read = FakeRead::from(vec!["1234".as_bytes().to_vec()]);
+      let res = read_exactly_ignoring_early_eof(&mut read, 4)?;
+      assert_eq!(res, "1234".as_bytes());
+      Ok(())
+   }
+
+   #[test]
+   fn test_read_exactly_ignoring_early_eof_reader_returns_buffer_size_multiple_chunks() -> Result<()> {
+      let mut read = FakeRead::from(vec!["123".as_bytes().to_vec(), "45".as_bytes().to_vec()]);
+      let res = read_exactly_ignoring_early_eof(&mut read, 5)?;
+      assert_eq!(res, "12345".as_bytes());
+      Ok(())
    }
 }
 
