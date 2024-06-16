@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-// use std::io::Read;
+use std::io::Read;
 
 fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: usize) -> Result<Vec<u8>> {
    let mut buffer = vec![0; max_size];
@@ -23,21 +23,30 @@ fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: us
 
 
 
-fn parse(data: &str) -> Result<f64> {
+fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
    const MAX: usize = 2 * 1024;
+   let data = read_exactly_ignoring_early_eof(reader, MAX)?;
+
    let second_line = {
       let data = &data[..std::cmp::min(MAX, data.len())];
-      let start = data.find('\n')
-                      .with_context(|| anyhow!("Failed to find start of second line in: {}", &data))?;
+      let start =
+         data.iter()
+             .position(|x| *x == b'\n')
+             .with_context(|| {
+                anyhow!("Failed to find start of second line in: {:?}", std::str::from_utf8(data))
+             })?;
       let data = &data[start + 1..];
-      let end = data.find('\n').unwrap_or(data.len());
+      let end = data.iter().position(|x| *x == b'\n').unwrap_or(data.len());
       &data[..end]
    };
    let temperature = {
-      let start = &second_line.find("t=").with_context(|| anyhow!("Failed to find t= in: {second_line}"))?;
-      let temp = &second_line[start + 2..];
-      let temp: i32 =
-         temp.parse().with_context(|| anyhow!("Failed to parse temperature as integer: {temp}"))?;
+      let marker = b"t=";
+      let start = second_line.windows(marker.len())
+                             .position(|window| window == marker)
+                             .with_context(|| anyhow!("Failed to find t= in: {:?}", std::str::from_utf8(second_line)))?;
+      let temp = &second_line[start + marker.len()..];
+      let temp = std::str::from_utf8(temp).with_context(|| anyhow!("Failed to convert {:?} to string", temp))?;
+      let temp: i32 = temp.parse().with_context(|| anyhow!("Failed to parse {temp} as integer"))?;
       temp as f64 / 1000.0
    };
    Ok(temperature)
