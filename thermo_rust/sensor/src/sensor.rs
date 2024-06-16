@@ -53,6 +53,50 @@ fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
 }
 
 
+#[derive(Debug, Clone)]
+pub struct Measurement {
+   pub sensor:      String,
+   pub temperature: Option<f64>,
+   pub errors:      Vec<String>,
+}
+
+pub struct Sensor {
+   pub name: String,
+   pub path: String,
+}
+
+
+fn wait(end: std::time::Instant, stop_requested: &std::sync::Arc<std::sync::atomic::AtomicBool>) {
+   while std::time::Instant::now() < end && !stop_requested.load(std::sync::atomic::Ordering::Relaxed) {
+      std::thread::sleep(std::time::Duration::from_millis(20))
+   }
+}
+
+pub fn poll_sensor(tx: std::sync::mpsc::Sender<Measurement>,
+               sensor: Sensor,
+               stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+               periodicity: std::time::Duration) {
+   while !stop_requested.load(std::sync::atomic::Ordering::Relaxed) {
+      let deadline = std::time::Instant::now() + periodicity;
+      let (temperature, error) = match std::fs::File::open(&sensor.path) {
+         Ok(mut file) => match parse(&mut file) {
+            Ok(temperature) => (Some(temperature), vec![]),
+            Err(e) => (None, vec![format!("Failed to parse file: {}", e)]),
+         },
+         Err(e) => (None, vec![format!("Failed to open file: {}", e)]),
+      };
+      let measurement = Measurement { sensor: sensor.name.clone(),
+                                      temperature,
+                                      errors: error };
+      tx.send(measurement.clone())
+        .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement))
+        .unwrap();
+      wait(deadline, &stop_requested);
+   }
+}
+
+
+
 // fn read_from_file(file_path: &std::path::Path, max_size:usize) -> Result<String> {
 //    let mut file = File::open(file_path)?;
 //    let mut buffer = vec![0; max_size];
@@ -76,65 +120,13 @@ mod tests {
    use super::*;
    use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
 
-   #[derive(Debug)]
-   struct OkParseTC {
-      data:     String,
-      expected: f64,
-   }
-
-   #[test]
-   fn test_parse_returns_ok() {
-      let test_cases = [
-         //
-         OkParseTC { data:   String::from("26: crc=64 YES\n 26 t=18375"), expected: 18.375, },      // normal
-         OkParseTC { data:   String::from("26: crc=64 YES\n 26 t=0375"), expected: 0.375, },        // leading zeros 0100 => 0.1
-         OkParseTC { data:   String::from("26: crc=64 YES\n 26 t=-18375"), expected: -18.375, },    // negative
-         OkParseTC { data:   String::from("26: crc=64 YES\n 26 t=18375\n 26"), expected: 18.375, }, // more than 2 lines, 2nd line has correct data
-         //
-      ];
-
-      for (i, tc) in test_cases.iter().enumerate() {
-         let res = parse(&tc.data);
-         assert!(res.is_ok());
-         assert_eq!(res.unwrap(), tc.expected, "Test-case #{i}: {tc:?}");
-      }
-   }
-
-   struct ErrorParseTC {
-      data: String,
-   }
-
-   #[test]
-   fn test_parse_returns_error() {
-      let test_cases = [
-         //
-         ErrorParseTC { data: String::new() },                                 // empty
-         ErrorParseTC { data: String::from("26: crc=64 YES"), },               // one line
-         ErrorParseTC { data: String::from("26: crc=64 YES t=1\n18325"), },    // t= in 1st line only
-         ErrorParseTC { data: String::from("26: crc=64 YES\n 26 t=375ABC"), }, // letters after number
-         ErrorParseTC { data: String::from("26: crc=64 YES\n 26 t=ABC375"), }, // letters before number
-         ErrorParseTC { data: String::from("26: crc=64 YES\n 26 t=1 t=2"), },  // multiple t=
-         //
-      ];
-
-      for tc in test_cases {
-         let res = parse(&tc.data);
-         println!("{res:?}");
-         assert!(res.is_err());
-      }
-   }
-
-
    type Chunk = Vec<u8>;
-
    struct FakeRead {
       chunks: Vec<Chunk>,
    }
-
    impl FakeRead {
       pub fn from(chunks: Vec<Chunk>) -> Self { FakeRead { chunks } }
    }
-
    impl std::io::Read for FakeRead {
       fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
          let chunk = match self.chunks.first_mut() {
@@ -152,6 +144,61 @@ mod tests {
          Ok(to_put)
       }
    }
+
+   // --------------------------------------------------------------------------------------------------------
+   // parse
+
+   // #[derive(Debug)]
+   struct OkParseTC {
+      reader:   FakeRead,
+      expected: f64,
+   }
+
+   #[test]
+   fn test_parse_returns_ok() {
+      let mut test_cases = [
+         //
+         OkParseTC{ reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=18375".as_bytes().to_vec()]), expected: 18.375},        // normal
+         OkParseTC{ reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=0375".as_bytes().to_vec()]), expected: 0.375},          // leading zeros 0100 => 0.1
+         OkParseTC{ reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=-18375".as_bytes().to_vec()]), expected: -18.375},      // negative
+         OkParseTC{ reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=18375\n 26".as_bytes().to_vec()]), expected: 18.375},   // more than 2 lines, 2nd line has correct data
+         //
+      ];
+
+      for (i, tc) in test_cases.iter_mut().enumerate() {
+         let res = parse(&mut tc.reader);
+         assert!(res.is_ok());
+         assert_eq!(res.unwrap(), tc.expected, "Test-case #{i}");
+      }
+   }
+
+   struct ErrorParseTC {
+      reader: FakeRead,
+   }
+
+   #[test]
+   fn test_parse_returns_error() {
+      let mut test_cases = [
+         //
+         ErrorParseTC { reader: FakeRead::from(vec![String::new().as_bytes().to_vec()])},                   // empty
+         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES".as_bytes().to_vec()])},                // one line
+         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES t=1\n18325".as_bytes().to_vec()])},     // t= in 1st line only
+         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=375ABC".as_bytes().to_vec()])},  // letters after number
+         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=ABC375".as_bytes().to_vec()])},  // letters before number
+         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=1 t=2".as_bytes().to_vec()])},   // multiple t=
+         //
+      ];
+
+      for tc in test_cases.iter_mut() {
+         let res = parse(&mut tc.reader);
+         println!("{res:?}");
+         assert!(res.is_err());
+      }
+   }
+
+
+   // --------------------------------------------------------------------------------------------------------
+   // read_exactly_ignoring_early_eof
 
 
    #[test]
