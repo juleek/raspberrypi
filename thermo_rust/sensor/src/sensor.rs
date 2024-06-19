@@ -66,18 +66,31 @@ pub struct Sensor {
 }
 
 
-fn wait(end: std::time::Instant, stop_requested: &std::sync::Arc<std::sync::atomic::AtomicBool>) {
-   while std::time::Instant::now() < end && !stop_requested.load(std::sync::atomic::Ordering::Relaxed) {
-      std::thread::sleep(std::time::Duration::from_millis(20))
+pub struct Waiter {
+   start:    std::time::Instant,
+   interval: std::time::Duration,
+}
+
+impl Waiter {
+   fn new(interval: std::time::Duration) -> Self {
+      Waiter { start: std::time::Instant::now(),
+               interval }
+   }
+   fn wait(&mut self, stop_requested: &std::sync::Arc<std::sync::atomic::AtomicBool>) {
+      let end = self.start + self.interval;
+      while std::time::Instant::now() < end && !stop_requested.load(std::sync::atomic::Ordering::Relaxed) {
+         std::thread::sleep(self.interval)
+      }
+      self.start = std::time::Instant::now();
    }
 }
 
-pub fn poll_sensor(tx: std::sync::mpsc::Sender<Measurement>,
-               sensor: Sensor,
-               stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
-               periodicity: std::time::Duration) {
+pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<Measurement>,
+                   sensor: Sensor,
+                   stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+                   interval: std::time::Duration) {
+   let mut waiter = Waiter::new(interval);
    while !stop_requested.load(std::sync::atomic::Ordering::Relaxed) {
-      let deadline = std::time::Instant::now() + periodicity;
       let (temperature, error) = match std::fs::File::open(&sensor.path) {
          Ok(mut file) => match parse(&mut file) {
             Ok(temperature) => (Some(temperature), vec![]),
@@ -88,31 +101,14 @@ pub fn poll_sensor(tx: std::sync::mpsc::Sender<Measurement>,
       let measurement = Measurement { sensor: sensor.name.clone(),
                                       temperature,
                                       errors: error };
-      tx.send(measurement.clone())
+      tx.blocking_send(measurement.clone())
         .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement))
         .unwrap();
-      wait(deadline, &stop_requested);
+      waiter.wait(&stop_requested);
    }
 }
 
 
-
-// fn read_from_file(file_path: &std::path::Path, max_size:usize) -> Result<String> {
-//    let mut file = File::open(file_path)?;
-//    let mut buffer = vec![0; max_size];
-//    let bytes_read = file.read(mut buffer)?;
-//    buffer.truncate(bytes_read);
-//    let result= String::from_utf8(buffer).expect("Invalid UTF-8 data");
-//    Ok(result)
-
-// let message: String = std::fs::read_to_string(file_path)?;
-// Ok(message)
-// }
-// fn main() {
-//    let path = std::path::PathBuf::from("1.txt");
-//    let text = read_from_file(&path, 2*1024)?;
-//    let temperature = parse(&text);
-// }
 
 
 #[cfg(test)]
