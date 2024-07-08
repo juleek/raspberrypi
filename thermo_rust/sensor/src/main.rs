@@ -3,14 +3,18 @@ use anyhow::{anyhow, Context, Result};
 async fn async_main(stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
                     mut rx: tokio::sync::mpsc::Receiver<sensor::sensor::Measurement>)
                     -> Result<()> {
-   loop {
-      tokio::select! {
+   // loop {
+   //    tokio::select! {
 
-          received = rx.recv() => {
-             println!("received message {:?}, time: {:?}", received,  std::time::Instant::now());
-       }
-      }
-   }
+   //        received = rx.recv() => {
+   //           println!("received message {:?}", received);
+   //     }
+   //    }
+   // }
+   let mut client = agg_proto::agg_client::AggClient::connect("http://127.0.0.1:12345").await.unwrap();
+   let req = agg_proto::HelloReq { req: "qwer".to_owned() };
+   let resp = client.say_hello(req).await;
+   println!("got response: {resp:?}");
    Ok(())
 }
 
