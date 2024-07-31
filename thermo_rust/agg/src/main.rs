@@ -4,31 +4,70 @@ struct Agg {
    counter: std::sync::Mutex<i32>,
 }
 
-#[tonic::async_trait]
-impl agg_proto::agg_server::Agg for Agg {
-   async fn say_hello(&self,
-                      request: tonic::Request<agg_proto::HelloReq>)
-                      -> Result<tonic::Response<agg_proto::HelloResp>, tonic::Status> {
-      let counter = {
-         let mut counter = self.counter.lock().unwrap();
-         *counter += 1;
-         *counter
-      };
+// #[tonic::async_trait]
+// impl agg_proto::agg_server::Agg for Agg {
+//    async fn send_measurement(&self,
+//                              request: tonic::Request<tonic::Streaming<MeasurementReq>>)
+//                              -> Result<tonic::Response<agg_proto::MeasurementResp>, tonic::Status> {
+//       let mut req_stream = request.into_inner();
+//       let mut queue: std::collections::VecDeque<agg_proto::MeasurementReq> = std::collections::VecDeque::new();
+//       let (tx, rx) = mpsc::channel(10);
 
-      println!("function is called with: {request:?}");
-      let resp = agg_proto::HelloResp {resp: counter};
-      return Ok(tonic::Response::new(resp))
-   }
-}
+//       tokio::spawn(async move {
+//          while let Some(measurements_with_counter) = req_stream.next().await {
+//              let new_req = measurements_with_counter.unwrap();
+//              queue.push_back(new_req);
+//              let resp = agg_proto::MeasurementResp {counter: new_req.counter};
+//              tx.send(Ok(tonic::Response::new(resp)));
+//          }
+//      });
+//      Ok(Response::new(ReceiverStream::new(rx)))
+
+// }
+
+
+      // let mut stream = request.into_inner();
+
+      // let output = async_stream::try_stream! {
+      //    loop {
+      //       let Some(measurement_with_count) = stream.next().await {
+      //          let counter = measurement_with_count.counter.unwrap();
+      //       }
+      //    }
+      //    yield counter.clone();
+      //    };
+
+      // };
+      // Ok(Response::new(Box::pin(output) as Self::MeasurementResp))
+
+      // let resp = agg_proto::MeasurementResp {resp: request.into_inner().resp_counter}; //??????
+      // return Ok(tonic::Response::new(resp))
+
+      // async fn say_hello(&self,
+      //                    request: tonic::Request<agg_proto::HelloReq>)
+      //                    -> Result<tonic::Response<agg_proto::HelloResp>, tonic::Status> {
+      //    let counter = {
+      //       let mut counter = self.counter.lock().unwrap();
+      //       *counter += 1;
+      //       *counter
+      //    };
+
+      //    println!("function is called with: {request:?}");
+      //    let resp = agg_proto::HelloResp {resp: counter};
+      //    return Ok(tonic::Response::new(resp))
+      // }
+//    }
+
 
 async fn async_main() -> Result<()> {
-   let agg = Agg { counter: std::sync::Mutex::new(10) };
-   let agg = agg_proto::agg_server::AggServer::new(agg);
+   todo!()
+   // let agg = Agg { counter: std::sync::Mutex::new(10), };
+   // let agg = agg_proto::agg_server::AggServer::new(agg);
 
-   tonic::transport::Server::builder().add_service(agg)
-                                      .serve("0.0.0.0:12345".parse().unwrap())
-                                      .await?;
-   Ok(())
+   // tonic::transport::Server::builder().add_service(agg)
+   //                                    .serve("0.0.0.0:12345".parse().unwrap())
+   //                                    .await?;
+   // Ok(())
 }
 
 fn init_logger(log_level: &str) {

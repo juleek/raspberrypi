@@ -1,5 +1,6 @@
+
+
 use anyhow::{anyhow, Context, Result};
-use std::io::Read;
 
 fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: usize) -> Result<Vec<u8>> {
    let mut buffer = vec![0; max_size];
@@ -19,10 +20,6 @@ fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: us
    buffer.truncate(total_read);
    Ok(buffer)
 }
-
-
-
-
 fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
    const MAX: usize = 2 * 1024;
    let data = read_exactly_ignoring_early_eof(reader, MAX)?;
@@ -58,6 +55,15 @@ pub struct Measurement {
    pub sensor:      String,
    pub temperature: Option<f64>,
    pub errors:      Vec<String>,
+}
+
+pub type Rx = tokio::sync::mpsc::Receiver<Measurement>;
+pub type Tx = tokio::sync::mpsc::Sender<Measurement>;
+
+impl From<Measurement> for agg_proto::Measurement {
+   fn from(value: Measurement) -> Self {
+       todo!()
+   }
 }
 
 pub struct Sensor {

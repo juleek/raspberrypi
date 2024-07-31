@@ -1,22 +1,71 @@
 use anyhow::{anyhow, Context, Result};
 
-async fn async_main(stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
-                    mut rx: tokio::sync::mpsc::Receiver<sensor::sensor::Measurement>)
-                    -> Result<()> {
-   // loop {
-   //    tokio::select! {
+// use agg_proto::agg_client::AggClient;
+// use async_stream::stream;
+// use futures::{Stream, StreamExt}; // Ensure Stream is imported
+// use std::time::{Duration, Instant};
+// use tokio::time;
+// use tonic::Request;
 
-   //        received = rx.recv() => {
-   //           println!("received message {:?}", received);
-   //     }
-   //    }
-   // }
+// async fn async_main(stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+//                     mut rx: sensor::sensor::Rx)
+//                     -> Result<()> {
+//    let mut client = agg_proto::agg_client::AggClient::connect("http://127.0.0.1:12345").await.unwrap();
+//    let start = Instant::now();
+//    let outbound = stream! {
+//        let mut interval = time::interval(Duration::from_secs(1));
+//        while let _ = interval.tick().await {
+//            let elapsed = start.elapsed(); // Use elapsed properly if needed
+//            let req = agg_proto::MeasurementReq { measurement: None, counter: 123 };
+//            yield req;
+//        }
+//    };
+
+//    let response = client.send_measurement(outbound).await?;
+//    let mut inbound = response.into_inner();
+
+//    while let Some(counter) = inbound.message().await? {
+//       // tx_ack.send(counter).await?;
+//    }
+
+//    Ok(())
+// }
+
+use tokio::sync::mpsc;
+use tokio_stream::StreamExt; // Provides the `next` method for streams
+// use futures::stream; // To create example streams
+
+async fn async_main(stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+                    mut thread_rx: sensor::sensor::Rx)
+                    -> Result<()> {
    let mut client = agg_proto::agg_client::AggClient::connect("http://127.0.0.1:12345").await.unwrap();
-   let req = agg_proto::HelloReq { req: "qwer".to_owned() };
-   let resp = client.say_hello(req).await;
-   println!("got response: {resp:?}");
+
+   // let mut queue: std::collections::VecDeque<agg_proto::MeasurementReq> = std::collections::VecDeque::new();
+   // let mut ts: i64 = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+   let (tx_outbound, rx_outbound) = tokio::sync::mpsc::channel(10);
+   let outbound = tokio_stream::wrappers::ReceiverStream::new(rx_outbound);
+   let response = client.send_measurement(outbound).await?;
+   let mut inbound = response.into_inner();
+
+   loop {
+      tokio::select! {
+         Some(measurement) = thread_rx.recv() => {
+            // ts += 1;
+            let req = agg_proto::MeasurementReq { measurement: Some(measurement.into()), counter: 123, };
+            tx_outbound.send(req).await;
+         }
+         Some(counter) = inbound.message() => {
+            println!("Receiver counter: {:?}", counter);
+
+         }
+      }
+   };
+
    Ok(())
 }
+
+
+
 
 fn init_logger(log_level: &str) {
    let mut builder = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level));
@@ -57,6 +106,7 @@ fn main() -> Result<()> {
                                                        .thread_name("tokio")
                                                        .build()
                                                        .unwrap();
+
 
    rt.block_on(async_main(stop_requested, rx))?;
    Ok(())
