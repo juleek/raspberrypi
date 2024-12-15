@@ -40,26 +40,29 @@ async fn async_main(stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool
                     -> Result<()> {
    let mut client = agg_proto::agg_client::AggClient::connect("http://127.0.0.1:12345").await.unwrap();
 
-   // let mut queue: std::collections::VecDeque<agg_proto::MeasurementReq> = std::collections::VecDeque::new();
-   // let mut ts: i64 = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+
    let (tx_outbound, rx_outbound) = tokio::sync::mpsc::channel(10);
    let outbound = tokio_stream::wrappers::ReceiverStream::new(rx_outbound);
-   let response = client.send_measurement(outbound).await?;
-   let mut inbound = response.into_inner();
+   let mut inbound_stream = client.send_measurement(outbound).await?.into_inner();
 
    loop {
       tokio::select! {
          Some(measurement) = thread_rx.recv() => {
             // ts += 1;
             let req = agg_proto::MeasurementReq { measurement: Some(measurement.into()), counter: 123, };
-            tx_outbound.send(req).await;
-         }
-         Some(counter) = inbound.message() => {
-            println!("Receiver counter: {:?}", counter);
+            println!("Client sending: {:?}", req);
+
+            if tx_outbound.send(req).await.is_err() {
+               println!("Error");
+               break;
+           }
+         },
+         response = inbound_stream.message() => {
+            println!("Client received from server: {:?}", response);
+         },
 
          }
       }
-   };
 
    Ok(())
 }

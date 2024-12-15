@@ -9,7 +9,7 @@ panic = "abort"
 resolver = "2"
 
 members = [
-   "agg-proto",
-   "sensor",
+   "proto",
+   "client",
    "server",
 ]
