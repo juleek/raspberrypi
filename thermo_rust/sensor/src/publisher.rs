@@ -3,8 +3,9 @@ use anyhow::{anyhow, Context, Result};
 
 fn remove_confirmed(measurement: &agg_proto::MeasurementResp,
                     measurements: &mut Vec<agg_proto::MeasurementReq>) {
-   if let Ok(index) = measurements.binary_search_by_key(&measurement.counter, |req| req.counter) {
-      measurements.drain(0..=index);
+   {
+      let upper_bound = measurements.partition_point(|req| req.counter <= measurement.counter);
+      measurements.drain(0..upper_bound);
    }
 }
 
@@ -20,11 +21,11 @@ fn populate_measurements(thread_rx: &mut crate::sensor::Rx,
 }
 
 async fn one_iteration(ct: &tokio_util::sync::CancellationToken,
-                           server_host_port: &str,
-                           thread_rx: &mut crate::sensor::Rx,
-                           measurements: &mut Vec<agg_proto::MeasurementReq>,
-                           counter: &mut i64)
-                           -> Result<()> {
+                       server_host_port: &str,
+                       thread_rx: &mut crate::sensor::Rx,
+                       measurements: &mut Vec<agg_proto::MeasurementReq>,
+                       counter: &mut i64)
+                       -> Result<()> {
    populate_measurements(thread_rx, measurements, counter);
    let mut client = agg_proto::agg_client::AggClient::connect(server_host_port.to_string())
       .await.with_context(|| anyhow!("Failed to connect to {server_host_port}"))?;
@@ -114,8 +115,7 @@ mod tests {
       }
       measurements
    }
-   // TODO: add test when it is between
-   // TODO: extend populate_measurements and reuse it in the tests
+
 
    #[test]
    fn test_remove_confirmed_keeps_all_elements_if_ts_is_between() {
@@ -125,7 +125,7 @@ mod tests {
 
       remove_confirmed(&agg_resp, &mut measurements);
 
-      let expected = populate_measurements(&measurement, vec![1, 2, 3, 4, 10]);
+      let expected = populate_measurements(&measurement, vec![10]);
 
       assert_eq!(expected, measurements);
    }
@@ -163,7 +163,7 @@ mod tests {
 
       remove_confirmed(&agg_resp, &mut measurements);
 
-      let expected = populate_measurements(&measurement, vec![1, 2, 3, 4, 10]);
+      let expected: Vec<agg_proto::MeasurementReq> = Vec::new();
 
       assert_eq!(expected, measurements);
    }
