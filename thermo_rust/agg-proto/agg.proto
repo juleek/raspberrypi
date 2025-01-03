@@ -33,6 +33,6 @@ message MeasurementResp {
 
 message Measurement {
   string sensor = 1;
-  string errors = 2;
-  double temperature = 3;
+  repeated string errors = 2;
+  optional double temperature = 3;
 }

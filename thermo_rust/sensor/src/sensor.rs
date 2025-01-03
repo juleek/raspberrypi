@@ -1,6 +1,39 @@
-
-
 use anyhow::{anyhow, Context, Result};
+use tokio::runtime::Runtime;
+
+
+pub fn create_tasks(tx: &crate::sensor::Tx,
+                    bottom_path: &str,
+                    ambient_path: &str,
+                    ct: &tokio_util::sync::CancellationToken)
+                    -> Runtime {
+   const INTERVAL: std::time::Duration = std::time::Duration::new(10, 0);
+   {
+      let tx = tx.clone();
+      let sensor = Sensor { name: "ambient".to_string(),
+                            path: ambient_path.to_string(), };
+      let ct = ct.clone();
+      std::thread::spawn(move || poll_sensor(tx, sensor, ct, INTERVAL));
+   }
+   {
+      let tx = tx.clone();
+      let sensor = Sensor { name: "bottom".to_string(),
+                            path: bottom_path.to_string(), };
+      let ct = ct.clone();
+      std::thread::spawn(move || poll_sensor(tx, sensor, ct, INTERVAL));
+   }
+   let rt = tokio::runtime::Builder::new_multi_thread().enable_all()
+                                                       .worker_threads(3)
+                                                       .thread_name("tokio")
+                                                       .build()
+                                                       .unwrap();
+   rt
+}
+
+
+//
+// ===========================================================================================================
+// Parsing logic
 
 fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: usize) -> Result<Vec<u8>> {
    let mut buffer = vec![0; max_size];
@@ -50,7 +83,13 @@ fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
 }
 
 
-#[derive(Debug, Clone)]
+
+//
+// ===========================================================================================================
+// Types
+
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Measurement {
    pub sensor:      String,
    pub temperature: Option<f64>,
@@ -62,9 +101,25 @@ pub type Tx = tokio::sync::mpsc::Sender<Measurement>;
 
 impl From<Measurement> for agg_proto::Measurement {
    fn from(value: Measurement) -> Self {
-       todo!()
+      Self { sensor:      value.sensor,
+             temperature: value.temperature,
+             errors:      value.errors, }
    }
 }
+
+impl From<agg_proto::Measurement> for Measurement {
+   fn from(value: agg_proto::Measurement) -> Self {
+      Self { sensor:      value.sensor,
+             temperature: value.temperature,
+             errors:      value.errors, }
+   }
+}
+
+
+//
+// ===========================================================================================================
+// Polling actor / thread
+
 
 pub struct Sensor {
    pub name: String,
@@ -82,9 +137,14 @@ impl Waiter {
       Waiter { start: std::time::Instant::now(),
                interval }
    }
-   fn wait(&mut self, stop_requested: &std::sync::Arc<std::sync::atomic::AtomicBool>) {
+   fn wait(&mut self, ct: &tokio_util::sync::CancellationToken) {
+      // let m = Measurement {};
+      // let proto_m: agg_proto::Measurement = m.into();
+      // let proto_m = agg_proto::Measurement::from(m);
+
       let end = self.start + self.interval;
-      while std::time::Instant::now() < end && !stop_requested.load(std::sync::atomic::Ordering::Relaxed) {
+      while std::time::Instant::now() < end && !ct.is_cancelled() {
+         println!("sleeping for: {:?}", self.interval);
          std::thread::sleep(self.interval)
       }
       self.start = std::time::Instant::now();
@@ -93,10 +153,10 @@ impl Waiter {
 
 pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<Measurement>,
                    sensor: Sensor,
-                   stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
+                   ct: tokio_util::sync::CancellationToken,
                    interval: std::time::Duration) {
    let mut waiter = Waiter::new(interval);
-   while !stop_requested.load(std::sync::atomic::Ordering::Relaxed) {
+   while !ct.is_cancelled() {
       let (temperature, error) = match std::fs::File::open(&sensor.path) {
          Ok(mut file) => match parse(&mut file) {
             Ok(temperature) => (Some(temperature), vec![]),
@@ -110,12 +170,15 @@ pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<Measurement>,
       tx.blocking_send(measurement.clone())
         .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement))
         .unwrap();
-      waiter.wait(&stop_requested);
+      waiter.wait(&ct);
    }
 }
 
 
 
+//
+// ===========================================================================================================
+// Tests
 
 #[cfg(test)]
 mod tests {
@@ -248,6 +311,26 @@ mod tests {
       let mut read = FakeRead::from(vec!["123".as_bytes().to_vec(), "45".as_bytes().to_vec()]);
       let res = read_exactly_ignoring_early_eof(&mut read, 5)?;
       assert_eq!(res, "12345".as_bytes());
+      Ok(())
+   }
+
+   // --------------------------------------------------------------------------------------------------------
+   // Measurement
+
+   #[test]
+   fn test_measurement_proto_conversion() -> Result<()> {
+      let expected: Measurement = Measurement { sensor:      "ambient".to_string(),
+                                                temperature: Some(26.8),
+                                                errors:      vec!["error1".to_string(), "error2".to_string()], };
+      let proto: agg_proto::Measurement = expected.clone().into();
+      assert_eq!(proto,
+                 agg_proto::Measurement { sensor:      "ambient".to_string(),
+                                          temperature: Some(26.8),
+                                          errors:      vec!["error1".to_string(), "error2".to_string()], });
+
+      let actual: Measurement = proto.into();
+      assert_eq!(actual, expected);
+
       Ok(())
    }
 }

@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 
 
-
 struct Agg {
    counter: std::sync::Mutex<i32>,
 }
@@ -26,9 +25,11 @@ impl agg_proto::agg_server::Agg for Agg {
       let output = async_stream::try_stream! {
                        while let Some(measurements_with_counter) = stream.message().await.unwrap_or(None) {
                            println!("Server received: {:?}", measurements_with_counter);
+
                            let response = agg_proto::MeasurementResp {
                                counter: measurements_with_counter.counter,
                            };
+
                            println!("Server sending: {:?}", response);
                            yield response;
                        }
@@ -39,6 +40,7 @@ impl agg_proto::agg_server::Agg for Agg {
    }
 }
 
+
 fn init_logger(log_level: &str) {
    let mut builder = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level));
    builder.format_timestamp_micros();
@@ -48,22 +50,10 @@ fn init_logger(log_level: &str) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
    init_logger("debug");
-   let stop_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-
-   {
-      let stop_requested = stop_requested.clone();
-      ctrlc::set_handler(move || {
-         stop_requested.store(true, std::sync::atomic::Ordering::Relaxed);
-      }).map_err(anyhow::Error::new)?;
-   }
-   // let rt = tokio::runtime::Builder::new_multi_thread().enable_all()
-   //                                                     .worker_threads(3)
-   //                                                     .thread_name("tokio")
-   //                                                     .build()
-   //                                                     .unwrap();
-
-   let agg = Agg { counter: std::sync::Mutex::new(10), };
+   let agg = Agg { counter: std::sync::Mutex::new(10)};
    let agg = agg_proto::agg_server::AggServer::new(agg);
+
+
 
    tonic::transport::Server::builder().add_service(agg)
                                       .serve("0.0.0.0:12345".parse().unwrap())

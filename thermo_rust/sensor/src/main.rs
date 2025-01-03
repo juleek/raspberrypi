@@ -1,73 +1,18 @@
 use anyhow::{anyhow, Context, Result};
-
-// use agg_proto::agg_client::AggClient;
-// use async_stream::stream;
-// use futures::{Stream, StreamExt}; // Ensure Stream is imported
-// use std::time::{Duration, Instant};
-// use tokio::time;
-// use tonic::Request;
-
-// async fn async_main(stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
-//                     mut rx: sensor::sensor::Rx)
-//                     -> Result<()> {
-//    let mut client = agg_proto::agg_client::AggClient::connect("http://127.0.0.1:12345").await.unwrap();
-//    let start = Instant::now();
-//    let outbound = stream! {
-//        let mut interval = time::interval(Duration::from_secs(1));
-//        while let _ = interval.tick().await {
-//            let elapsed = start.elapsed(); // Use elapsed properly if needed
-//            let req = agg_proto::MeasurementReq { measurement: None, counter: 123 };
-//            yield req;
-//        }
-//    };
-
-//    let response = client.send_measurement(outbound).await?;
-//    let mut inbound = response.into_inner();
-
-//    while let Some(counter) = inbound.message().await? {
-//       // tx_ack.send(counter).await?;
-//    }
-
-//    Ok(())
-// }
-
-use tokio::sync::mpsc;
-use tokio_stream::StreamExt; // Provides the `next` method for streams
-// use futures::stream; // To create example streams
-
-async fn async_main(stop_requested: std::sync::Arc<std::sync::atomic::AtomicBool>,
-                    mut thread_rx: sensor::sensor::Rx)
-                    -> Result<()> {
-   let mut client = agg_proto::agg_client::AggClient::connect("http://127.0.0.1:12345").await.unwrap();
+use sensor::publisher;
 
 
-   let (tx_outbound, rx_outbound) = tokio::sync::mpsc::channel(10);
-   let outbound = tokio_stream::wrappers::ReceiverStream::new(rx_outbound);
-   let mut inbound_stream = client.send_measurement(outbound).await?.into_inner();
-
-   loop {
-      tokio::select! {
-         Some(measurement) = thread_rx.recv() => {
-            // ts += 1;
-            let req = agg_proto::MeasurementReq { measurement: Some(measurement.into()), counter: 123, };
-            println!("Client sending: {:?}", req);
-
-            if tx_outbound.send(req).await.is_err() {
-               println!("Error");
-               break;
-           }
-         },
-         response = inbound_stream.message() => {
-            println!("Client received from server: {:?}", response);
-         },
-
-         }
-      }
-
-   Ok(())
+#[derive(clap::Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Cli {
+   /// For example http://127.0.0.1:12345
+   #[arg(long)]
+   server_host_port: String,
+   bottom:           String,
+   ambient:          String,
 }
 
-
+// pub-sub: publisher & subscriber
 
 
 fn init_logger(log_level: &str) {
@@ -76,41 +21,23 @@ fn init_logger(log_level: &str) {
    builder.init();
 }
 
+
+
 fn main() -> Result<()> {
-   const INTERVAL: std::time::Duration = std::time::Duration::new(10, 0);
+   use clap::Parser;
+   let cli = Cli::parse();
    init_logger("debug");
-   let stop_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+   let ct = tokio_util::sync::CancellationToken::new();
 
    {
-      let stop_requested = stop_requested.clone();
-      ctrlc::set_handler(move || {
-         stop_requested.store(true, std::sync::atomic::Ordering::Relaxed);
-      }).map_err(anyhow::Error::new)?;
+      let ct = ct.clone();
+      ctrlc::set_handler(move || ct.cancel()).map_err(anyhow::Error::new)?;
    }
 
    let (tx, rx) = tokio::sync::mpsc::channel(10);
+   let rt = sensor::sensor::create_tasks(&tx, &cli.bottom, &cli.ambient, &ct);
 
-   {
-      let tx = tx.clone();
-      let sensor = sensor::sensor::Sensor { name: "ambient".to_string(),
-                                            path: "/home/yulia/devel/test/1".to_string(), };
-      let stop_requested_clone = stop_requested.clone();
-      std::thread::spawn(move || sensor::sensor::poll_sensor(tx, sensor, stop_requested_clone, INTERVAL));
-   }
-   {
-      let tx = tx.clone();
-      let sensor = sensor::sensor::Sensor { name: "bottom".to_string(),
-                                            path: "/home/yulia/devel/test/2".to_string(), };
-      let stop_requested_clone = stop_requested.clone();
-      std::thread::spawn(move || sensor::sensor::poll_sensor(tx, sensor, stop_requested_clone, INTERVAL));
-   }
-   let rt = tokio::runtime::Builder::new_multi_thread().enable_all()
-                                                       .worker_threads(3)
-                                                       .thread_name("tokio")
-                                                       .build()
-                                                       .unwrap();
-
-
-   rt.block_on(async_main(stop_requested, rx))?;
+   rt.block_on(publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port))?;
    Ok(())
 }
