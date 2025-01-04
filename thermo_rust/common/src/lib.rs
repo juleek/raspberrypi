@@ -1,3 +1,5 @@
+pub mod pb;
+
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Measurement {
@@ -9,7 +11,7 @@ pub struct Measurement {
 pub type Rx = tokio::sync::mpsc::Receiver<Measurement>;
 pub type Tx = tokio::sync::mpsc::Sender<Measurement>;
 
-impl From<Measurement> for agg_proto::Measurement {
+impl From<Measurement> for crate::pb::Measurement {
    fn from(value: Measurement) -> Self {
       Self { sensor:      value.sensor,
              temperature: value.temperature,
@@ -17,8 +19,8 @@ impl From<Measurement> for agg_proto::Measurement {
    }
 }
 
-impl From<agg_proto::Measurement> for Measurement {
-   fn from(value: agg_proto::Measurement) -> Self {
+impl From<crate::pb::Measurement> for Measurement {
+   fn from(value: crate::pb::Measurement) -> Self {
       Self { sensor:      value.sensor,
              temperature: value.temperature,
              errors:      value.errors, }
@@ -47,10 +49,11 @@ mod tests {
       let expected: Measurement = Measurement { sensor:      "ambient".to_string(),
                                                 temperature: Some(26.8),
                                                 errors:      vec!["error1".to_string(), "error2".to_string()], };
-      let proto: agg_proto::Measurement = expected.clone().into();
-      assert_eq!(proto, agg_proto::Measurement { sensor:      "ambient".to_string(),
-                                                 temperature: Some(26.8),
-                                                 errors:      vec!["error1".to_string(), "error2".to_string()], });
+      let proto: crate::pb::Measurement = expected.clone().into();
+      assert_eq!(proto,
+                 crate::pb::Measurement { sensor:      "ambient".to_string(),
+                                          temperature: Some(26.8),
+                                          errors:      vec!["error1".to_string(), "error2".to_string()], });
 
       let actual: Measurement = proto.into();
       assert_eq!(actual, expected);

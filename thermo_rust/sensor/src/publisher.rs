@@ -1,30 +1,30 @@
 use anyhow::{anyhow, Context, Result};
 
 
-fn remove_confirmed(confirmed: i64, measurements: &mut Vec<agg_proto::MeasurementReq>) {
+fn remove_confirmed(confirmed: i64, measurements: &mut Vec<common::pb::MeasurementReq>) {
    let upper_bound = measurements.partition_point(|req| req.counter <= confirmed);
    measurements.drain(0..upper_bound);
 }
 
-fn populate_measurements_from_rx(thread_rx: &mut helpers::helpers::Rx,
-                                 measurements: &mut Vec<agg_proto::MeasurementReq>,
+fn populate_measurements_from_rx(thread_rx: &mut common::Rx,
+                                 measurements: &mut Vec<common::pb::MeasurementReq>,
                                  counter: &mut i64) {
    while let Ok(measurement) = thread_rx.try_recv() {
       *counter += 1;
-      let req = agg_proto::MeasurementReq { measurement: Some(measurement.into()),
-                                            counter:     *counter, };
+      let req = common::pb::MeasurementReq { measurement: Some(measurement.into()),
+                                             counter:     *counter, };
       measurements.push(req);
    }
 }
 
 async fn one_iteration(ct: &tokio_util::sync::CancellationToken,
                        server_host_port: &str,
-                       thread_rx: &mut helpers::helpers::Rx,
-                       measurements: &mut Vec<agg_proto::MeasurementReq>,
+                       thread_rx: &mut common::Rx,
+                       measurements: &mut Vec<common::pb::MeasurementReq>,
                        counter: &mut i64)
                        -> Result<()> {
    populate_measurements_from_rx(thread_rx, measurements, counter);
-   let mut client = agg_proto::agg_client::AggClient::connect(server_host_port.to_string())
+   let mut client = common::pb::agg_client::AggClient::connect(server_host_port.to_string())
       .await.with_context(|| anyhow!("Failed to connect to {server_host_port}"))?;
 
    let (tx_outbound, rx_outbound) = tokio::sync::mpsc::channel(10);
@@ -49,7 +49,7 @@ async fn one_iteration(ct: &tokio_util::sync::CancellationToken,
          },
          Some(measurement) = thread_rx.recv() => {
             *counter += 1;
-            let req = agg_proto::MeasurementReq { measurement: Some(measurement.into()), counter: *counter, };
+            let req = common::pb::MeasurementReq { measurement: Some(measurement.into()), counter: *counter, };
             log::info!("Sending: {req:?} to {server_host_port}");
             measurements.push(req.clone());
             tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
@@ -67,10 +67,10 @@ async fn one_iteration(ct: &tokio_util::sync::CancellationToken,
 
 
 pub async fn poll_and_publish_forever(ct: &tokio_util::sync::CancellationToken,
-                                      mut thread_rx: helpers::helpers::Rx,
+                                      mut thread_rx: common::Rx,
                                       server_host_port: &str)
                                       -> Result<()> {
-   let mut measurements: Vec<agg_proto::MeasurementReq> = Vec::new();
+   let mut measurements: Vec<common::pb::MeasurementReq> = Vec::new();
    let mut counter = chrono::Utc::now().timestamp_nanos_opt().unwrap();
 
    loop {
@@ -94,19 +94,19 @@ mod tests {
    use super::*;
    use pretty_assertions::assert_eq;
 
-   fn measurement() -> helpers::helpers::Measurement {
-      helpers::helpers::Measurement { sensor:      "ambient".to_string(),
-                                      temperature: Some(26.8),
-                                      errors:      vec!["error1".to_string(), "error2".to_string()], }
+   fn measurement() -> common::Measurement {
+      common::Measurement { sensor:      "ambient".to_string(),
+                            temperature: Some(26.8),
+                            errors:      vec!["error1".to_string(), "error2".to_string()], }
    }
 
-   fn populate_measurements(measurement: &helpers::helpers::Measurement,
+   fn populate_measurements(measurement: &common::Measurement,
                             counters: &[i64])
-                            -> Vec<agg_proto::MeasurementReq> {
+                            -> Vec<common::pb::MeasurementReq> {
       let mut measurements = Vec::new();
       for counter in counters {
-         let req = agg_proto::MeasurementReq { measurement: Some(measurement.clone().into()),
-                                               counter:     *counter, };
+         let req = common::pb::MeasurementReq { measurement: Some(measurement.clone().into()),
+                                                counter:     *counter, };
          measurements.push(req);
       }
       measurements
@@ -142,7 +142,7 @@ mod tests {
 
       remove_confirmed(10, &mut measurements);
 
-      let expected = Vec::<agg_proto::MeasurementReq>::default();
+      let expected = Vec::<common::pb::MeasurementReq>::default();
 
       assert_eq!(expected, measurements);
    }
@@ -153,7 +153,7 @@ mod tests {
 
       remove_confirmed(20, &mut measurements);
 
-      let expected: Vec<agg_proto::MeasurementReq> = Vec::new();
+      let expected: Vec<common::pb::MeasurementReq> = Vec::new();
 
       assert_eq!(expected, measurements);
    }
@@ -192,7 +192,7 @@ mod tests {
 
       remove_confirmed(1, &mut measurements);
 
-      let expected: Vec<agg_proto::MeasurementReq> = Vec::new();
+      let expected: Vec<common::pb::MeasurementReq> = Vec::new();
 
       assert_eq!(expected, measurements);
    }

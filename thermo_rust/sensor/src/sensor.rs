@@ -84,7 +84,7 @@ impl Waiter {
    }
 }
 
-pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<helpers::helpers::Measurement>,
+pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<common::Measurement>,
                    sensor: Sensor,
                    ct: tokio_util::sync::CancellationToken,
                    interval: std::time::Duration) {
@@ -97,15 +97,15 @@ pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<helpers::helpers::Measurement>,
          },
          Err(e) => (None, vec![format!("Failed to open file: {}", e)]),
       };
-      let measurement = helpers::helpers::Measurement { sensor: sensor.name.clone(),
+      let measurement = common::Measurement { sensor: sensor.name.clone(),
                                                         temperature,
                                                         errors: error };
       tx.try_send(measurement.clone())
         .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement))
         .unwrap();
-      if let ... = res {
-         log::warn!("...");
-      }
+      // if let ... = res {
+      //    log::warn!("...");
+      // }
       waiter.wait(&ct);
    }
 }
@@ -115,7 +115,7 @@ pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<helpers::helpers::Measurement>,
 pub fn spawn_pollers(bottom_path: &std::path::Path,
                      ambient_path: &std::path::Path,
                      ct: &tokio_util::sync::CancellationToken)
-                     -> tokio::sync::mpsc::Receiver<helpers::helpers::Measurement> {
+                     -> tokio::sync::mpsc::Receiver<common::Measurement> {
    let (tx, rx) = tokio::sync::mpsc::channel(100);
    const INTERVAL: std::time::Duration = std::time::Duration::new(10, 0);
    {

@@ -1,5 +1,5 @@
 *.qbs.user
 google_functions/secrets.py
 **/target/
-thermo_rust/agg-proto/src/generated/**
+thermo_rust/common/src/pb/**
 learning/grpc-server-client/proto/src/generated/**

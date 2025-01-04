@@ -32,7 +32,7 @@ struct Cli {
 async fn main() -> Result<()> {
    use clap::Parser;
    let cli = Cli::parse();
-   helpers::helpers::init_logger(&cli.log_level);
+   common::init_logger(&cli.log_level);
 
    let ct = tokio_util::sync::CancellationToken::new();
 
@@ -43,6 +43,6 @@ async fn main() -> Result<()> {
 
    let rx = sensor::sensor::spawn_pollers(&cli.bottom, &cli.ambient, &ct);
 
-   sensor::publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port).await;
+   sensor::publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port).await?;
    Ok(())
 }

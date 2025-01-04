@@ -2,21 +2,6 @@ syntax = "proto3";
 
 package aggproto;
 
-// service Agg {
-//   rpc SayHello (HelloReq) returns (HelloResp) {}
-// }
-
-
-// message HelloReq {
-//   string req = 1;
-// }
-
-// message HelloResp {
-//   int32 resp = 1;
-// }
-
-
-
 service Agg {
   rpc SendMeasurement (stream MeasurementReq) returns (stream MeasurementResp);
 }
