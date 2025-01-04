@@ -1,5 +1,4 @@
-use anyhow::{anyhow, Context, Result};
-use sensor::publisher;
+use anyhow::Result;
 
 
 #[derive(clap::Parser, Debug)]
@@ -8,36 +7,42 @@ struct Cli {
    /// For example http://127.0.0.1:12345
    #[arg(long)]
    server_host_port: String,
-   bottom:           String,
-   ambient:          String,
+
+   /// Path to bottom sensor file
+   #[arg(long)]
+   bottom: std::path::PathBuf,
+
+   /// Path to ambient sensor file
+   #[arg(long)]
+   ambient: std::path::PathBuf,
+
+   // Logger's level
+   #[arg(long)]
+   #[arg(value_parser = clap::builder::PossibleValuesParser::new(["error", "warn", "info", "debug", "trace"]))]
+   #[arg(default_value_t = String::from("info"))]
+   log_level: String,
 }
 
-// pub-sub: publisher & subscriber
+// TODO: make sure that all interesting parts are logged:
+// * Size of vector with measurements in publish (for example if its len() is > 100)
+// * Size of channel if it len() is > 10.
 
 
-fn init_logger(log_level: &str) {
-   let mut builder = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level));
-   builder.format_timestamp_micros();
-   builder.init();
-}
-
-
-
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
    use clap::Parser;
    let cli = Cli::parse();
-   init_logger("debug");
+   helpers::helpers::init_logger(&cli.log_level);
 
    let ct = tokio_util::sync::CancellationToken::new();
 
    {
       let ct = ct.clone();
-      ctrlc::set_handler(move || ct.cancel()).map_err(anyhow::Error::new)?;
+      ctrlc::set_handler(move || ct.cancel()).unwrap();
    }
 
-   let (tx, rx) = tokio::sync::mpsc::channel(10);
-   let rt = sensor::sensor::create_tasks(&tx, &cli.bottom, &cli.ambient, &ct);
+   let rx = sensor::sensor::spawn_pollers(&cli.bottom, &cli.ambient, &ct);
 
-   rt.block_on(publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port))?;
+   sensor::publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port).await;
    Ok(())
 }

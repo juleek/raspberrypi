@@ -15,6 +15,7 @@ debug = 2  # Include debug information even in release builds
 
 [dependencies]
 agg-proto             = { path = "../agg-proto"                                                 }
+helpers               = { path = "../helpers"                                                   }
 
 # poison_pill           = { version = "0.1"                                                      }
 anyhow                = { version = "1.0", features = ["backtrace"]                            }
