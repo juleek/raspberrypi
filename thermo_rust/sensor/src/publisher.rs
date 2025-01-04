@@ -18,7 +18,7 @@ impl State {
                                              counter:     self.counter, };
       self.measurements.push(req.clone());
       if self.measurements.len() > 100 {
-         log::info!("Measurements size: {}", self.measurements.len());
+         log::warn!("Measurements size: {}", self.measurements.len());
       }
       req
    }
@@ -49,6 +49,7 @@ async fn one_iteration(ct: &tokio_util::sync::CancellationToken,
 
    for i in 0..state.measurements.len() {
       state.pull_from_rx();
+      log::info!("Sending: {:?} to {server_host_port}", state.measurements[i]);
       tokio::select! {
          _ = ct.cancelled() => {
             return Ok(());
@@ -86,7 +87,6 @@ pub async fn poll_and_publish_forever(ct: &tokio_util::sync::CancellationToken,
                                       server_host_port: &str)
                                       -> Result<()> {
    let mut state = State::new(thread_rx);
-
    loop {
       let res = one_iteration(ct, server_host_port, &mut state).await;
       if let Err(e) = res {
