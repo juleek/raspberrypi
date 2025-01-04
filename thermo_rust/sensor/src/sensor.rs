@@ -1,34 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use tokio::runtime::Runtime;
-
-
-pub fn create_tasks(tx: &crate::sensor::Tx,
-                    bottom_path: &str,
-                    ambient_path: &str,
-                    ct: &tokio_util::sync::CancellationToken)
-                    -> Runtime {
-   const INTERVAL: std::time::Duration = std::time::Duration::new(10, 0);
-   {
-      let tx = tx.clone();
-      let sensor = Sensor { name: "ambient".to_string(),
-                            path: ambient_path.to_string(), };
-      let ct = ct.clone();
-      std::thread::spawn(move || poll_sensor(tx, sensor, ct, INTERVAL));
-   }
-   {
-      let tx = tx.clone();
-      let sensor = Sensor { name: "bottom".to_string(),
-                            path: bottom_path.to_string(), };
-      let ct = ct.clone();
-      std::thread::spawn(move || poll_sensor(tx, sensor, ct, INTERVAL));
-   }
-   let rt = tokio::runtime::Builder::new_multi_thread().enable_all()
-                                                       .worker_threads(3)
-                                                       .thread_name("tokio")
-                                                       .build()
-                                                       .unwrap();
-   rt
-}
 
 
 //
@@ -40,7 +10,6 @@ fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: us
    let mut total_read = 0;
    while total_read < max_size {
       let bytes_read_res = reader.read(&mut buffer[total_read..]);
-      // Failed to read bytes? => return Err()
       let bytes_read = bytes_read_res.with_context(|| {
                                         anyhow!("Successfully read: {total_read} bytes. Failed to read more.")
                                      })?;
@@ -84,37 +53,6 @@ fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
 
 
 
-//
-// ===========================================================================================================
-// Types
-
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Measurement {
-   pub sensor:      String,
-   pub temperature: Option<f64>,
-   pub errors:      Vec<String>,
-}
-
-pub type Rx = tokio::sync::mpsc::Receiver<Measurement>;
-pub type Tx = tokio::sync::mpsc::Sender<Measurement>;
-
-impl From<Measurement> for agg_proto::Measurement {
-   fn from(value: Measurement) -> Self {
-      Self { sensor:      value.sensor,
-             temperature: value.temperature,
-             errors:      value.errors, }
-   }
-}
-
-impl From<agg_proto::Measurement> for Measurement {
-   fn from(value: agg_proto::Measurement) -> Self {
-      Self { sensor:      value.sensor,
-             temperature: value.temperature,
-             errors:      value.errors, }
-   }
-}
-
 
 //
 // ===========================================================================================================
@@ -123,7 +61,7 @@ impl From<agg_proto::Measurement> for Measurement {
 
 pub struct Sensor {
    pub name: String,
-   pub path: String,
+   pub path: std::path::PathBuf,
 }
 
 
@@ -138,20 +76,15 @@ impl Waiter {
                interval }
    }
    fn wait(&mut self, ct: &tokio_util::sync::CancellationToken) {
-      // let m = Measurement {};
-      // let proto_m: agg_proto::Measurement = m.into();
-      // let proto_m = agg_proto::Measurement::from(m);
-
       let end = self.start + self.interval;
       while std::time::Instant::now() < end && !ct.is_cancelled() {
-         println!("sleeping for: {:?}", self.interval);
          std::thread::sleep(self.interval)
       }
       self.start = std::time::Instant::now();
    }
 }
 
-pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<Measurement>,
+pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<helpers::helpers::Measurement>,
                    sensor: Sensor,
                    ct: tokio_util::sync::CancellationToken,
                    interval: std::time::Duration) {
@@ -164,15 +97,44 @@ pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<Measurement>,
          },
          Err(e) => (None, vec![format!("Failed to open file: {}", e)]),
       };
-      let measurement = Measurement { sensor: sensor.name.clone(),
-                                      temperature,
-                                      errors: error };
-      tx.blocking_send(measurement.clone())
+      let measurement = helpers::helpers::Measurement { sensor: sensor.name.clone(),
+                                                        temperature,
+                                                        errors: error };
+      tx.try_send(measurement.clone())
         .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement))
         .unwrap();
+      if let ... = res {
+         log::warn!("...");
+      }
       waiter.wait(&ct);
    }
 }
+
+
+
+pub fn spawn_pollers(bottom_path: &std::path::Path,
+                     ambient_path: &std::path::Path,
+                     ct: &tokio_util::sync::CancellationToken)
+                     -> tokio::sync::mpsc::Receiver<helpers::helpers::Measurement> {
+   let (tx, rx) = tokio::sync::mpsc::channel(100);
+   const INTERVAL: std::time::Duration = std::time::Duration::new(10, 0);
+   {
+      let tx = tx.clone();
+      let sensor = Sensor { name: "ambient".to_string(),
+                            path: ambient_path.to_path_buf(), };
+      let ct = ct.clone();
+      std::thread::spawn(move || poll_sensor(tx, sensor, ct, INTERVAL));
+   }
+   {
+      let tx = tx.clone();
+      let sensor = Sensor { name: "bottom".to_string(),
+                            path: bottom_path.to_path_buf(), };
+      let ct = ct.clone();
+      std::thread::spawn(move || poll_sensor(tx, sensor, ct, INTERVAL));
+   }
+   rx
+}
+
 
 
 
@@ -183,7 +145,7 @@ pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<Measurement>,
 #[cfg(test)]
 mod tests {
    use super::*;
-   use pretty_assertions::{assert_eq, assert_ne, assert_str_eq};
+   use pretty_assertions::assert_eq;
 
    type Chunk = Vec<u8>;
    struct FakeRead {
@@ -256,7 +218,6 @@ mod tests {
 
       for tc in test_cases.iter_mut() {
          let res = parse(&mut tc.reader);
-         println!("{res:?}");
          assert!(res.is_err());
       }
    }
@@ -313,26 +274,4 @@ mod tests {
       assert_eq!(res, "12345".as_bytes());
       Ok(())
    }
-
-   // --------------------------------------------------------------------------------------------------------
-   // Measurement
-
-   #[test]
-   fn test_measurement_proto_conversion() -> Result<()> {
-      let expected: Measurement = Measurement { sensor:      "ambient".to_string(),
-                                                temperature: Some(26.8),
-                                                errors:      vec!["error1".to_string(), "error2".to_string()], };
-      let proto: agg_proto::Measurement = expected.clone().into();
-      assert_eq!(proto,
-                 agg_proto::Measurement { sensor:      "ambient".to_string(),
-                                          temperature: Some(26.8),
-                                          errors:      vec!["error1".to_string(), "error2".to_string()], });
-
-      let actual: Measurement = proto.into();
-      assert_eq!(actual, expected);
-
-      Ok(())
-   }
 }
-
-// println!()
