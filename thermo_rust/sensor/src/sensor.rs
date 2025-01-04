@@ -59,6 +59,7 @@ fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
 // Polling actor / thread
 
 
+#[derive(Debug)]
 pub struct Sensor {
    pub name: String,
    pub path: std::path::PathBuf,
@@ -77,6 +78,7 @@ impl Waiter {
    }
    fn wait(&mut self, ct: &tokio_util::sync::CancellationToken) {
       let end = self.start + self.interval;
+      // TODO: implement faster exit if ct.is_cancelled. We should not sleep for 15 seconds.
       while std::time::Instant::now() < end && !ct.is_cancelled() {
          std::thread::sleep(self.interval)
       }
@@ -84,53 +86,57 @@ impl Waiter {
    }
 }
 
-pub fn poll_sensor(tx: tokio::sync::mpsc::Sender<common::Measurement>,
-                   sensor: Sensor,
-                   ct: tokio_util::sync::CancellationToken,
-                   interval: std::time::Duration) {
-   let mut waiter = Waiter::new(interval);
-   while !ct.is_cancelled() {
-      let (temperature, error) = match std::fs::File::open(&sensor.path) {
-         Ok(mut file) => match parse(&mut file) {
-            Ok(temperature) => (Some(temperature), vec![]),
-            Err(e) => (None, vec![format!("Failed to parse file: {}", e)]),
-         },
-         Err(e) => (None, vec![format!("Failed to open file: {}", e)]),
-      };
-      let measurement = common::Measurement { sensor: sensor.name.clone(),
-                                                        temperature,
-                                                        errors: error };
-      tx.try_send(measurement.clone())
-        .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement))
-        .unwrap();
-      // if let ... = res {
-      //    log::warn!("...");
-      // }
-      waiter.wait(&ct);
-   }
+
+
+pub fn poll_sensor_iteration(path: &std::path::Path) -> Result<f64> {
+   let mut file = std::fs::File::open(path).with_context(|| anyhow!("Failed to open file: {path:?}"))?;
+   parse(&mut file).with_context(|| anyhow!("Failed to parse file: {path:?}"))
 }
 
-
+pub fn poll_sensor_forever(tx: tokio::sync::mpsc::Sender<common::Measurement>,
+                           sensor: Sensor,
+                           ct: tokio_util::sync::CancellationToken,
+                           interval: std::time::Duration) {
+   log::info!("Starting polling thread: {sensor:?}");
+   let mut waiter = Waiter::new(interval);
+   while !ct.is_cancelled() {
+      let measurement = match poll_sensor_iteration(&sensor.path) {
+         Ok(temperature) => common::Measurement { sensor:      sensor.name.clone(),
+                                                  temperature: Some(temperature),
+                                                  errors:      Default::default(), },
+         Err(why) => common::Measurement { sensor:      sensor.name.clone(),
+                                           temperature: None,
+                                           errors:      vec![why.to_string()], },
+      };
+      let res = tx.try_send(measurement.clone())
+                  .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement));
+      if let Err(e) = res {
+         log::warn!("Failed to send measurements in channel: {e:?}");
+      }
+      waiter.wait(&ct);
+   }
+   log::info!("Stopped polling thread: {sensor:?}");
+}
 
 pub fn spawn_pollers(bottom_path: &std::path::Path,
                      ambient_path: &std::path::Path,
+                     interval: std::time::Duration,
                      ct: &tokio_util::sync::CancellationToken)
                      -> tokio::sync::mpsc::Receiver<common::Measurement> {
    let (tx, rx) = tokio::sync::mpsc::channel(100);
-   const INTERVAL: std::time::Duration = std::time::Duration::new(10, 0);
    {
       let tx = tx.clone();
       let sensor = Sensor { name: "ambient".to_string(),
                             path: ambient_path.to_path_buf(), };
       let ct = ct.clone();
-      std::thread::spawn(move || poll_sensor(tx, sensor, ct, INTERVAL));
+      std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval));
    }
    {
       let tx = tx.clone();
       let sensor = Sensor { name: "bottom".to_string(),
                             path: bottom_path.to_path_buf(), };
       let ct = ct.clone();
-      std::thread::spawn(move || poll_sensor(tx, sensor, ct, INTERVAL));
+      std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval));
    }
    rx
 }

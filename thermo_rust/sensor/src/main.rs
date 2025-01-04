@@ -10,11 +10,15 @@ struct Cli {
 
    /// Path to bottom sensor file
    #[arg(long)]
-   bottom: std::path::PathBuf,
+   bottom_path: std::path::PathBuf,
 
    /// Path to ambient sensor file
    #[arg(long)]
-   ambient: std::path::PathBuf,
+   ambient_path: std::path::PathBuf,
+
+   /// How often to poll sensors, in seconds
+   #[arg(long, default_value_t = 20)]
+   sensor_poll_periodicity: i32,
 
    // Logger's level
    #[arg(long)]
@@ -22,10 +26,11 @@ struct Cli {
    #[arg(default_value_t = String::from("info"))]
    log_level: String,
 }
-
-// TODO: make sure that all interesting parts are logged:
-// * Size of vector with measurements in publish (for example if its len() is > 100)
-// * Size of channel if it len() is > 10.
+impl Cli {
+   fn sensor_poll_periodicity(&self) -> std::time::Duration {
+      std::time::Duration::from_secs(self.sensor_poll_periodicity as u64)
+   }
+}
 
 
 #[tokio::main]
@@ -41,7 +46,8 @@ async fn main() -> Result<()> {
       ctrlc::set_handler(move || ct.cancel()).unwrap();
    }
 
-   let rx = sensor::sensor::spawn_pollers(&cli.bottom, &cli.ambient, &ct);
+   let rx =
+      sensor::sensor::spawn_pollers(&cli.bottom_path, &cli.ambient_path, cli.sensor_poll_periodicity(), &ct);
 
    sensor::publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port).await?;
    Ok(())
