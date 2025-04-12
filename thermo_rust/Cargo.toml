@@ -11,5 +11,5 @@ resolver = "2"
 members = [
    "common",
    "sensor",
-   # "server",
+   "server",
 ]

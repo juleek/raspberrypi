@@ -17,7 +17,12 @@ message MeasurementResp {
 }
 
 message Measurement {
+  // time
   string sensor = 1;
   repeated string errors = 2;
   optional double temperature = 3;
 }
+
+
+
+// pool: sqlx::Pool<Sqlite>
