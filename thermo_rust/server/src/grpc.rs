@@ -69,6 +69,7 @@ fn on_measurement(
       .clone()
       .ok_or_else(|| anyhow!("Measurement is missing from {proto:?}"))?
       .try_into()?;
+   // TODO: check that most important fields (sensor name) are not empty
    //DB
    let _ = tx.send(measurement);
    Ok(common::pb::MeasurementResp {

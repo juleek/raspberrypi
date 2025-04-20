@@ -37,7 +37,7 @@ impl Sqlite {
          Location::Memory => sqlx::sqlite::SqliteConnectOptions::new()
             .in_memory(true)
             .shared_cache(true)
-            .filename("file:"),
+            .filename("file:asdf"),
          Location::Path(p) => sqlx::sqlite::SqliteConnectOptions::new().filename(p),
       };
       // use std::str::FromStr;
@@ -141,4 +141,50 @@ mod tests {
       Sqlite::init_ddl(&sqlite.pool).await?;
       Ok(())
    }
+
+   #[tokio::test]
+   async fn test_read_ts_less_than_start() -> Result<()> {
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_read_ts_equals_start() -> Result<()> {
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_read_ts_between_start_and_end() -> Result<()> {
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_read_ts_equals_end() -> Result<()> {
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_read_ts_larger_than_end() -> Result<()> {
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_read_many() -> Result<()> {
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_delete_ts_less_than_up_to() -> Result<()> {
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_delete_ts_equals_up_to() -> Result<()> {
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_delete_ts_larger_than_up_to() -> Result<()> {
+      Ok(())
+   }
+
 }
