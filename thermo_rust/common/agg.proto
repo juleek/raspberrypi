@@ -1,5 +1,5 @@
 syntax = "proto3";
-
+import "google/protobuf/timestamp.proto";
 package aggproto;
 
 service Agg {
@@ -17,10 +17,10 @@ message MeasurementResp {
 }
 
 message Measurement {
-  // time
-  string sensor = 1;
-  repeated string errors = 2;
-  optional double temperature = 3;
+  google.protobuf.Timestamp read_ts     = 10;
+  string                    sensor      = 20;
+  string                    error       = 30;
+  optional double           temperature = 40;
 }
 
 

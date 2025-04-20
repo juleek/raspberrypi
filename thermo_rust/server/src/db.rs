@@ -54,10 +54,10 @@ impl Sqlite {
 
    fn ddl() -> &'static [&'static str] {
       &[
-         "CREATE TABLE IF NOT EXISTS measurements (ts INTEGER  NOT NULL);",
+         "CREATE TABLE IF NOT EXISTS measurements (read_ts INTEGER  NOT NULL);",
          // "ALTER TABLE measurements ADD sensor      text     NOT NULL;",
          "ALTER TABLE measurements ADD temperature real;",
-         "ALTER TABLE measurements ADD errors      text;",
+         "ALTER TABLE measurements ADD error      text;",
       ]
    }
    async fn init_ddl(pool: &sqlx::Pool<sqlx::Sqlite>) -> Result<()> {
@@ -77,16 +77,15 @@ impl Sqlite {
 #[async_trait::async_trait]
 impl Db for Sqlite {
    async fn write(&self, row: &common::Measurement) -> Result<()> {
-      let ts = chrono::Utc::now();
       sqlx::query(
-         r#"INSERT INTO measurements (ts, sensr, temperature, errors)
+         r#"INSERT INTO measurements (read_ts, sensor, temperature, error)
             VALUES ($1, $2, $3, $4)
          "#,
       )
-      .bind(ts.timestamp_micros())
+      .bind(row.read_ts.timestamp_micros())
       .bind(&row.sensor)
       .bind(row.temperature)
-      .bind(row.errors.join("\n"))
+      .bind(&row.error)
       .execute(&self.pool)
       .await?;
       Ok(())
@@ -97,10 +96,32 @@ impl Db for Sqlite {
       start: chrono::DateTime<chrono::Utc>,
       end: chrono::DateTime<chrono::Utc>,
    ) -> Result<Vec<common::Measurement>> {
-      todo!()
+      let measurements = sqlx::query_as(
+         r#"
+         SELECT read_ts, sensor, temperature, error
+         FROM measurements
+         WHERE read_ts >= $1 AND read_ts <= $2
+         ORDER BY read_ts
+         "#,
+      )
+      .bind(start.timestamp_micros())
+      .bind(end.timestamp_micros())
+      .fetch_all(&self.pool)
+      .await?;
+
+      Ok(measurements)
    }
 
-   async fn delete(&self, up_to: chrono::DateTime<chrono::Utc>) -> Result<()> { todo!() }
+   async fn delete(&self, up_to: chrono::DateTime<chrono::Utc>) -> Result<()> {
+      sqlx::query(
+         r#"DELETE FROM measurements WHERE read_ts < $1
+         "#,
+      )
+      .bind(up_to.timestamp_micros())
+      .execute(&self.pool)
+      .await?;
+      Ok(())
+   }
 }
 
 
@@ -118,8 +139,6 @@ mod tests {
    async fn test_init_ddl_is_idempotent() -> Result<()> {
       let sqlite = Sqlite::new(&Location::Memory).await?;
       Sqlite::init_ddl(&sqlite.pool).await?;
-
-
       Ok(())
    }
 }

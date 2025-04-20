@@ -40,18 +40,15 @@ impl common::pb::agg_server::Agg for Agg {
 
       use futures::StreamExt;
       let output = async_stream::try_stream! {
-         while let Some(measurements_with_counter) = stream.message().await.unwrap_or(None) {
-            println!("Server received: {:?}", measurements_with_counter);
-
-            //DB
-
-            tx.send(measurements_with_counter.measurement.unwrap().into()).with_context(|| anyhow!("Failed to send measurement"));
-
-            let response = common::pb::MeasurementResp {
-                  counter: measurements_with_counter.counter,
+         while let Some(proto) = stream.message().await.unwrap_or(None) {
+            let response = on_measurement(proto, &tx);
+            let response = match response {
+               Ok(response) => response,
+               Err(why) => {
+                  println!("Failed to send measurement: {why:?}");
+                  continue;
+               }
             };
-
-            println!("Server sending: {:?}", response);
             yield response;
          }
       }
@@ -59,4 +56,22 @@ impl common::pb::agg_server::Agg for Agg {
 
       Ok(tonic::Response::new(output as PBStream))
    }
+}
+
+
+fn on_measurement(
+   proto: common::pb::MeasurementReq,
+   tx: &MeasurementTx,
+) -> Result<common::pb::MeasurementResp> {
+   println!("Server received: {:?}", proto);
+   let measurement = proto
+      .measurement
+      .clone()
+      .ok_or_else(|| anyhow!("Measurement is missing from {proto:?}"))?
+      .try_into()?;
+   //DB
+   let _ = tx.send(measurement);
+   Ok(common::pb::MeasurementResp {
+      counter: proto.counter,
+   })
 }
