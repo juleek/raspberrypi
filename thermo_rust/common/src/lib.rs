@@ -1,21 +1,70 @@
 pub mod pb;
 use anyhow::{anyhow, Result};
 
-fn proto_timestamp_to_chrono(proto: prost_types::Timestamp) -> Result<chrono::DateTime<chrono::Utc>> {
-   chrono::DateTime::from_timestamp(proto.seconds, proto.nanos as u32)
-      .map_or_else(|| Err(anyhow!("Failed to convert proto: {proto} to chrono")), Ok)
+
+// ===========================================================================================================
+
+
+#[derive(Debug, Clone, PartialEq, Copy)]
+pub struct MicroSecTs(pub chrono::DateTime<chrono::Utc>);
+
+impl std::ops::Deref for MicroSecTs {
+   type Target = chrono::DateTime<chrono::Utc>;
+   fn deref(&self) -> &Self::Target { &self.0 }
 }
 
-fn chrono_timestamp_to_proto(dt: chrono::DateTime<chrono::Utc>) -> prost_types::Timestamp {
+impl sqlx::Type<sqlx::sqlite::Sqlite> for MicroSecTs {
+   fn type_info() -> sqlx::sqlite::SqliteTypeInfo { <i64 as sqlx::Type<sqlx::sqlite::Sqlite>>::type_info() }
+}
+
+impl sqlx::Encode<'_, sqlx::sqlite::Sqlite> for MicroSecTs {
+   fn encode_by_ref(
+      &self,
+      args: &mut Vec<sqlx::sqlite::SqliteArgumentValue>,
+   ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+      let seconds = self.0.timestamp();
+      let micros = self.0.timestamp_subsec_micros() as i64;
+      let total_micros = seconds * 1_000_000 + micros;
+      args.push(sqlx::sqlite::SqliteArgumentValue::Int64(total_micros));
+      Ok(sqlx::encode::IsNull::No)
+   }
+}
+
+impl sqlx::Decode<'_, sqlx::sqlite::Sqlite> for MicroSecTs {
+   fn decode(value: sqlx::sqlite::SqliteValueRef) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+      let total_micros = <i64 as sqlx::Decode<'_, sqlx::sqlite::Sqlite>>::decode(value)?;
+      let seconds = total_micros / 1_000_000;
+      let micros = total_micros % 1_000_000;
+      let nanos = (micros * 1_000) as u32;
+      let dt = chrono::DateTime::from_timestamp(seconds, nanos).ok_or_else(|| "Invalid timestamp")?;
+      Ok(MicroSecTs(dt))
+   }
+}
+
+
+
+// ===========================================================================================================
+
+fn proto_timestamp_to_microsec_ts(proto: prost_types::Timestamp) -> Result<MicroSecTs> {
+   let chrono_ts = chrono::DateTime::from_timestamp(proto.seconds, proto.nanos as u32)
+      .map_or_else(|| Err(anyhow!("Failed to convert proto: {proto} to chrono")), Ok)?;
+   Ok(MicroSecTs(chrono_ts))
+}
+
+fn microsects_to_proto(dt: MicroSecTs) -> prost_types::Timestamp {
    prost_types::Timestamp {
       seconds: dt.timestamp(),
       nanos: dt.timestamp_subsec_nanos() as i32,
    }
 }
 
+
+// ===========================================================================================================
+
+
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct Measurement {
-   pub read_ts: chrono::DateTime<chrono::Utc>,
+   pub read_ts: MicroSecTs,
    pub sensor: String,
    pub temperature: Option<f64>,
    pub error: String,
@@ -30,7 +79,7 @@ impl From<Measurement> for crate::pb::Measurement {
          sensor: value.sensor,
          temperature: value.temperature,
          error: value.error,
-         read_ts: Some(chrono_timestamp_to_proto(value.read_ts)),
+         read_ts: Some(microsects_to_proto(value.read_ts)),
       }
    }
 }
@@ -44,11 +93,15 @@ impl TryFrom<crate::pb::Measurement> for Measurement {
          sensor: proto.sensor,
          temperature: proto.temperature,
          error: proto.error,
-         read_ts: proto_timestamp_to_chrono(read_ts)?,
+         read_ts: proto_timestamp_to_microsec_ts(read_ts)?,
       };
       Ok(res)
    }
 }
+
+
+// ===========================================================================================================
+
 
 pub fn init_logger(log_level: &str) {
    let mut builder = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level));
@@ -75,7 +128,6 @@ mod tests {
          sensor: "ambient".to_string(),
          temperature: Some(26.8),
          error: "error1".to_string(),
-
       };
       let proto: crate::pb::Measurement = expected.clone().into();
       assert_eq!(
