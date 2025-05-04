@@ -53,7 +53,12 @@ fn make_plot(plot_info: &PlotInfo) -> Result<Vec<u8>, Box<dyn std::error::Error>
       .build_cartesian_2d(min_x..max_x, min_y..max_y)?;
 
    // chart.configure_mesh().x_labels(4).y_labels(4).draw()?;
-   chart.configure_mesh().light_line_style(&plotters::prelude::WHITE).x_label_style(("sans-serif", 30)).y_label_style(("sans-serif", 30)).draw()?;
+   chart
+      .configure_mesh()
+      .light_line_style(&plotters::prelude::WHITE)
+      .x_label_style(("sans-serif", 30))
+      .y_label_style(("sans-serif", 30))
+      .draw()?;
 
    use plotters::style::Color;
    for line in &plot_info.lines {
@@ -72,16 +77,16 @@ fn make_plot(plot_info: &PlotInfo) -> Result<Vec<u8>, Box<dyn std::error::Error>
          .legend(move |(x, y): (i32, i32)| {
             let legend_path = vec![(x - 10, y), (x + 10, y)];
             plotters::element::DashedPathElement::new(
-                legend_path.into_iter(),
-                5,
-                3,
-                plotters::prelude::ShapeStyle {
-                    color: line.colour.to_rgba(),
-                    filled: false,
-                    stroke_width: 2,
-                },
+               legend_path.into_iter(),
+               5,
+               3,
+               plotters::prelude::ShapeStyle {
+                  color: line.colour.to_rgba(),
+                  filled: false,
+                  stroke_width: 2,
+               },
             )
-        });
+         });
 
       if let Some(threshold) = line.threshold_hline {
          chart.draw_series(std::iter::once(plotters::element::DashedPathElement::new(
@@ -98,12 +103,12 @@ fn make_plot(plot_info: &PlotInfo) -> Result<Vec<u8>, Box<dyn std::error::Error>
    }
 
    chart
-    .configure_series_labels()
-    .background_style(&plotters::prelude::WHITE.mix(0.9)) // Translucent white background
-    .border_style(&plotters::prelude::RGBColor(211, 211, 211))     // No border
-    .label_font(("Arial", 20))         // Larger font for labels
-    .position(plotters::prelude::SeriesLabelPosition::LowerLeft)
-    .draw()?;
+      .configure_series_labels()
+      .background_style(&plotters::prelude::WHITE.mix(0.9)) // Translucent white background
+      .border_style(&plotters::prelude::RGBColor(211, 211, 211)) // No border
+      .label_font(("Arial", 20)) // Larger font for labels
+      .position(plotters::prelude::SeriesLabelPosition::LowerLeft)
+      .draw()?;
    root.present()?;
 
    let mut buf = Vec::new();
@@ -114,7 +119,6 @@ fn make_plot(plot_info: &PlotInfo) -> Result<Vec<u8>, Box<dyn std::error::Error>
 }
 
 pub fn create_plot(min_temp_bottom: &f64, min_temp_ambient: &f64) -> Result<(), Box<dyn std::error::Error>> {
-   println!("asdf");
    let bottom_tube_line = PlotLine {
       legend: "BottomTube".to_string(),
       colour: plotters::prelude::RED,
@@ -162,6 +166,5 @@ mod tests {
       let min_temp_bottom = 15.0;
       let min_temp_ambient = 6.0;
       let result = create_plot(&min_temp_bottom, &min_temp_ambient);
-      log::info!("asdf result: {result:?}");
    }
 }

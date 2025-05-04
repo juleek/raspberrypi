@@ -42,9 +42,7 @@ impl sqlx::Decode<'_, sqlx::sqlite::Sqlite> for MicroSecTs {
 }
 
 impl From<chrono::DateTime<chrono::Utc>> for crate::MicroSecTs {
-   fn from(ts: chrono::DateTime<chrono::Utc>) -> Self {
-      MicroSecTs(ts)
-   }
+   fn from(ts: chrono::DateTime<chrono::Utc>) -> Self { MicroSecTs(ts) }
 }
 
 // ===========================================================================================================
