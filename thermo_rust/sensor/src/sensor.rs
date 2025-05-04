@@ -10,9 +10,8 @@ fn read_exactly_ignoring_early_eof(reader: &mut impl std::io::Read, max_size: us
    let mut total_read = 0;
    while total_read < max_size {
       let bytes_read_res = reader.read(&mut buffer[total_read..]);
-      let bytes_read = bytes_read_res.with_context(|| {
-                                        anyhow!("Successfully read: {total_read} bytes. Failed to read more.")
-                                     })?;
+      let bytes_read = bytes_read_res
+         .with_context(|| anyhow!("Successfully read: {total_read} bytes. Failed to read more."))?;
       total_read += bytes_read;
       if bytes_read == 0 {
          // Read 0 bytes? => eof => return what has been read so far:
@@ -28,23 +27,22 @@ fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
 
    let second_line = {
       let data = &data[..std::cmp::min(MAX, data.len())];
-      let start =
-         data.iter()
-             .position(|x| *x == b'\n')
-             .with_context(|| {
-                anyhow!("Failed to find start of second line in: {:?}", std::str::from_utf8(data))
-             })?;
+      let start = data.iter().position(|x| *x == b'\n').with_context(|| {
+         anyhow!("Failed to find start of second line in: {:?}", std::str::from_utf8(data))
+      })?;
       let data = &data[start + 1..];
       let end = data.iter().position(|x| *x == b'\n').unwrap_or(data.len());
       &data[..end]
    };
    let temperature = {
       let marker = b"t=";
-      let start = second_line.windows(marker.len())
-                             .position(|window| window == marker)
-                             .with_context(|| anyhow!("Failed to find t= in: {:?}", std::str::from_utf8(second_line)))?;
+      let start = second_line
+         .windows(marker.len())
+         .position(|window| window == marker)
+         .with_context(|| anyhow!("Failed to find t= in: {:?}", std::str::from_utf8(second_line)))?;
       let temp = &second_line[start + marker.len()..];
-      let temp = std::str::from_utf8(temp).with_context(|| anyhow!("Failed to convert {:?} to string", temp))?;
+      let temp =
+         std::str::from_utf8(temp).with_context(|| anyhow!("Failed to convert {:?} to string", temp))?;
       let temp: i32 = temp.parse().with_context(|| anyhow!("Failed to parse {temp} as integer"))?;
       temp as f64 / 1000.0
    };
@@ -67,14 +65,16 @@ pub struct Sensor {
 
 
 pub struct Waiter {
-   start:    std::time::Instant,
+   start: std::time::Instant,
    interval: std::time::Duration,
 }
 
 impl Waiter {
    fn new(interval: std::time::Duration) -> Self {
-      Waiter { start: std::time::Instant::now(),
-               interval }
+      Waiter {
+         start: std::time::Instant::now(),
+         interval,
+      }
    }
    fn wait(&mut self, ct: &tokio_util::sync::CancellationToken) {
       let end = self.start + self.interval;
@@ -93,23 +93,33 @@ pub fn poll_sensor_iteration(path: &std::path::Path) -> Result<f64> {
    parse(&mut file).with_context(|| anyhow!("Failed to parse file: {path:?}"))
 }
 
-pub fn poll_sensor_forever(tx: tokio::sync::mpsc::Sender<common::Measurement>,
-                           sensor: Sensor,
-                           ct: tokio_util::sync::CancellationToken,
-                           interval: std::time::Duration) {
+pub fn poll_sensor_forever(
+   tx: tokio::sync::mpsc::Sender<common::Measurement>,
+   sensor: Sensor,
+   ct: tokio_util::sync::CancellationToken,
+   interval: std::time::Duration,
+) {
    log::info!("Starting polling thread: {sensor:?}");
    let mut waiter = Waiter::new(interval);
    while !ct.is_cancelled() {
+      let ts = common::MicroSecTs(chrono::Utc::now());
       let measurement = match poll_sensor_iteration(&sensor.path) {
-         Ok(temperature) => common::Measurement { sensor:      sensor.name.clone(),
-                                                  temperature: Some(temperature),
-                                                  errors:      Default::default(), },
-         Err(why) => common::Measurement { sensor:      sensor.name.clone(),
-                                           temperature: None,
-                                           errors:      vec![why.to_string()], },
+         Ok(temperature) => common::Measurement {
+            sensor: sensor.name.clone(),
+            temperature: Some(temperature),
+            error: Default::default(),
+            read_ts: ts,
+         },
+         Err(why) => common::Measurement {
+            sensor: sensor.name.clone(),
+            temperature: None,
+            error: why.to_string(),
+            read_ts: ts,
+         },
       };
-      let res = tx.try_send(measurement.clone())
-                  .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement));
+      let res = tx
+         .try_send(measurement.clone())
+         .with_context(|| anyhow!("Failed to send measurement {:?} in channel", measurement));
       if let Err(e) = res {
          log::warn!("Failed to send measurements in channel: {e:?}");
       }
@@ -118,23 +128,28 @@ pub fn poll_sensor_forever(tx: tokio::sync::mpsc::Sender<common::Measurement>,
    log::info!("Stopped polling thread: {sensor:?}");
 }
 
-pub fn spawn_pollers(bottom_path: &std::path::Path,
-                     ambient_path: &std::path::Path,
-                     interval: std::time::Duration,
-                     ct: &tokio_util::sync::CancellationToken)
-                     -> tokio::sync::mpsc::Receiver<common::Measurement> {
+pub fn spawn_pollers(
+   bottom_path: &std::path::Path,
+   ambient_path: &std::path::Path,
+   interval: std::time::Duration,
+   ct: &tokio_util::sync::CancellationToken,
+) -> tokio::sync::mpsc::Receiver<common::Measurement> {
    let (tx, rx) = tokio::sync::mpsc::channel(100);
    {
       let tx = tx.clone();
-      let sensor = Sensor { name: "ambient".to_string(),
-                            path: ambient_path.to_path_buf(), };
+      let sensor = Sensor {
+         name: "ambient".to_string(),
+         path: ambient_path.to_path_buf(),
+      };
       let ct = ct.clone();
       std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval));
    }
    {
       let tx = tx.clone();
-      let sensor = Sensor { name: "bottom".to_string(),
-                            path: bottom_path.to_path_buf(), };
+      let sensor = Sensor {
+         name: "bottom".to_string(),
+         path: bottom_path.to_path_buf(),
+      };
       let ct = ct.clone();
       std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval));
    }
@@ -183,7 +198,7 @@ mod tests {
 
    // #[derive(Debug)]
    struct OkParseTC {
-      reader:   FakeRead,
+      reader: FakeRead,
       expected: f64,
    }
 
@@ -191,11 +206,23 @@ mod tests {
    fn test_parse_returns_ok() {
       let mut test_cases = [
          //
-         OkParseTC{ reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=18375".as_bytes().to_vec()]), expected: 18.375},        // normal
-         OkParseTC{ reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=0375".as_bytes().to_vec()]), expected: 0.375},          // leading zeros 0100 => 0.1
-         OkParseTC{ reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=-18375".as_bytes().to_vec()]), expected: -18.375},      // negative
-         OkParseTC{ reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=18375\n 26".as_bytes().to_vec()]), expected: 18.375},   // more than 2 lines, 2nd line has correct data
-         //
+         OkParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=18375".as_bytes().to_vec()]),
+            expected: 18.375,
+         }, // normal
+         OkParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=0375".as_bytes().to_vec()]),
+            expected: 0.375,
+         }, // leading zeros 0100 => 0.1
+         OkParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=-18375".as_bytes().to_vec()]),
+            expected: -18.375,
+         }, // negative
+         OkParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=18375\n 26".as_bytes().to_vec()]),
+            expected: 18.375,
+         }, // more than 2 lines, 2nd line has correct data
+            //
       ];
 
       for (i, tc) in test_cases.iter_mut().enumerate() {
@@ -213,13 +240,25 @@ mod tests {
    fn test_parse_returns_error() {
       let mut test_cases = [
          //
-         ErrorParseTC { reader: FakeRead::from(vec![String::new().as_bytes().to_vec()])},                   // empty
-         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES".as_bytes().to_vec()])},                // one line
-         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES t=1\n18325".as_bytes().to_vec()])},     // t= in 1st line only
-         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=375ABC".as_bytes().to_vec()])},  // letters after number
-         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=ABC375".as_bytes().to_vec()])},  // letters before number
-         ErrorParseTC { reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=1 t=2".as_bytes().to_vec()])},   // multiple t=
-         //
+         ErrorParseTC {
+            reader: FakeRead::from(vec![String::new().as_bytes().to_vec()]),
+         }, // empty
+         ErrorParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES".as_bytes().to_vec()]),
+         }, // one line
+         ErrorParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES t=1\n18325".as_bytes().to_vec()]),
+         }, // t= in 1st line only
+         ErrorParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=375ABC".as_bytes().to_vec()]),
+         }, // letters after number
+         ErrorParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=ABC375".as_bytes().to_vec()]),
+         }, // letters before number
+         ErrorParseTC {
+            reader: FakeRead::from(vec!["26: crc=64 YES\n 26 t=1 t=2".as_bytes().to_vec()]),
+         }, // multiple t=
+            //
       ];
 
       for tc in test_cases.iter_mut() {
