@@ -17,8 +17,6 @@ pub trait Db {
 }
 
 
-
-
 //
 // ===========================================================================================================
 // Sqlite implementation
@@ -117,7 +115,7 @@ impl Db for Sqlite {
          r#"
          SELECT read_ts, sensor, temperature, error
          FROM measurements
-         WHERE read_ts >= $1 AND read_ts <= $2
+         WHERE read_ts >= $1 AND read_ts < $2
          ORDER BY read_ts
          "#,
       )
@@ -127,7 +125,6 @@ impl Db for Sqlite {
       .await?;
 
       Ok(measurements)
-
    }
 
    async fn delete(&self, up_to: common::MicroSecTs) -> Result<()> {
@@ -173,32 +170,31 @@ mod tests {
          error: "error1".to_string(),
          read_ts: ts,
       };
-      println!("asdf mes {mes:?}");
       mes
    }
 
-   // #[tokio::test]
-   // async fn test_read_ts_less_than_start() -> Result<()> {
-   //    let (y, m, d) = (2024, 1, 1);
-   //    let sqlite = Sqlite::new(&Location::Memory).await?;
-   //    sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-   //    let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y - 1, m, d)).await?;
+   #[tokio::test]
+   async fn test_read_ts_less_than_start() -> Result<()> {
+      let (y, m, d) = (2024, 1, 1);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y - 1, m, d)).await?;
 
-   //    let expected = Vec::new();
-   //    assert_eq!(res, expected);
-   //    Ok(())
-   // }
+      let expected = Vec::new();
+      assert_eq!(res, expected);
+      Ok(())
+   }
 
-   // #[tokio::test]
-   // async fn test_read_ts_equals_start() -> Result<()> {
-   //    let (y, m, d) = (2024, 1, 1);
-   //    let sqlite = Sqlite::new(&Location::Memory).await?;
-   //    sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-   //    let res = sqlite.read(ts_ymd(y, m, d), ts_ymd(y + 1, m, d)).await?;
-   //    let expected: Vec<common::Measurement> = vec![measurement(ts_ymd(y, m, d))];
-   //    assert_eq!(res, expected);
-   //    Ok(())
-   // }
+   #[tokio::test]
+   async fn test_read_ts_equals_start() -> Result<()> {
+      let (y, m, d) = (2024, 1, 1);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
+      let res = sqlite.read(ts_ymd(y, m, d), ts_ymd(y + 1, m, d)).await?;
+      let expected: Vec<common::Measurement> = vec![measurement(ts_ymd(y, m, d))];
+      assert_eq!(res, expected);
+      Ok(())
+   }
 
    #[tokio::test]
    async fn test_read_ts_between_start_and_end() -> Result<()> {
@@ -207,42 +203,104 @@ mod tests {
       let sqlite = Sqlite::new(&Location::Memory).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
       let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 2, m, d)).await?;
-      let expected  = vec![measurement(ts_ymd(y, m, d))];
+      let expected = vec![measurement(ts_ymd(y, m, d))];
       assert_eq!(res, expected);
       Ok(())
    }
 
-   // #[tokio::test]
-   // async fn test_read_ts_equals_end() -> Result<()> {
-   //    let (y, m, d) = (2024, 1, 1);
-   //    let sqlite = Sqlite::new(&Location::Memory).await?;
-   //    sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-   //    let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y, m, d)).await?;
-   //    let expected: Vec<common::Measurement> = vec![measurement(ts_ymd(y, m, d))];
-   //    assert_eq!(res, expected);
-   //    Ok(())
-   // }
+   #[tokio::test]
+   async fn test_read_ts_equals_end() -> Result<()> {
+      let (y, m, d) = (2024, 1, 1);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y, m, d)).await?;
+      let expected: Vec<common::Measurement> = Vec::new();
+      assert_eq!(res, expected);
+      Ok(())
+   }
 
-   // #[tokio::test]
-   // async fn test_read_ts_larger_than_end() -> Result<()> {
-   //    let (y, m, d) = (2024, 1, 1);
-   //    let sqlite = Sqlite::new(&Location::Memory).await?;
-   //    sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-   //    let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y - 1, m, d)).await?;
-   //    let expected = Vec::new();
-   //    assert_eq!(res, expected);
-   //    Ok(())
-   // }
+   #[tokio::test]
+   async fn test_read_ts_larger_than_end() -> Result<()> {
+      let (y, m, d) = (2024, 1, 1);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y - 1, m, d)).await?;
+      let expected = Vec::new();
+      assert_eq!(res, expected);
+      Ok(())
+   }
 
-   // #[tokio::test]
-   // async fn test_read_many() -> Result<()> { Ok(()) }
+   #[tokio::test]
+   async fn test_read_ts_on_19th() -> Result<()> {
+      use chrono::TimeZone;
+      use chrono::Timelike;
 
-   // #[tokio::test]
-   // async fn test_delete_ts_less_than_up_to() -> Result<()> { Ok(()) }
+      let (y, m, d) = (2024, 1, 1);
+      let ts1 = chrono::Utc.with_ymd_and_hms(2024, 1, 19, 23, 59, 58).unwrap();
+      let ts2 = chrono::Utc.with_ymd_and_hms(2024, 1, 19, 23, 59, 59).unwrap();
+      let ts3 = ts_ymd(y, m, 20);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(common::MicroSecTs(ts1))).await?;
+      sqlite.write(&measurement(common::MicroSecTs(ts2))).await?;
+      sqlite.write(&measurement(ts3)).await?;
+      let res = sqlite.read(ts_ymd(y, m, 19), ts3).await?;
+      let expected: Vec<common::Measurement> =
+         vec![measurement(common::MicroSecTs(ts1)), measurement(common::MicroSecTs(ts2))];
+      assert_eq!(res, expected);
+      Ok(())
+   }
 
-   // #[tokio::test]
-   // async fn test_delete_ts_equals_up_to() -> Result<()> { Ok(()) }
+   #[tokio::test]
+   async fn test_read_many() -> Result<()> {
+      let (y, m, d) = (2024, 1, 2);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d + 1))).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d + 2))).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d - 1), ts_ymd(y + 1, m, d)).await?;
+      let expected: Vec<common::Measurement> = vec![
+         measurement(ts_ymd(y, m, d)),
+         measurement(ts_ymd(y, m, d + 1)),
+         measurement(ts_ymd(y, m, d + 2)),
+      ];
+      assert_eq!(res, expected);
+      Ok(())
+   }
 
-   // #[tokio::test]
-   // async fn test_delete_ts_larger_than_up_to() -> Result<()> { Ok(()) }
+   #[tokio::test]
+   async fn test_delete_ts_less_than_up_to() -> Result<()> {
+      let (y, m, d) = (2024, 1, 1);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
+      sqlite.delete(ts_ymd(y + 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d)).await?;
+      let expected = Vec::new();
+      assert_eq!(res, expected);
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_delete_ts_equals_up_to() -> Result<()> {
+      let (y, m, d) = (2024, 1, 1);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d + 1))).await?;
+      sqlite.delete(ts_ymd(y, m, d + 1)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d)).await?;
+      let expected: Vec<common::Measurement> = vec![measurement(ts_ymd(y, m, d + 1))];
+      assert_eq!(res, expected);
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_delete_ts_larger_than_up_to() -> Result<()> {
+      let (y, m, d) = (2024, 1, 1);
+      let sqlite = Sqlite::new(&Location::Memory).await?;
+      sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
+      sqlite.delete(ts_ymd(y - 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d)).await?;
+      let expected: Vec<common::Measurement> = vec![measurement(ts_ymd(y, m, d))];
+      assert_eq!(res, expected);
+      Ok(())
+   }
 }
