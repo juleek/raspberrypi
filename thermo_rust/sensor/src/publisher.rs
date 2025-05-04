@@ -45,7 +45,7 @@ async fn one_iteration(ct: &tokio_util::sync::CancellationToken,
 
    let (tx_outbound, rx_outbound) = tokio::sync::mpsc::channel(10);
    let outbound = tokio_stream::wrappers::ReceiverStream::new(rx_outbound);
-   let mut inbound_stream = client.send_measurement(outbound).await?.into_inner();
+   let mut inbound_stream = client.store_measurement(outbound).await?.into_inner();
 
    for i in 0..state.measurements.len() {
       state.pull_from_rx();
@@ -108,10 +108,17 @@ mod tests {
    use super::*;
    use pretty_assertions::assert_eq;
 
+   fn ts_ymd(year: i32, month: u32, day: u32) -> common::MicroSecTs {
+      use chrono::TimeZone;
+      let ts = chrono::Utc.with_ymd_and_hms(year, month, day, 0, 0, 0).earliest().unwrap();
+      common::MicroSecTs(ts)
+   }
+
    fn measurement() -> common::Measurement {
       common::Measurement { sensor:      "ambient".to_string(),
                             temperature: Some(26.8),
-                            errors:      vec!["error1".to_string(), "error2".to_string()], }
+                            read_ts: ts_ymd(2024, 1, 1),
+                            error:      "error1".to_string(), }
    }
 
    fn populate_measurements(measurement: &common::Measurement,

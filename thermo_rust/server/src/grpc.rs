@@ -27,14 +27,14 @@ type PBStream = std::pin::Pin<Box<Stream>>;
 
 #[tonic::async_trait]
 impl common::pb::agg_server::Agg for Agg {
-   type SendMeasurementStream = std::pin::Pin<
+   type StoreMeasurementStream = std::pin::Pin<
       Box<dyn futures::Stream<Item = Result<common::pb::MeasurementResp, tonic::Status>> + Send>,
    >;
 
-   async fn send_measurement(
+   async fn store_measurement(
       &self,
       request: tonic::Request<tonic::Streaming<common::pb::MeasurementReq>>,
-   ) -> Result<tonic::Response<Self::SendMeasurementStream>, tonic::Status> {
+   ) -> Result<tonic::Response<Self::StoreMeasurementStream>, tonic::Status> {
       let mut stream = request.into_inner();
       let tx = self.tx.clone();
 

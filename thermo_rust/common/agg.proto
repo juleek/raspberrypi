@@ -3,7 +3,7 @@ import "google/protobuf/timestamp.proto";
 package aggproto;
 
 service Agg {
-  rpc SendMeasurement (stream MeasurementReq) returns (stream MeasurementResp);
+  rpc StoreMeasurement (stream MeasurementReq) returns (stream MeasurementResp);
 }
 
 
