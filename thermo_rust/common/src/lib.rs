@@ -41,20 +41,24 @@ impl sqlx::Decode<'_, sqlx::sqlite::Sqlite> for MicroSecTs {
    }
 }
 
-
+impl From<chrono::DateTime<chrono::Utc>> for crate::MicroSecTs {
+   fn from(ts: chrono::DateTime<chrono::Utc>) -> Self {
+      MicroSecTs(ts)
+   }
+}
 
 // ===========================================================================================================
 
-fn proto_timestamp_to_microsec_ts(proto: prost_types::Timestamp) -> Result<MicroSecTs> {
+fn proto_timestamp_to_chrono(proto: prost_types::Timestamp) -> Result<chrono::DateTime<chrono::Utc>> {
    let chrono_ts = chrono::DateTime::from_timestamp(proto.seconds, proto.nanos as u32)
       .map_or_else(|| Err(anyhow!("Failed to convert proto: {proto} to chrono")), Ok)?;
-   Ok(MicroSecTs(chrono_ts))
+   Ok(chrono_ts)
 }
 
-fn microsects_to_proto(dt: MicroSecTs) -> prost_types::Timestamp {
+fn chrono_timestamp_to_proto(ts: chrono::DateTime<chrono::Utc>) -> prost_types::Timestamp {
    prost_types::Timestamp {
-      seconds: dt.timestamp(),
-      nanos: dt.timestamp_subsec_nanos() as i32,
+      seconds: ts.timestamp(),
+      nanos: ts.timestamp_subsec_nanos() as i32,
    }
 }
 
@@ -79,7 +83,7 @@ impl From<Measurement> for crate::pb::Measurement {
          sensor: value.sensor,
          temperature: value.temperature,
          error: value.error,
-         read_ts: Some(microsects_to_proto(value.read_ts)),
+         read_ts: Some(chrono_timestamp_to_proto(*value.read_ts)),
       }
    }
 }
@@ -93,7 +97,7 @@ impl TryFrom<crate::pb::Measurement> for Measurement {
          sensor: proto.sensor,
          temperature: proto.temperature,
          error: proto.error,
-         read_ts: proto_timestamp_to_microsec_ts(read_ts)?,
+         read_ts: proto_timestamp_to_chrono(read_ts)?.into(),
       };
       Ok(res)
    }
@@ -124,7 +128,7 @@ mod tests {
    fn test_measurement_proto_conversion() -> Result<()> {
       let ts = chrono::Utc::now();
       let expected: Measurement = Measurement {
-         read_ts: ts,
+         read_ts: MicroSecTs(ts),
          sensor: "ambient".to_string(),
          temperature: Some(26.8),
          error: "error1".to_string(),
@@ -140,7 +144,7 @@ mod tests {
          }
       );
 
-      let actual: Measurement = proto.into();
+      let actual: Measurement = proto.try_into()?;
       assert_eq!(actual, expected);
 
       Ok(())
