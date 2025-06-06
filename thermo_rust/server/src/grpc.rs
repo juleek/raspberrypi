@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use common::pb;
 
 type MeasurementTx = tokio::sync::broadcast::Sender<common::Measurement>;
 
@@ -12,7 +11,7 @@ impl Agg {
    pub fn start(routes: tonic::service::Routes) -> (tonic::service::Routes, MeasurementTx) {
       let (tx, _) = tokio::sync::broadcast::channel(16);
       let agg = Agg { tx: tx.clone() };
-      let service = pb::aggproto::agg_server::AggServer::new(agg);
+      let service = common::pb::aggproto::agg_server::AggServer::new(agg);
       let routes = routes.add_service(service);
       (routes, tx)
    }
@@ -22,18 +21,18 @@ impl Agg {
 // ===========================================================================================================
 // GRPC service
 
-type Stream = dyn futures::Stream<Item = Result<common::pb::MeasurementResp, tonic::Status>> + Send;
+type Stream = dyn futures::Stream<Item = Result<common::pb::StoreMeasurementResp, tonic::Status>> + Send;
 type PBStream = std::pin::Pin<Box<Stream>>;
 
 #[tonic::async_trait]
 impl common::pb::agg_server::Agg for Agg {
    type StoreMeasurementStream = std::pin::Pin<
-      Box<dyn futures::Stream<Item = Result<common::pb::MeasurementResp, tonic::Status>> + Send>,
+      Box<dyn futures::Stream<Item = Result<common::pb::StoreMeasurementResp, tonic::Status>> + Send>,
    >;
 
    async fn store_measurement(
       &self,
-      request: tonic::Request<tonic::Streaming<common::pb::MeasurementReq>>,
+      request: tonic::Request<tonic::Streaming<common::pb::StoreMeasurementReq>>,
    ) -> Result<tonic::Response<Self::StoreMeasurementStream>, tonic::Status> {
       let mut stream = request.into_inner();
       let tx = self.tx.clone();
@@ -60,19 +59,23 @@ impl common::pb::agg_server::Agg for Agg {
 
 
 fn on_measurement(
-   proto: common::pb::MeasurementReq,
+   proto: common::pb::StoreMeasurementReq,
    tx: &MeasurementTx,
-) -> Result<common::pb::MeasurementResp> {
+) -> Result<common::pb::StoreMeasurementResp> {
    println!("Server received: {:?}", proto);
-   let measurement = proto
+   let measurement: common::Measurement = proto
       .measurement
       .clone()
       .ok_or_else(|| anyhow!("Measurement is missing from {proto:?}"))?
       .try_into()?;
-   // TODO: check that most important fields (sensor name) are not empty
+   if measurement.id.location.is_empty() || measurement.id.sensor.is_empty() {
+      return Err(anyhow!("One of Measurement fields is empty: {measurement:?}"));
+   }
    //DB
+   let confirmed = measurement.clone().id;
    let _ = tx.send(measurement);
-   Ok(common::pb::MeasurementResp {
-      counter: proto.counter,
+
+   Ok(common::pb::StoreMeasurementResp {
+      confirmed: Some(confirmed.into()), // fixed 4.06.25
    })
 }

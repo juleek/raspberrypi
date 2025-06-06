@@ -98,20 +98,23 @@ pub fn poll_sensor_forever(
    sensor: Sensor,
    ct: tokio_util::sync::CancellationToken,
    interval: std::time::Duration,
+   location: String,
 ) {
    log::info!("Starting polling thread: {sensor:?}");
    let mut waiter = Waiter::new(interval);
+   let mut id = common::Id::new(location, &sensor.name);
    while !ct.is_cancelled() {
-      let ts = common::MicroSecTs(chrono::Utc::now());
+      id.next();
+      let ts = chrono::Utc::now().into();
       let measurement = match poll_sensor_iteration(&sensor.path) {
          Ok(temperature) => common::Measurement {
-            sensor: sensor.name.clone(),
+            id: id.clone(),
             temperature: Some(temperature),
             error: Default::default(),
             read_ts: ts,
          },
          Err(why) => common::Measurement {
-            sensor: sensor.name.clone(),
+            id: id.clone(),
             temperature: None,
             error: why.to_string(),
             read_ts: ts,
@@ -129,6 +132,7 @@ pub fn poll_sensor_forever(
 }
 
 pub fn spawn_pollers(
+   location: &str,
    bottom_path: &std::path::Path,
    ambient_path: &std::path::Path,
    interval: std::time::Duration,
@@ -142,7 +146,8 @@ pub fn spawn_pollers(
          path: ambient_path.to_path_buf(),
       };
       let ct = ct.clone();
-      std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval));
+      let location = location.to_string();
+      std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval, location));
    }
    {
       let tx = tx.clone();
@@ -151,7 +156,8 @@ pub fn spawn_pollers(
          path: bottom_path.to_path_buf(),
       };
       let ct = ct.clone();
-      std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval));
+      let location = location.to_string();
+      std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval, location));
    }
    rx
 }

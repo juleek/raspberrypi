@@ -20,6 +20,10 @@ struct Cli {
    #[arg(long, default_value_t = 20)]
    sensor_poll_periodicity: i32,
 
+   /// Id of location (short random string)
+   #[arg(long)]
+   location: String,
+
    // Logger's level
    #[arg(long)]
    #[arg(value_parser = clap::builder::PossibleValuesParser::new(["error", "warn", "info", "debug", "trace"]))]
@@ -46,8 +50,13 @@ async fn main() -> Result<()> {
       ctrlc::set_handler(move || ct.cancel()).unwrap();
    }
 
-   let rx =
-      sensor::sensor::spawn_pollers(&cli.bottom_path, &cli.ambient_path, cli.sensor_poll_periodicity(), &ct);
+   let rx = sensor::sensor::spawn_pollers(
+      &cli.location,
+      &cli.bottom_path,
+      &cli.ambient_path,
+      cli.sensor_poll_periodicity(),
+      &ct,
+   );
 
    sensor::publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port).await?;
    Ok(())

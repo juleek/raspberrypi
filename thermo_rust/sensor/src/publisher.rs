@@ -1,24 +1,94 @@
 use anyhow::{anyhow, Context, Result};
 
+//
+// ===========================================================================================================
+// Measurements
+
+#[derive(Debug, Clone, PartialEq)]
+struct Measurements {
+   age: chrono::Duration,
+   by_id: std::collections::HashMap<common::Id, common::Measurement>,
+   by_send_ts: std::collections::BTreeMap<chrono::DateTime<chrono::Utc>, Vec<common::Id>>,
+}
+
+impl Default for Measurements {
+   fn default() -> Self {
+      Self {
+         age: chrono::Duration::minutes(2),
+         by_id: Default::default(),
+         by_send_ts: Default::default(),
+      }
+   }
+}
+
+impl Measurements {
+   fn add(&mut self, m: common::Measurement, now: chrono::DateTime<chrono::Utc>) {
+      let id = m.id.clone();
+      self.by_id.insert(id.clone(), m);
+      self.by_send_ts.entry(now).or_default().push(id);
+   }
+   fn remove(&mut self, id: &common::Id) {
+      self.by_id.remove(id);
+
+      let mut to_remove = Vec::new();
+      for (ts, vec) in &mut self.by_send_ts {
+         vec.retain(|x| x != id);
+         if vec.is_empty() {
+            to_remove.push(*ts);
+         }
+      }
+      for ts in to_remove {
+         self.by_send_ts.remove(&ts);
+      }
+   }
+
+   fn get_next_to_retry(&mut self, now: chrono::DateTime<chrono::Utc>) -> Option<common::Measurement> {
+      let deadline = now - self.age;
+      let next_to_try = self.by_send_ts.range_mut(..=deadline).next_back();
+
+      let Some((ts, vec)) = next_to_try else {
+         return None;
+      };
+      let ts = ts.clone();
+      let id = vec.pop().unwrap();
+
+      if vec.is_empty() {
+         self.by_send_ts.remove(&ts);
+      }
+
+      let measurement = self.by_id.get(&id).unwrap().clone();
+      self.add(measurement.clone(), now);
+      Some(measurement.clone())
+   }
+}
+
+
+
+
+//
+// ===========================================================================================================
+// State
 
 struct State {
-   thread_rx:    common::Rx,
-   measurements: Vec<common::pb::MeasurementReq>,
-   counter:      i64,
+   thread_rx: common::Rx,
+   measurements: Measurements,
 }
 impl State {
    fn new(thread_rx: common::Rx) -> Self {
-      Self { thread_rx,
-             measurements: Default::default(),
-             counter: chrono::Utc::now().timestamp_nanos_opt().unwrap() }
+      Self {
+         thread_rx,
+         measurements: Default::default(),
+      }
    }
-   fn on_new_measurement(&mut self, measurement: common::Measurement) -> common::pb::MeasurementReq {
-      self.counter += 1;
-      let req = common::pb::MeasurementReq { measurement: Some(measurement.into()),
-                                             counter:     self.counter, };
-      self.measurements.push(req.clone());
-      if self.measurements.len() > 100 {
-         log::warn!("Measurements size: {}", self.measurements.len());
+
+
+   fn on_new_measurement(&mut self, measurement: common::Measurement) -> common::pb::StoreMeasurementReq {
+      let req = common::pb::StoreMeasurementReq {
+         measurement: Some(measurement.clone().into()),
+      };
+      self.measurements.add(measurement, chrono::Utc::now());
+      if self.measurements.by_id.len() > 100 {
+         log::warn!("Measurements size: {}", self.measurements.by_id.len());
       }
       req
    }
@@ -27,54 +97,59 @@ impl State {
          self.on_new_measurement(measurement);
       }
    }
-   fn remove_confirmed(&mut self, confirmed: i64) {
-      let upper_bound = self.measurements.partition_point(|req| req.counter <= confirmed);
-      self.measurements.drain(0..upper_bound);
-   }
+   fn remove_confirmed(&mut self, id: common::Id) { self.measurements.remove(&id); }
 }
 
 
 
-async fn one_iteration(ct: &tokio_util::sync::CancellationToken,
-                       server_host_port: &str,
-                       state: &mut State)
-                       -> Result<()> {
+async fn one_iteration(
+   ct: &tokio_util::sync::CancellationToken,
+   server_host_port: &str,
+   state: &mut State,
+) -> Result<()> {
    state.pull_from_rx();
    let mut client = common::pb::agg_client::AggClient::connect(server_host_port.to_string())
-      .await.with_context(|| anyhow!("Failed to connect to {server_host_port}"))?;
+      .await
+      .with_context(|| anyhow!("Failed to connect to {server_host_port}"))?;
 
    let (tx_outbound, rx_outbound) = tokio::sync::mpsc::channel(10);
    let outbound = tokio_stream::wrappers::ReceiverStream::new(rx_outbound);
    let mut inbound_stream = client.store_measurement(outbound).await?.into_inner();
 
-   for i in 0..state.measurements.len() {
-      state.pull_from_rx();
-      log::info!("Sending: {:?} to {server_host_port}", state.measurements[i]);
-      tokio::select! {
-         _ = ct.cancelled() => {
-            return Ok(());
-         },
-         res = tx_outbound.send(state.measurements[i].clone()) => {
-            res.with_context(|| anyhow!("Failed to send measurement at index {i} from {:?}", state.measurements))?;
-         }
-      }
-   }
+
+   let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(10));
    loop {
       tokio::select! {
-         _ = ct.cancelled() => {
-            return Ok(());
-         },
-         Some(measurement) = state.thread_rx.recv() => {
-            let req = state.on_new_measurement(measurement);
-            log::info!("Sending: {req:?} to {server_host_port}");
-            tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
-         },
-         confirmed = inbound_stream.message() => {
-            match confirmed {
-               Ok(Some(confirmed)) => state.remove_confirmed(confirmed.counter),
-               Ok(None) => { return Err(anyhow!("Received an empty response from the stream"));   },
-               Err(e) => {   return Err(anyhow!("Got error from grpc: {e:?}"));  }
-            }
+      _ = ct.cancelled() => {
+         return Ok(());
+      },
+      Some(measurement) = state.thread_rx.recv() => {
+         let req = state.on_new_measurement(measurement);
+         log::info!("Sending: {req:?} to {server_host_port}");
+         tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
+      },
+      confirmed = inbound_stream.message() => {
+         match confirmed {
+            Ok(Some(confirmed)) => {
+               let Some(confirmed) = confirmed.confirmed else {continue};
+               state.remove_confirmed(confirmed.into());
+            },
+            Ok(None) => { return Err(anyhow!("Received an empty response from the stream"));   },
+            Err(e) => {   return Err(anyhow!("Got error from grpc: {e:?}"));  }
+         }
+      },
+      _ = interval.tick() => {
+         let measurement_to_retry = state.measurements.get_next_to_retry(chrono::Utc::now());
+         match measurement_to_retry {
+            Some(measurement_to_retry) => {
+               // copy/paste
+               let req = common::pb::StoreMeasurementReq {
+                  measurement: Some(measurement_to_retry.clone().into()),
+               };
+               tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
+            },
+            None => {continue}
+         }
          }
       }
    }
@@ -82,10 +157,11 @@ async fn one_iteration(ct: &tokio_util::sync::CancellationToken,
 
 
 
-pub async fn poll_and_publish_forever(ct: &tokio_util::sync::CancellationToken,
-                                      thread_rx: common::Rx,
-                                      server_host_port: &str)
-                                      -> Result<()> {
+pub async fn poll_and_publish_forever(
+   ct: &tokio_util::sync::CancellationToken,
+   thread_rx: common::Rx,
+   server_host_port: &str,
+) -> Result<()> {
    let mut state = State::new(thread_rx);
    loop {
       let res = one_iteration(ct, server_host_port, &mut state).await;
@@ -106,6 +182,7 @@ pub async fn poll_and_publish_forever(ct: &tokio_util::sync::CancellationToken,
 #[cfg(test)]
 mod tests {
    use super::*;
+   use chrono::TimeZone;
    use pretty_assertions::assert_eq;
 
    fn ts_ymd(year: i32, month: u32, day: u32) -> common::MicroSecTs {
@@ -114,114 +191,76 @@ mod tests {
       common::MicroSecTs(ts)
    }
 
-   fn measurement() -> common::Measurement {
-      common::Measurement { sensor:      "ambient".to_string(),
-                            temperature: Some(26.8),
-                            read_ts: ts_ymd(2024, 1, 1),
-                            error:      "error1".to_string(), }
-   }
-
-   fn populate_measurements(measurement: &common::Measurement,
-                            counters: &[i64])
-                            -> Vec<common::pb::MeasurementReq> {
-      let mut measurements = Vec::new();
-      for counter in counters {
-         let req = common::pb::MeasurementReq { measurement: Some(measurement.clone().into()),
-                                                counter:     *counter, };
-         measurements.push(req);
+   fn create_id(ticket: i64) -> common::Id {
+      common::Id {
+         location: "tar".to_string(),
+         sensor: "ambient".to_string(),
+         ticket,
       }
-      measurements
    }
 
-   fn create_state(measurements: Vec<common::pb::MeasurementReq>) -> State {
+   fn measurement(id: &common::Id) -> common::Measurement {
+      common::Measurement {
+         id: id.clone(),
+         temperature: Some(26.8),
+         read_ts: ts_ymd(2024, 1, 1),
+         error: "error1".to_string(),
+      }
+   }
+
+
+
+   fn create_state(measurements: Measurements) -> State {
       let (_tx, rx) = tokio::sync::mpsc::channel(100);
-      State { counter: 0,
-              measurements,
-              thread_rx: rx }
+      State {
+         thread_rx: rx,
+         measurements,
+      }
    }
 
 
    #[test]
-   fn test_remove_confirmed_keeps_all_elements_if_ts_is_between() {
-      let measurement = measurement();
-      let mut state = create_state(populate_measurements(&measurement, &[1, 2, 3, 4, 10]));
+   fn test_measurements_remove_removes_just_one_element_with_ts() {
+      let now = chrono::Utc::now();
+      let id1 = create_id(123);
+      let id2 = create_id(234);
 
-      state.remove_confirmed(7);
+      let mut measurements = Measurements::default();
+      measurements.add(measurement(&id1), now);
+      measurements.add(measurement(&id2), now);
+      measurements.remove(&id1);
 
-      let expected = populate_measurements(&measurement, &[10]);
+      let mut expected = Measurements::default();
+      expected.add(measurement(&id2), now);
 
-      assert_eq!(state.measurements, expected);
-   }
-   #[test]
-   fn test_remove_confirmed_removes_all_elements_before_if_ts_in_middle() {
-      let measurement = measurement();
-      let mut state = create_state(populate_measurements(&measurement, &[1, 2, 3, 4, 10]));
-
-      state.remove_confirmed(3);
-      let expected = populate_measurements(&measurement, &[4, 10]);
-
-      assert_eq!(state.measurements, expected);
+      assert_eq!(measurements, expected);
    }
 
-
    #[test]
-   fn test_remove_confirmed_removes_all_elements_if_ts_is_max() {
-      let mut state = create_state(populate_measurements(&measurement(), &[1, 2, 3, 4, 10]));
+   fn test_measurements_remove_not_remove_anything_if_element_not_found() {
+      let now = chrono::Utc::now();
+      let id1 = create_id(123);
+      let id2 = create_id(234);
 
-      state.remove_confirmed(10);
+      let mut measurements = Measurements::default();
+      measurements.add(measurement(&id1), now);
 
-      let expected = Vec::<common::pb::MeasurementReq>::default();
+      measurements.remove(&id2);
 
-      assert_eq!(state.measurements, expected);
-   }
-   #[test]
-   fn test_remove_confirmed_keeps_all_elements_if_ts_is_strictly_larger_than_max() {
-      let measurement = measurement();
-      let mut state = create_state(populate_measurements(&measurement, &[1, 2, 3, 4, 10]));
+      let mut expected = Measurements::default();
+      expected.add(measurement(&id1), now);
 
-      state.remove_confirmed(20);
-
-      let expected: Vec<common::pb::MeasurementReq> = Vec::new();
-
-      assert_eq!(state.measurements, expected);
+      assert_eq!(measurements, expected);
    }
 
-
-
-
    #[test]
-   fn test_remove_confirmed_removes_only_first_if_ts_is_min() {
-      let measurement = measurement();
-      let mut state = create_state(populate_measurements(&measurement, &[1, 2, 3, 4, 10]));
+   fn test_measurements_remove_if_no_elements() {
+      let mut measurements = Measurements::default();
 
-      state.remove_confirmed(1);
+      let id1 = create_id(123);
+      measurements.remove(&id1);
 
-      let expected = populate_measurements(&measurement, &[2, 3, 4, 10]);
-
-      assert_eq!(state.measurements, expected);
-   }
-   #[test]
-   fn test_remove_confirmed_keeps_all_elements_if_ts_is_strictly_smaller_than_min() {
-      let measurement = measurement();
-      let mut state = create_state(populate_measurements(&measurement, &[1, 2, 3, 4, 10]));
-
-      state.remove_confirmed(0);
-
-      let expected = populate_measurements(&measurement, &[1, 2, 3, 4, 10]);
-
-      assert_eq!(state.measurements, expected);
-   }
-
-
-
-   #[test]
-   fn test_remove_confirmed_if_measurements_is_empty() {
-      let mut state = create_state(Vec::new());
-
-      state.remove_confirmed(1);
-
-      let expected: Vec<common::pb::MeasurementReq> = Vec::new();
-
-      assert_eq!(state.measurements, expected);
+      let mut expected = Measurements::default();
+      assert_eq!(measurements, expected);
    }
 }

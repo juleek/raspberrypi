@@ -75,9 +75,11 @@ impl Sqlite {
    fn ddl() -> &'static [&'static str] {
       &[
          "CREATE TABLE IF NOT EXISTS measurements (read_ts INTEGER  NOT NULL) STRICT;",
-         "ALTER TABLE measurements ADD sensor      text     NOT NULL;",
-         "ALTER TABLE measurements ADD temperature real;",
-         "ALTER TABLE measurements ADD error      text;",
+         "ALTER TABLE measurements ADD location    TEXT   ;",
+         "ALTER TABLE measurements ADD sensor      TEXT   ;",
+         "ALTER TABLE measurements ADD ticket      INTEGER;",
+         "ALTER TABLE measurements ADD temperature REAL   ;",
+         "ALTER TABLE measurements ADD error       TEXT   ;",
       ]
    }
    async fn init_ddl(pool: &sqlx::Pool<sqlx::Sqlite>) -> Result<()> {
@@ -93,14 +95,16 @@ impl Sqlite {
 impl Db for Sqlite {
    async fn write(&self, row: &common::Measurement) -> Result<()> {
       sqlx::query(
-         r#"INSERT INTO measurements (read_ts, sensor, temperature, error)
-            VALUES ($1, $2, $3, $4)
+         r#"INSERT INTO measurements (read_ts, temperature, error, location, sensor, ticket)
+            VALUES ($1, $2, $3, $4, $5, $6)
          "#,
       )
       .bind(row.read_ts)
-      .bind(&row.sensor)
       .bind(row.temperature)
       .bind(&row.error)
+      .bind(&row.id.location)
+      .bind(&row.id.sensor)
+      .bind(&row.id.ticket)
       .execute(&self.pool)
       .await?;
       Ok(())
@@ -113,7 +117,7 @@ impl Db for Sqlite {
    ) -> Result<Vec<common::Measurement>> {
       let measurements = sqlx::query_as(
          r#"
-         SELECT read_ts, sensor, temperature, error
+         SELECT read_ts, temperature, error, location, sensor, ticket
          FROM measurements
          WHERE read_ts >= $1 AND read_ts < $2
          ORDER BY read_ts
@@ -164,8 +168,13 @@ mod tests {
    }
 
    fn measurement(ts: common::MicroSecTs) -> common::Measurement {
-      let mes = common::Measurement {
+      let id = common::Id {
+         location: "tar".to_string(),
          sensor: "ambient".to_string(),
+         ticket: 123,
+      };
+      let mes = common::Measurement {
+         id,
          temperature: Some(26.8),
          error: "error1".to_string(),
          read_ts: ts,

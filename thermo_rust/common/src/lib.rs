@@ -64,10 +64,52 @@ fn chrono_timestamp_to_proto(ts: chrono::DateTime<chrono::Utc>) -> prost_types::
 // ===========================================================================================================
 
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, sqlx::FromRow)]
+pub struct Id {
+   pub location: String,
+   pub sensor: String,
+   pub ticket: i64,
+}
+
+impl Id {
+   pub fn new(location: impl Into<String>, sensor: impl Into<String>) -> Self {
+      Id {
+         location: location.into(),
+         sensor: sensor.into(),
+         ticket: chrono::Utc::now().timestamp_nanos_opt().unwrap(),
+      }
+   }
+
+   pub fn next(&mut self) { self.ticket += 1; }
+}
+
+impl From<Id> for crate::pb::Id {
+   fn from(id: Id) -> Self {
+      Self {
+         location: id.location,
+         sensor: id.sensor,
+         ticket: id.ticket,
+      }
+   }
+}
+
+impl From<crate::pb::Id> for Id {
+   fn from(id: crate::pb::Id) -> Self {
+      Self {
+         location: id.location,
+         sensor: id.sensor,
+         ticket: id.ticket,
+      }
+   }
+}
+
+// ===========================================================================================================
+
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct Measurement {
+   #[sqlx(flatten)]
+   pub id: Id,
    pub read_ts: MicroSecTs,
-   pub sensor: String,
    pub temperature: Option<f64>,
    pub error: String,
 }
@@ -78,7 +120,7 @@ pub type Tx = tokio::sync::mpsc::Sender<Measurement>;
 impl From<Measurement> for crate::pb::Measurement {
    fn from(value: Measurement) -> Self {
       Self {
-         sensor: value.sensor,
+         id: Some(value.id.into()),
          temperature: value.temperature,
          error: value.error,
          read_ts: Some(chrono_timestamp_to_proto(*value.read_ts)),
@@ -91,8 +133,9 @@ impl TryFrom<crate::pb::Measurement> for Measurement {
 
    fn try_from(proto: crate::pb::Measurement) -> Result<Self, Self::Error> {
       let read_ts = proto.read_ts.ok_or_else(|| anyhow!("read_ts is None in {proto:?}"))?;
+      let id = proto.id.ok_or_else(|| anyhow!("error with id"))?;
       let res = Self {
-         sensor: proto.sensor,
+         id: id.into(),
          temperature: proto.temperature,
          error: proto.error,
          read_ts: proto_timestamp_to_chrono(read_ts)?.into(),
@@ -126,8 +169,8 @@ mod tests {
    fn test_measurement_proto_conversion() -> Result<()> {
       let ts = chrono::Utc::now();
       let expected: Measurement = Measurement {
+         id: Id.new(),
          read_ts: MicroSecTs(ts),
-         sensor: "ambient".to_string(),
          temperature: Some(26.8),
          error: "error1".to_string(),
       };
@@ -135,8 +178,8 @@ mod tests {
       assert_eq!(
          proto,
          crate::pb::Measurement {
+            id: expected.id,
             read_ts: Some(chrono_timestamp_to_proto(ts)),
-            sensor: "ambient".to_string(),
             temperature: Some(26.8),
             error: "error1".to_string(),
          }
