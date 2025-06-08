@@ -3,37 +3,26 @@ use anyhow::Result;
 #[derive(clap::Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
-   /// Threshold for bottom temperature
+   /// Log-level. We are using env_logger, so everything can be configured with env-vars, but we also
+   /// provide an option to configure it with a command-line arguments.
+   /// See more info at https://docs.rs/env_logger/0.10.0/env_logger/
+   // #[arg(value_enum, long, default_value_t = LogLevel::default())]
    #[arg(long)]
-   min_temp_bottom: f64,
+   #[arg(value_parser = clap::builder::PossibleValuesParser::new(["error", "warn", "info", "debug", "trace"]))]
+   #[arg(default_value_t = String::from("info"))]
+   log_level: String,
 
-   /// Threshold for ambient temperature
-   #[arg(long)]
-   min_temp_ambient: f64,
-
-   /// Port to listen on server
-   #[arg(long)]
-   host_port: String,
+   #[command(subcommand)]
+   command: server::cli::Commands,
 }
-
 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-   common::init_logger("debug");
    use clap::Parser;
    let cli = Cli::parse();
-   let routes = tonic::service::Routes::default();
-   let db = server::db::Sqlite::new(&server::db::Location::Memory).await?;
-   let (routes, tx) = server::grpc::Agg::start(routes, db);
-   // let sender = std::sync::Arc::new(server::message::Telegram { chat_id: 123456789,
-   //                                                              bot_id:  "wwwwwww".to_string(), });
-   // DB
-   // server::alerting::start();
-   // server::notifier::start();
-   // server::webhook::start();
-   tonic::transport::Server::builder().add_routes(routes)
-                                      .serve(cli.host_port.parse().unwrap())
-                                      .await?;
+   common::init_logger(&cli.log_level);
+
+   cli.command.run().await?;
    Ok(())
 }
