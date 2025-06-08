@@ -45,6 +45,7 @@ pub enum Location {
    Path(std::path::PathBuf),
 }
 
+ #[derive(Clone)]
 pub struct Sqlite {
    pool: sqlx::Pool<sqlx::Sqlite>,
 }
@@ -77,7 +78,7 @@ impl Sqlite {
          "CREATE TABLE IF NOT EXISTS measurements (read_ts INTEGER  NOT NULL) STRICT;",
          "ALTER TABLE measurements ADD location    TEXT   ;",
          "ALTER TABLE measurements ADD sensor      TEXT   ;",
-         "ALTER TABLE measurements ADD ticket      INTEGER;",
+         "ALTER TABLE measurements ADD index_n     INTEGER;",
          "ALTER TABLE measurements ADD temperature REAL   ;",
          "ALTER TABLE measurements ADD error       TEXT   ;",
       ]
@@ -95,7 +96,7 @@ impl Sqlite {
 impl Db for Sqlite {
    async fn write(&self, row: &common::Measurement) -> Result<()> {
       sqlx::query(
-         r#"INSERT INTO measurements (read_ts, temperature, error, location, sensor, ticket)
+         r#"INSERT INTO measurements (read_ts, temperature, error, location, sensor, index_n)
             VALUES ($1, $2, $3, $4, $5, $6)
          "#,
       )
@@ -104,7 +105,7 @@ impl Db for Sqlite {
       .bind(&row.error)
       .bind(&row.id.location)
       .bind(&row.id.sensor)
-      .bind(&row.id.ticket)
+      .bind(&row.id.index)
       .execute(&self.pool)
       .await?;
       Ok(())
@@ -117,7 +118,7 @@ impl Db for Sqlite {
    ) -> Result<Vec<common::Measurement>> {
       let measurements = sqlx::query_as(
          r#"
-         SELECT read_ts, temperature, error, location, sensor, ticket
+         SELECT read_ts, temperature, error, location, sensor, index_n as "index"
          FROM measurements
          WHERE read_ts >= $1 AND read_ts < $2
          ORDER BY read_ts
@@ -171,7 +172,7 @@ mod tests {
       let id = common::Id {
          location: "tar".to_string(),
          sensor: "ambient".to_string(),
-         ticket: 123,
+         index: 123,
       };
       let mes = common::Measurement {
          id,

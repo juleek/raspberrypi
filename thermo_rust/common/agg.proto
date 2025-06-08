@@ -22,8 +22,8 @@ message Id {
   string location = 1;
   /// Name of sensor
   string sensor = 2;
-  /// An incremental counter unique within a single client/property
-  int64 ticket = 3;
+  /// An incremental counter unique within a single client, property and sensor
+  int64 index = 3;
 }
 
 message Measurement {

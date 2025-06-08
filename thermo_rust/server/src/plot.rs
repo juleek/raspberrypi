@@ -1,5 +1,3 @@
-use chrono::{DateTime, TimeZone, Utc};
-
 #[derive(Debug)]
 struct PlotLine {
    legend: String,
@@ -118,20 +116,49 @@ fn make_plot(plot_info: &PlotInfo) -> Result<Vec<u8>, Box<dyn std::error::Error>
    Ok(buf)
 }
 
-pub fn create_plot(min_temp_bottom: &f64, min_temp_ambient: &f64) -> Result<(), Box<dyn std::error::Error>> {
+
+type XY = (chrono::DateTime<chrono::Utc>, f64);
+
+type Rgb = (u8, u8, u8);
+
+
+pub struct Sensor {
+   name: String,
+   min: f64,
+   curve: Vec<XY>,
+   colour: Rgb,
+}
+
+pub fn create_plot(sensor: Vec<Sensor>) -> Result<(), Box<dyn std::error::Error>> {
+   let mut bottom_time: Vec<chrono::DateTime<chrono::Utc>> = Vec::new();
+   let mut bottom_temp: Vec<f64> = Vec::new();
+   let mut ambient_time: Vec<chrono::DateTime<chrono::Utc>> = Vec::new();
+   let mut ambient_temp: Vec<f64> = Vec::new();
+
+   for measurement in measurements {
+      if let Some(temp) = measurement.temperature {
+         if measurement.id.sensor == "bottom" {
+            bottom_time.push(*measurement.read_ts);
+            bottom_temp.push(temp);
+         } else {
+            ambient_time.push(*measurement.read_ts);
+            ambient_temp.push(temp);
+         }
+      }
+   }
    let bottom_tube_line = PlotLine {
       legend: "BottomTube".to_string(),
       colour: plotters::prelude::RED,
-      x: vec![chrono::Utc.timestamp(0, 0), chrono::Utc.timestamp(10, 0), chrono::Utc.timestamp(20, 0)],
-      y: vec![10.0, 20.0, 15.0],
+      x: bottom_time,
+      y: bottom_temp,
       threshold_hline: Some(*min_temp_bottom),
    };
 
    let ambient_line = PlotLine {
       legend: "Ambient".to_string(),
       colour: plotters::prelude::BLUE,
-      x: vec![chrono::Utc.timestamp(0, 0), chrono::Utc.timestamp(10, 0), chrono::Utc.timestamp(20, 0)],
-      y: vec![5.0, 10.0, 7.0],
+      x: ambient_time,
+      y: ambient_temp,
       threshold_hline: Some(*min_temp_ambient),
    };
 
@@ -161,10 +188,84 @@ pub fn create_plot(min_temp_bottom: &f64, min_temp_ambient: &f64) -> Result<(), 
 mod tests {
    use super::*;
 
+   fn ts_ymd(year: i32, month: u32, day: u32) -> common::MicroSecTs {
+      use chrono::TimeZone;
+      let ts = chrono::Utc.with_ymd_and_hms(year, month, day, 0, 0, 0).earliest().unwrap();
+      common::MicroSecTs(ts)
+   }
+
+   fn measurement_ambient(ts: common::MicroSecTs) -> common::Measurement {
+      let id = common::Id {
+         location: "tar".to_string(),
+         sensor: "ambient".to_string(),
+         index: 123,
+      };
+      let mes = common::Measurement {
+         id,
+         temperature: Some(22.0),
+         error: "error1".to_string(),
+         read_ts: ts,
+      };
+      mes
+   }
+
+   fn measurement_ambient2(ts: common::MicroSecTs) -> common::Measurement {
+      let id = common::Id {
+         location: "tar".to_string(),
+         sensor: "ambient".to_string(),
+         index: 123,
+      };
+      let mes = common::Measurement {
+         id,
+         temperature: Some(23.0),
+         error: "error1".to_string(),
+         read_ts: ts,
+      };
+      mes
+   }
+
+   fn measurement_bottom(ts: common::MicroSecTs) -> common::Measurement {
+      let id = common::Id {
+         location: "tar".to_string(),
+         sensor: "bottom".to_string(),
+         index: 123,
+      };
+      let mes = common::Measurement {
+         id,
+         temperature: Some(20.0),
+         error: "error1".to_string(),
+         read_ts: ts,
+      };
+      mes
+   }
+
+   fn measurement_bottom2(ts: common::MicroSecTs) -> common::Measurement {
+      let id = common::Id {
+         location: "tar".to_string(),
+         sensor: "bottom".to_string(),
+         index: 123,
+      };
+      let mes = common::Measurement {
+         id,
+         temperature: Some(21.0),
+         error: "error1".to_string(),
+         read_ts: ts,
+      };
+      mes
+   }
+
    #[test]
    fn test_plot() {
-      let min_temp_bottom = 15.0;
-      let min_temp_ambient = 6.0;
-      let result = create_plot(&min_temp_bottom, &min_temp_ambient);
+      let min_temp_bottom = 21.0;
+      let min_temp_ambient = 20.5;
+
+      let measurements: Vec<common::Measurement> = vec![
+         measurement_ambient(ts_ymd(2025, 6, 6)),
+         measurement_bottom(ts_ymd(2025, 6, 6)),
+         measurement_ambient2(ts_ymd(2025, 6, 5)),
+         measurement_bottom2(ts_ymd(2025, 6, 5)),
+      ];
+
+      let result = create_plot(&min_temp_bottom, &min_temp_ambient, measurements);
    }
 }

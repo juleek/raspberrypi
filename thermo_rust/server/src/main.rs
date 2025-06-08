@@ -14,10 +14,7 @@ struct Cli {
    /// Port to listen on server
    #[arg(long)]
    host_port: String,
-   // http port for webhook
 }
-
-
 
 
 
@@ -27,7 +24,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
    use clap::Parser;
    let cli = Cli::parse();
    let routes = tonic::service::Routes::default();
-   let (routes, tx) = server::grpc::Agg::start(routes);
+   let db = server::db::Sqlite::new(&server::db::Location::Memory).await?;
+   let (routes, tx) = server::grpc::Agg::start(routes, db);
    // let sender = std::sync::Arc::new(server::message::Telegram { chat_id: 123456789,
    //                                                              bot_id:  "wwwwwww".to_string(), });
    // DB

@@ -120,36 +120,32 @@ async fn one_iteration(
    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(10));
    loop {
       tokio::select! {
-      _ = ct.cancelled() => {
-         return Ok(());
-      },
-      Some(measurement) = state.thread_rx.recv() => {
-         let req = state.on_new_measurement(measurement);
-         log::info!("Sending: {req:?} to {server_host_port}");
-         tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
-      },
-      confirmed = inbound_stream.message() => {
-         match confirmed {
-            Ok(Some(confirmed)) => {
-               let Some(confirmed) = confirmed.confirmed else {continue};
-               state.remove_confirmed(confirmed.into());
-            },
-            Ok(None) => { return Err(anyhow!("Received an empty response from the stream"));   },
-            Err(e) => {   return Err(anyhow!("Got error from grpc: {e:?}"));  }
-         }
-      },
-      _ = interval.tick() => {
-         let measurement_to_retry = state.measurements.get_next_to_retry(chrono::Utc::now());
-         match measurement_to_retry {
-            Some(measurement_to_retry) => {
-               // copy/paste
-               let req = common::pb::StoreMeasurementReq {
-                  measurement: Some(measurement_to_retry.clone().into()),
-               };
-               tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
-            },
-            None => {continue}
-         }
+         _ = ct.cancelled() => {
+            return Ok(());
+         },
+         Some(measurement) = state.thread_rx.recv() => {
+            let req = state.on_new_measurement(measurement);
+            log::info!("Sending: {req:?} to {server_host_port}");
+            tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
+         },
+         confirmed = inbound_stream.message() => {
+            match confirmed {
+               Ok(Some(confirmed)) => {
+                  let Some(confirmed) = confirmed.confirmed else {continue};
+                  state.remove_confirmed(confirmed.into());
+               },
+               Ok(None) => { return Err(anyhow!("Received an empty response from the stream"));   },
+               Err(e) => {   return Err(anyhow!("Got error from grpc: {e:?}"));  }
+            }
+         },
+         _ = interval.tick() => {
+            let Some(to_retry) = state.measurements.get_next_to_retry(chrono::Utc::now()) else {
+               continue
+            };
+            let req = common::pb::StoreMeasurementReq {
+               measurement: Some(to_retry.into()),
+            };
+            tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
          }
       }
    }
@@ -195,7 +191,7 @@ mod tests {
       common::Id {
          location: "tar".to_string(),
          sensor: "ambient".to_string(),
-         ticket,
+         index: ticket,
       }
    }
 

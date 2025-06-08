@@ -68,7 +68,7 @@ fn chrono_timestamp_to_proto(ts: chrono::DateTime<chrono::Utc>) -> prost_types::
 pub struct Id {
    pub location: String,
    pub sensor: String,
-   pub ticket: i64,
+   pub index: i64,
 }
 
 impl Id {
@@ -76,11 +76,11 @@ impl Id {
       Id {
          location: location.into(),
          sensor: sensor.into(),
-         ticket: chrono::Utc::now().timestamp_nanos_opt().unwrap(),
+         index: chrono::Utc::now().timestamp_nanos_opt().unwrap(),
       }
    }
 
-   pub fn next(&mut self) { self.ticket += 1; }
+   pub fn next(&mut self) { self.index += 1; }
 }
 
 impl From<Id> for crate::pb::Id {
@@ -88,7 +88,7 @@ impl From<Id> for crate::pb::Id {
       Self {
          location: id.location,
          sensor: id.sensor,
-         ticket: id.ticket,
+         index: id.index,
       }
    }
 }
@@ -98,7 +98,7 @@ impl From<crate::pb::Id> for Id {
       Self {
          location: id.location,
          sensor: id.sensor,
-         ticket: id.ticket,
+         index: id.index,
       }
    }
 }
