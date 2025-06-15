@@ -1,121 +1,3 @@
-#[derive(Debug)]
-struct PlotLine {
-   legend: String,
-   colour: plotters::prelude::RGBColor,
-   x: Vec<chrono::DateTime<chrono::Utc>>,
-   y: Vec<f64>,
-   threshold_hline: Option<f64>,
-}
-
-#[derive(Debug)]
-struct PlotInfo {
-   title: String,
-   lines: Vec<PlotLine>,
-   dpi: u32,
-   title_font_size: u32,
-   legend_font_size: u32,
-   format: String,
-}
-
-fn make_plot(plot_info: &PlotInfo) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-   use plotters::drawing::IntoDrawingArea;
-   let root = plotters::prelude::BitMapBackend::new("plot.png", (700, 700)).into_drawing_area();
-   root.fill(&plotters::prelude::WHITE)?;
-
-   let (min_x, max_x) = plot_info.lines.iter().flat_map(|line| line.x.iter()).fold(
-      (None::<f64>, None::<f64>),
-      |(min, max), dt| {
-         let ts = dt.timestamp() as f64;
-         (Some(min.map_or(ts, |m| m.min(ts))), Some(max.map_or(ts, |m| m.max(ts))))
-      },
-   );
-
-   let (min_y, max_y) = plot_info
-      .lines
-      .iter()
-      .flat_map(|line| line.y.iter())
-      .fold((None::<f64>, None::<f64>), |(min, max), &val| {
-         (Some(min.map_or(val, |m| m.min(val))), Some(max.map_or(val, |m| m.max(val))))
-      });
-
-   let min_x = min_x.unwrap_or(0.0);
-   let max_x = max_x.unwrap_or(1.0);
-   let min_y = min_y.unwrap_or(0.0);
-   let max_y = max_y.unwrap_or(1.0);
-
-   let mut chart = plotters::prelude::ChartBuilder::on(&root)
-      .caption(&plot_info.title, ("sans-serif", plot_info.title_font_size))
-      .margin(20)
-      .x_label_area_size(plot_info.legend_font_size)
-      .y_label_area_size(plot_info.legend_font_size)
-      .build_cartesian_2d(min_x..max_x, min_y..max_y)?;
-
-   // chart.configure_mesh().x_labels(4).y_labels(4).draw()?;
-   chart
-      .configure_mesh()
-      .light_line_style(&plotters::prelude::WHITE)
-      .x_label_style(("sans-serif", 30))
-      .y_label_style(("sans-serif", 30))
-      .draw()?;
-
-   use plotters::style::Color;
-   for line in &plot_info.lines {
-      let series: Vec<_> = line.x.iter().zip(&line.y).map(|(dt, &y)| (dt.timestamp() as f64, y)).collect();
-
-      chart
-         .draw_series(plotters::prelude::LineSeries::new(
-            series,
-            plotters::prelude::ShapeStyle {
-               color: line.colour.to_rgba(),
-               filled: false,
-               stroke_width: 5,
-            },
-         ))?
-         .label(&line.legend)
-         .legend(move |(x, y): (i32, i32)| {
-            let legend_path = vec![(x - 10, y), (x + 10, y)];
-            plotters::element::DashedPathElement::new(
-               legend_path.into_iter(),
-               5,
-               3,
-               plotters::prelude::ShapeStyle {
-                  color: line.colour.to_rgba(),
-                  filled: false,
-                  stroke_width: 2,
-               },
-            )
-         });
-
-      if let Some(threshold) = line.threshold_hline {
-         chart.draw_series(std::iter::once(plotters::element::DashedPathElement::new(
-            vec![(min_x, threshold), (max_x, threshold)].into_iter(),
-            30, // Dash size
-            7,  // Gap size
-            plotters::prelude::ShapeStyle {
-               color: line.colour.to_rgba(),
-               filled: false,
-               stroke_width: 2,
-            },
-         )))?;
-      }
-   }
-
-   chart
-      .configure_series_labels()
-      .background_style(&plotters::prelude::WHITE.mix(0.9)) // Translucent white background
-      .border_style(&plotters::prelude::RGBColor(211, 211, 211)) // No border
-      .label_font(("Arial", 20)) // Larger font for labels
-      .position(plotters::prelude::SeriesLabelPosition::LowerLeft)
-      .draw()?;
-   root.present()?;
-
-   let mut buf = Vec::new();
-   let mut file = std::fs::File::open("plot.png")?;
-   use std::io::Read;
-   file.read_to_end(&mut buf)?;
-   Ok(buf)
-}
-
 
 type XY = (chrono::DateTime<chrono::Utc>, f64);
 
@@ -129,54 +11,116 @@ pub struct Sensor {
    colour: Rgb,
 }
 
-pub fn create_plot(sensor: Vec<Sensor>) -> Result<(), Box<dyn std::error::Error>> {
-   let mut bottom_time: Vec<chrono::DateTime<chrono::Utc>> = Vec::new();
-   let mut bottom_temp: Vec<f64> = Vec::new();
-   let mut ambient_time: Vec<chrono::DateTime<chrono::Utc>> = Vec::new();
-   let mut ambient_temp: Vec<f64> = Vec::new();
 
-   for measurement in measurements {
-      if let Some(temp) = measurement.temperature {
-         if measurement.id.sensor == "bottom" {
-            bottom_time.push(*measurement.read_ts);
-            bottom_temp.push(temp);
-         } else {
-            ambient_time.push(*measurement.read_ts);
-            ambient_temp.push(temp);
-         }
-      }
+fn format_date(x: &chrono::DateTime<chrono::Utc>) -> String { x.format("%m-%d %H").to_string() }
+
+pub fn create_plot(sensors: &mut Vec<Sensor>) -> Result<(), Box<dyn std::error::Error>> {
+   use plotters::drawing::IntoDrawingArea;
+   let drawing_area = plotters::prelude::BitMapBackend::new("plot.png", (700, 700)).into_drawing_area();
+   drawing_area.fill(&plotters::prelude::WHITE)?;
+
+   for mut sensor in &mut *sensors {
+      sensor.curve.sort_by_key(|elem| elem.0);
    }
-   let bottom_tube_line = PlotLine {
-      legend: "BottomTube".to_string(),
-      colour: plotters::prelude::RED,
-      x: bottom_time,
-      y: bottom_temp,
-      threshold_hline: Some(*min_temp_bottom),
-   };
+   sensors.retain(|s| s.curve.is_empty() == false);
 
-   let ambient_line = PlotLine {
-      legend: "Ambient".to_string(),
-      colour: plotters::prelude::BLUE,
-      x: ambient_time,
-      y: ambient_temp,
-      threshold_hline: Some(*min_temp_ambient),
-   };
+   if sensors.is_empty() {
+      return Ok(());
+   }
 
-   let current_time = Utc::now().with_timezone(&chrono_tz::Europe::Moscow).format("%d.%m  %H:%M").to_string();
+   let min_x = sensors.iter().map(|s| s.curve.first().unwrap().0).min().unwrap();
+   let max_x = sensors.iter().map(|s| s.curve.last().unwrap().0).max().unwrap();
+   println!("!!! min_x: {}, max_x: {}", min_x, max_x);
 
-   let plot_info = PlotInfo {
-      title: format!("Temp in Tarasovka on {}", current_time),
-      lines: vec![bottom_tube_line, ambient_line],
-      dpi: 500,
-      title_font_size: 40,
-      legend_font_size: 40,
-      format: "png".to_string(),
-   };
+   let (min_y, max_y) = sensors
+      .iter()
+      .flat_map(|s| s.curve.iter().map(|p| p.1))
+      .chain(sensors.iter().map(|s| s.min))
+      .filter(|y| y.is_nan() == false)
+      .fold((None, None), |(min, max), y| {
+         let min = Some(min.unwrap_or(y).min(y));
+         let max = Some(max.unwrap_or(y).max(y));
+         (min, max)
+      });
+   let (min_y, max_y) = (min_y.unwrap(), max_y.unwrap());
 
-   let png_data = make_plot(&plot_info)?;
-   println!("Plot created successfully with size: {} bytes", png_data.len());
+   let current_time = chrono::Utc::now()
+      .with_timezone(&chrono_tz::Europe::Moscow)
+      .format("%d.%m  %H:%M")
+      .to_string();
+   let title = format!("Temp in Tarasovka on {}", current_time);
+
+
+   let mut chart_builder = plotters::prelude::ChartBuilder::on(&drawing_area);
+   chart_builder
+      .margin(20)
+      .x_label_area_size(40)
+      .y_label_area_size(40)
+      .caption(title, ("sans-serif", 40, &plotters::prelude::BLACK));
+   let mut chart_context = chart_builder.build_cartesian_2d(min_x..max_x, min_y - 2.0..max_y + 2.0).unwrap();
+   chart_context
+      .configure_mesh()
+      .x_label_formatter(&|x| {
+        if x == &min_x {  // Check if this is the starting point
+            String::new()  // Hide the label
+        } else {
+            format_date(&*x)  // Display the date for other points
+        }
+    })
+      .light_line_style(&plotters::prelude::WHITE)
+      .x_labels(10)
+      .y_labels(5)
+      .x_label_style(("sans-serif", 20))
+      .y_label_style(("sans-serif", 30))
+      .draw()
+      .unwrap();
+
+   for s in sensors {
+      chart_context
+         .draw_series(
+            plotters::prelude::LineSeries::new(
+               s.curve.clone(),
+               plotters::prelude::ShapeStyle {
+            color: plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2).into(),
+            filled: false,
+            stroke_width: 2,
+         },
+            )
+            .point_size(2),
+         )
+         .unwrap()
+         .label(s.name.clone())
+         .legend(|(x, y)| {
+            plotters::prelude::PathElement::new(
+               vec![(x, y), (x + 20, y)],
+               plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2),
+            )
+         });
+      chart_context.draw_series(std::iter::once(plotters::element::DashedPathElement::new(
+         vec![(min_x, s.min), (max_x, s.min)].into_iter(),
+         15, // Dash size
+         7,  // Gap size
+         plotters::prelude::ShapeStyle {
+            color: plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2).into(),
+            filled: false,
+            stroke_width: 1,
+         },
+      )))?;
+   }
+
+   chart_context
+      .configure_series_labels()
+      .background_style(&plotters::style::Color::mix(&plotters::style::colors::WHITE, 0.7)) // Translucent white background
+      .border_style(&plotters::prelude::RGBColor(211, 211, 211)) // No border
+      .label_font(("sans-serif", 20)) // Larger font for labels
+      .position(plotters::prelude::SeriesLabelPosition::LowerLeft)
+      .draw()?;
+
+
+
    Ok(())
 }
+
 
 
 
@@ -188,84 +132,28 @@ pub fn create_plot(sensor: Vec<Sensor>) -> Result<(), Box<dyn std::error::Error>
 mod tests {
    use super::*;
 
-   fn ts_ymd(year: i32, month: u32, day: u32) -> common::MicroSecTs {
+
+   fn ts_ymd(year: i32, month: u32, day: u32) -> chrono::DateTime<chrono::Utc> {
       use chrono::TimeZone;
-      let ts = chrono::Utc.with_ymd_and_hms(year, month, day, 0, 0, 0).earliest().unwrap();
-      common::MicroSecTs(ts)
-   }
-
-   fn measurement_ambient(ts: common::MicroSecTs) -> common::Measurement {
-      let id = common::Id {
-         location: "tar".to_string(),
-         sensor: "ambient".to_string(),
-         index: 123,
-      };
-      let mes = common::Measurement {
-         id,
-         temperature: Some(22.0),
-         error: "error1".to_string(),
-         read_ts: ts,
-      };
-      mes
-   }
-
-   fn measurement_ambient2(ts: common::MicroSecTs) -> common::Measurement {
-      let id = common::Id {
-         location: "tar".to_string(),
-         sensor: "ambient".to_string(),
-         index: 123,
-      };
-      let mes = common::Measurement {
-         id,
-         temperature: Some(23.0),
-         error: "error1".to_string(),
-         read_ts: ts,
-      };
-      mes
-   }
-
-   fn measurement_bottom(ts: common::MicroSecTs) -> common::Measurement {
-      let id = common::Id {
-         location: "tar".to_string(),
-         sensor: "bottom".to_string(),
-         index: 123,
-      };
-      let mes = common::Measurement {
-         id,
-         temperature: Some(20.0),
-         error: "error1".to_string(),
-         read_ts: ts,
-      };
-      mes
-   }
-
-   fn measurement_bottom2(ts: common::MicroSecTs) -> common::Measurement {
-      let id = common::Id {
-         location: "tar".to_string(),
-         sensor: "bottom".to_string(),
-         index: 123,
-      };
-      let mes = common::Measurement {
-         id,
-         temperature: Some(21.0),
-         error: "error1".to_string(),
-         read_ts: ts,
-      };
-      mes
+      chrono::Utc.with_ymd_and_hms(year, month, day, 0, 0, 0).earliest().unwrap()
    }
 
    #[test]
    fn test_plot() {
-      let min_temp_bottom = 21.0;
-      let min_temp_ambient = 20.5;
-
-      let measurements: Vec<common::Measurement> = vec![
-         measurement_ambient(ts_ymd(2025, 6, 6)),
-         measurement_bottom(ts_ymd(2025, 6, 6)),
-         measurement_ambient2(ts_ymd(2025, 6, 5)),
-         measurement_bottom2(ts_ymd(2025, 6, 5)),
+      let mut sensors = vec![
+         Sensor {
+            name: "Sensor1".to_string(),
+            min: 10.0,
+            curve: vec![(ts_ymd(2024, 1, 20), 10.0), (ts_ymd(2024, 1, 21), 13.0)],
+            colour: (255, 0, 0),
+         },
+         Sensor {
+            name: "Sensor2".to_string(),
+            min: 9.0,
+            curve: vec![(ts_ymd(2024, 1, 20), 12.0), (ts_ymd(2024, 1, 21), 14.0)],
+            colour: (0, 0, 255),
+         },
       ];
-
-      let result = create_plot(&min_temp_bottom, &min_temp_ambient, measurements);
+      let result = create_plot(&mut sensors);
    }
 }
