@@ -1,15 +1,14 @@
 use anyhow::Result;
 
-
 #[derive(clap::Parser, Debug)]
-struct SensorAddOpts {
-   /// location
-   #[arg(long)]
-   location: String,
-
+pub struct SensorAddOpts {
    /// id
    #[arg(long)]
    id: String,
+
+   /// location
+   #[arg(long)]
+   location: String,
 
    /// name
    #[arg(long)]
@@ -17,14 +16,24 @@ struct SensorAddOpts {
 
    /// name
    #[arg(long)]
-   min: String,
+   min: f64,
 }
 
+
+
 impl SensorAddOpts {
-   pub async fn run(&self, db_path: &str) -> Result<()> {
-      // create db instance (meta table)
-      // insert a new record
+   pub async fn run(&self, _sqlite: crate::db::sensor::Sqlite) -> Result<()> {
       todo!()
+      // let sensor = crate::db::sensor::Sensor{
+      //    id: self.id.clone(),
+      //    name: self.name.clone(),
+      //    location: self.location.clone(),
+      //    min: self.min
+      // };
+      // use crate::db::sensor::Db;
+      // sqlite.set(&sensor);
+      // Ok(())
+
    }
 }
 
@@ -33,21 +42,37 @@ impl SensorAddOpts {
 
 
 #[derive(clap::Parser, Debug)]
-struct SensorUpdateOpts {
+pub struct SensorUpdateOpts {
    /// id
    #[arg(long)]
    id: String,
 
    /// name
    #[arg(long)]
-   min: String,
+   min: Option<f64>,
+
+   /// name
+   #[arg(long)]
+   name: Option<String>,
 }
 
 impl SensorUpdateOpts {
-   pub async fn run(&self, db_path: &str) -> Result<()> {
-      // create db instance (meta table)
-      // upsert
+   pub async fn run(&self, _sqlite: crate::db::sensor::Sqlite) -> Result<()> {
       todo!()
+      // let sensor = crate::db::sensor::Sensor{
+      //    id: self.id.clone(),
+      //    name: self.name.clone(),
+      //    location: self.location.clone(),
+      //    min: self.min
+      // };
+      // use crate::db::sensor::Db;
+      // sqlite.set(&sensor);
+      // Ok(())
+
+
+
+      //updatemin
+      //updatename
    }
 }
 
@@ -74,10 +99,12 @@ pub struct Cli {
 
 impl Cli {
    pub async fn run(&self) -> Result<()> {
+      let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
+      let sqlite = crate::db::sensor::Sqlite::new(&pool).await?;
       // create db instance
       match &self.command {
-         Commands::SensorAdd(opts) => opts.run(&self.db_path).await,
-         Commands::SensorUpdate(opts) => opts.run(&self.db_path).await,
+         Commands::SensorAdd(opts) => opts.run(sqlite).await,
+         Commands::SensorUpdate(opts) => opts.run(sqlite).await,
       }
    }
 }

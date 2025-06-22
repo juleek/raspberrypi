@@ -19,7 +19,7 @@ pub fn create_plot(sensors: &mut Vec<Sensor>) -> Result<(), Box<dyn std::error::
    let drawing_area = plotters::prelude::BitMapBackend::new("plot.png", (700, 700)).into_drawing_area();
    drawing_area.fill(&plotters::prelude::WHITE)?;
 
-   for mut sensor in &mut *sensors {
+   for sensor in &mut *sensors {
       sensor.curve.sort_by_key(|elem| elem.0);
    }
    sensors.retain(|s| s.curve.is_empty() == false);
@@ -154,6 +154,6 @@ mod tests {
             colour: (0, 0, 255),
          },
       ];
-      let result = create_plot(&mut sensors);
+      let _ = create_plot(&mut sensors);
    }
 }

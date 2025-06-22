@@ -136,7 +136,7 @@ impl Sender for Telegram {
 #[cfg(test)]
 mod tests {
    use super::*;
-   use pretty_assertions::assert_eq;
+   // use pretty_assertions::assert_eq;
 
    // static TELEGRAM: Telegram = once_cell::sync::Lazy::new(|| Telegram {chat_id: -4609542105, bot_id: "7575784506:AAFIFywDLlLNtIR6qBPY6m9E4z7KBdTfx3c".to_string()});
 

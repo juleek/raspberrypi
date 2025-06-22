@@ -14,18 +14,20 @@ pub struct Cli {
 
 impl Cli {
    pub async fn run(&self) -> Result<()> {
-      let routes = tonic::service::Routes::default();
-      let db = crate::db::Sqlite::new(&crate::db::Location::Memory).await?;
+      // let routes = tonic::service::Routes::default();
+      // let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
+      // let sqlite = crate::db::measurement::Sqlite::new(&pool).await?;
       todo!();
-      // let (routes, tx) = crate::grpc::Agg::start(routes, db);
+      // let (routes, tx) = crate::grpc::Agg::start(routes, sqlite);
       // // let sender = std::sync::Arc::new(crate::message::Telegram { chat_id: 123456789,
       // //                                                              bot_id:  "wwwwwww".to_string(), });
       // // DB
       // // crate::alerting::start();
       // // crate::notifier::start();
       // // crate::webhook::start();
-      // tonic::transport::crate::builder().add_routes(routes)
-      //                                    .serve(cli.host_port.parse().unwrap())
+      // tonic::transport::Server::builder().add_routes(routes)
+      //                                    .serve(self.host_port.parse().unwrap())
       //                                    .await?;
+      // Ok(())
    }
 }
