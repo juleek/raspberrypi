@@ -12,6 +12,7 @@ anyhow                = { version = "1.0", features = ["backtrace"]             
 env_logger            = { version = "0.10"                                                     }
 chrono                = { version = "0.4"                                                      }
 sqlx                  = { version = "0.8", features = ["sqlite", "runtime-tokio"]               }
+rcgen                = { version = "0.13.2"                                                      }
 
 [build-dependencies]
 tonic-build = "*"
