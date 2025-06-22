@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 
 #[derive(clap::Parser, Debug)]
 pub struct SensorAddOpts {
@@ -22,18 +22,16 @@ pub struct SensorAddOpts {
 
 
 impl SensorAddOpts {
-   pub async fn run(&self, _sqlite: crate::sensor::Sqlite) -> Result<()> {
-      todo!()
-      // let sensor = crate::db::sensor::Sensor{
-      //    id: self.id.clone(),
-      //    name: self.name.clone(),
-      //    location: self.location.clone(),
-      //    min: self.min
-      // };
-      // use crate::db::sensor::Db;
-      // sqlite.set(&sensor);
-      // Ok(())
-
+   pub async fn run(&self, sqlite: crate::sensor::Sqlite) -> Result<()> {
+      let sensor = crate::sensor::Sensor {
+         id: self.id.clone().try_into()?,
+         name: self.name.clone(),
+         location: self.location.clone(),
+         min: self.min,
+      };
+      use crate::sensor::Db;
+      sqlite.add(&sensor).await.with_context(|| anyhow!("Failed to add {sensor:?}"))?;
+      Ok(())
    }
 }
 
@@ -57,22 +55,22 @@ pub struct SensorUpdateOpts {
 }
 
 impl SensorUpdateOpts {
-   pub async fn run(&self, _sqlite: crate::sensor::Sqlite) -> Result<()> {
-      todo!()
-      // let sensor = crate::db::sensor::Sensor{
-      //    id: self.id.clone(),
-      //    name: self.name.clone(),
-      //    location: self.location.clone(),
-      //    min: self.min
-      // };
-      // use crate::db::sensor::Db;
-      // sqlite.set(&sensor);
-      // Ok(())
-
-
-
-      //updatemin
-      //updatename
+   pub async fn run(&self, sqlite: crate::sensor::Sqlite) -> Result<()> {
+      use crate::sensor::Db;
+      let id: crate::sensor::Id = self.id.clone().try_into()?;
+      if let Some(min) = self.min {
+         sqlite
+            .update_min(&id, min)
+            .await
+            .with_context(|| anyhow!("Failed to update min of {id}"))?;
+      }
+      if let Some(name) = &self.name {
+         sqlite
+            .update_name(&id, name)
+            .await
+            .with_context(|| anyhow!("Failed to update name of {id}"))?;
+      }
+      Ok(())
    }
 }
 

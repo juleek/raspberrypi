@@ -43,8 +43,9 @@ futures               = "*"
 image                 = "0.24"
 http                  = "*"
 chrono-tz             = "0.6"
-sqlx                  = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono"]               }
-rand                  = { version = "0.9" }
+sqlx                  = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono"]     }
+rand                  = { version = "0.9"                                                       }
+derive_more           = { version = "2.0", features = ["full"]                                  }
 
 [dev-dependencies]
 pretty_assertions     = { version = "1"                                                        }

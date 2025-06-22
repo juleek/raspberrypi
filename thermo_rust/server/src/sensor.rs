@@ -5,24 +5,21 @@ use anyhow::{anyhow, Context, Result};
 // ===========================================================================================================
 // Id
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Id (String);
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, derive_more::Display)]
+pub struct Id(String);
 
 impl Id {
    const PREFIX: &'static str = "sen_";
    const LEN: &'static usize = &10;
    const NAME: &'static str = "sensor";
 
-   fn new() -> Self {
-      Self (crate::generate_random_id(Id::PREFIX, *Id::LEN))
-   }
+   fn new() -> Self { Self(crate::generate_random_id(Id::PREFIX, *Id::LEN)) }
 
    fn validate(value: &str) -> Result<()> {
       if value.starts_with(Id::PREFIX) == false {
          return Err(anyhow!("Id: {value} does not start with expected prefix {}", Id::PREFIX));
-       }
+      }
       Ok(())
-
    }
 }
 
@@ -31,7 +28,7 @@ impl TryFrom<String> for Id {
 
    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
       Id::validate(&value)?;
-      Ok(Self (value))
+      Ok(Self(value))
    }
 }
 
@@ -40,29 +37,29 @@ impl TryFrom<&str> for Id {
 
    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
       Id::validate(value)?;
-      Ok(Self (value.to_owned()))
+      Ok(Self(value.to_owned()))
    }
 }
 
 impl sqlx::Type<sqlx::Sqlite> for Id {
-   fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
-      <String as sqlx::Type<sqlx::Sqlite>>::type_info()
-   }
+   fn type_info() -> sqlx::sqlite::SqliteTypeInfo { <String as sqlx::Type<sqlx::Sqlite>>::type_info() }
 }
 
 impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for Id {
    fn encode_by_ref(
-           &self,
-           buf: &mut <sqlx::Sqlite as sqlx::Database>::ArgumentBuffer<'q>,
-       ) -> std::result::Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
-       sqlx::Encode::<sqlx::Sqlite>::encode(&self.0, buf)
+      &self,
+      buf: &mut <sqlx::Sqlite as sqlx::Database>::ArgumentBuffer<'q>,
+   ) -> std::result::Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+      sqlx::Encode::<sqlx::Sqlite>::encode(&self.0, buf)
    }
 }
 
 impl<'r> sqlx::Decode<'r, sqlx::Sqlite> for Id {
-   fn decode(value: <sqlx::Sqlite as sqlx::Database>::ValueRef<'r>) -> std::result::Result<Self, sqlx::error::BoxDynError> {
-       let s: String = sqlx::Decode::<sqlx::Sqlite>::decode(value)?;
-       Id::try_from(s).map_err(Into::into)
+   fn decode(
+      value: <sqlx::Sqlite as sqlx::Database>::ValueRef<'r>,
+   ) -> std::result::Result<Self, sqlx::error::BoxDynError> {
+      let s: String = sqlx::Decode::<sqlx::Sqlite>::decode(value)?;
+      Id::try_from(s).map_err(Into::into)
    }
 }
 
@@ -110,10 +107,10 @@ impl Sqlite {
 #[async_trait::async_trait]
 pub trait Db {
    async fn add(&self, sensor: &Sensor) -> Result<()>;
-   async fn get_by_id(&self, id: Id) -> Result<Option<Sensor>>;
-   async fn delete(&self, id: Id) -> Result<()>;
-   async fn update_min(&self, id: Id, min: f64) -> Result<()>;
-   async fn update_name(&self, id:Id, name: String) -> Result<()>;
+   async fn get_by_id(&self, id: &Id) -> Result<Option<Sensor>>;
+   async fn delete(&self, id: &Id) -> Result<()>;
+   async fn update_min(&self, id: &Id, min: f64) -> Result<()>;
+   async fn update_name(&self, id: &Id, name: &str) -> Result<()>;
 }
 
 
@@ -121,10 +118,10 @@ pub trait Db {
 impl Db for Sqlite {
    async fn add(&self, row: &Sensor) -> Result<()> {
       sqlx::query(
-        r#"INSERT INTO sensors (id, name, location, min)
+         r#"INSERT INTO sensors (id, name, location, min)
            VALUES ($1, $2, $3, $4)
         "#,
-    )
+      )
       .bind(&row.id)
       .bind(&row.name)
       .bind(&row.location)
@@ -134,36 +131,36 @@ impl Db for Sqlite {
       Ok(())
    }
 
-   async fn get_by_id(&self, id: Id) -> Result<Option<Sensor>> {
+   async fn get_by_id(&self, id: &Id) -> Result<Option<Sensor>> {
       let sensor = sqlx::query_as(
          r#"SELECT id, name, location, min
         FROM sensors
         WHERE id = $1
         "#,
       )
-      .bind(id.0)
+      .bind(&id.0)
       .fetch_optional(&self.pool)
       .await?;
 
       Ok(sensor)
    }
 
-   async fn delete(&self, id: Id) -> Result<()> {
+   async fn delete(&self, id: &Id) -> Result<()> {
       sqlx::query(
          r#"DELETE FROM sensors WHERE id = $1
          "#,
       )
-      .bind(id.0)
+      .bind(&id.0)
       .execute(&self.pool)
       .await?;
       Ok(())
    }
 
-   async fn update_min(&self, id: Id, min: f64) -> Result<()> {
+   async fn update_min(&self, id: &Id, min: f64) -> Result<()> {
       sqlx::query(
-        r#"UPDATE sensors SET min = $1 WHERE id = $2
+         r#"UPDATE sensors SET min = $1 WHERE id = $2
         "#,
-    )
+      )
       .bind(&min)
       .bind(&id.0)
       .execute(&self.pool)
@@ -171,11 +168,11 @@ impl Db for Sqlite {
       Ok(())
    }
 
-   async fn update_name(&self, id: Id, name: String) -> Result<()> {
+   async fn update_name(&self, id: &Id, name: &str) -> Result<()> {
       sqlx::query(
-        r#"UPDATE sensors SET name = $1 WHERE id = $2
+         r#"UPDATE sensors SET name = $1 WHERE id = $2
         "#,
-    )
+      )
       .bind(&name)
       .bind(&id.0)
       .execute(&self.pool)
