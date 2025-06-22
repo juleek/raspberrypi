@@ -1,5 +1,5 @@
 pub mod measurement;
-pub mod sensor;
+
 use anyhow::{anyhow, Context, Result};
 
 
@@ -51,7 +51,7 @@ impl Location {
    }
 }
 
-async fn init_ddl(pool: &sqlx::Pool<sqlx::Sqlite>, ddls: &[&str]) -> Result<()> {
+pub async fn init_ddl(pool: &sqlx::Pool<sqlx::Sqlite>, ddls: &[&str]) -> Result<()> {
    for sql in ddls {
       println!("executing ddl {sql}");
       sqlx::query(sql)

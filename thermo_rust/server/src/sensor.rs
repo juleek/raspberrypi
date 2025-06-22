@@ -1,5 +1,78 @@
 use anyhow::{anyhow, Context, Result};
 
+
+//
+// ===========================================================================================================
+// Id
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Id (String);
+
+impl Id {
+   const PREFIX: &'static str = "sen_";
+   const LEN: &'static usize = &10;
+   const NAME: &'static str = "sensor";
+
+   fn new() -> Self {
+      Self (crate::generate_random_id(Id::PREFIX, *Id::LEN))
+   }
+
+   fn validate(value: &str) -> Result<()> {
+      if value.starts_with(Id::PREFIX) == false {
+         return Err(anyhow!("Id: {value} does not start with expected prefix {}", Id::PREFIX));
+       }
+      Ok(())
+
+   }
+}
+
+impl TryFrom<String> for Id {
+   type Error = anyhow::Error;
+
+   fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+      Id::validate(&value)?;
+      Ok(Self (value))
+   }
+}
+
+impl TryFrom<&str> for Id {
+   type Error = anyhow::Error;
+
+   fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+      Id::validate(value)?;
+      Ok(Self (value.to_owned()))
+   }
+}
+
+impl sqlx::Type<sqlx::Sqlite> for Id {
+   fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+      <String as sqlx::Type<sqlx::Sqlite>>::type_info()
+   }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for Id {
+   fn encode_by_ref(
+           &self,
+           buf: &mut <sqlx::Sqlite as sqlx::Database>::ArgumentBuffer<'q>,
+       ) -> std::result::Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+       sqlx::Encode::<sqlx::Sqlite>::encode(&self.0, buf)
+   }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Sqlite> for Id {
+   fn decode(value: <sqlx::Sqlite as sqlx::Database>::ValueRef<'r>) -> std::result::Result<Self, sqlx::error::BoxDynError> {
+       let s: String = sqlx::Decode::<sqlx::Sqlite>::decode(value)?;
+       Id::try_from(s).map_err(Into::into)
+   }
+}
+
+
+
+//
+// ===========================================================================================================
+// Sensor
+
+
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct Sensor {
    pub id: String,

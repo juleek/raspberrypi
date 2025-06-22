@@ -22,7 +22,7 @@ pub struct SensorAddOpts {
 
 
 impl SensorAddOpts {
-   pub async fn run(&self, _sqlite: crate::db::sensor::Sqlite) -> Result<()> {
+   pub async fn run(&self, _sqlite: crate::sensor::Sqlite) -> Result<()> {
       todo!()
       // let sensor = crate::db::sensor::Sensor{
       //    id: self.id.clone(),
@@ -57,7 +57,7 @@ pub struct SensorUpdateOpts {
 }
 
 impl SensorUpdateOpts {
-   pub async fn run(&self, _sqlite: crate::db::sensor::Sqlite) -> Result<()> {
+   pub async fn run(&self, _sqlite: crate::sensor::Sqlite) -> Result<()> {
       todo!()
       // let sensor = crate::db::sensor::Sensor{
       //    id: self.id.clone(),
@@ -100,7 +100,7 @@ pub struct Cli {
 impl Cli {
    pub async fn run(&self) -> Result<()> {
       let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
-      let sqlite = crate::db::sensor::Sqlite::new(&pool).await?;
+      let sqlite = crate::sensor::Sqlite::new(&pool).await?;
       // create db instance
       match &self.command {
          Commands::SensorAdd(opts) => opts.run(sqlite).await,
