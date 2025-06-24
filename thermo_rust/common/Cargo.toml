@@ -4,15 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tonic = "*"
+tonic = { version = "*", features = ["tls"] }
 prost = "*"
 prost-types = "*"
 tokio                 = { version = "1"  , features = ["full"]                                 }
 anyhow                = { version = "1.0", features = ["backtrace"]                            }
 env_logger            = { version = "0.10"                                                     }
 chrono                = { version = "0.4"                                                      }
-sqlx                  = { version = "0.8", features = ["sqlite", "runtime-tokio"]               }
-rcgen                = { version = "0.13.2"                                                      }
+sqlx                  = { version = "0.8", features = ["sqlite", "runtime-tokio"]              }
+rcgen                 = { version = "0.13", features = ["pem", "x509-parser"]                  }
+rand                  = { version = "0.9"                                                      }
+clap                  = { version = "4", features = ["derive"]                                 }
 
 [build-dependencies]
 tonic-build = "*"

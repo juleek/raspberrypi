@@ -78,7 +78,7 @@ impl SensorUpdateOpts {
 // ===========================================================================================================
 
 #[derive(clap::Subcommand, Debug)]
-pub enum Commands {
+pub enum Workflow {
    SensorAdd(SensorAddOpts),
    SensorUpdate(SensorUpdateOpts),
 }
@@ -92,7 +92,7 @@ pub struct Cli {
    db_path: String,
 
    #[command(subcommand)]
-   command: Commands,
+   workflow: Workflow,
 }
 
 impl Cli {
@@ -100,9 +100,9 @@ impl Cli {
       let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
       let sqlite = crate::sensor::Sqlite::new(&pool).await?;
       // create db instance
-      match &self.command {
-         Commands::SensorAdd(opts) => opts.run(sqlite).await,
-         Commands::SensorUpdate(opts) => opts.run(sqlite).await,
+      match &self.workflow {
+         Workflow::SensorAdd(opts) => opts.run(sqlite).await,
+         Workflow::SensorUpdate(opts) => opts.run(sqlite).await,
       }
    }
 }

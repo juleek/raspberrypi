@@ -13,7 +13,7 @@ struct Cli {
    log_level: String,
 
    #[command(subcommand)]
-   command: server::cli::Commands,
+   workflow: server::cli::Workflow,
 }
 
 
@@ -23,6 +23,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
    let cli = Cli::parse();
    common::init_logger(&cli.log_level);
 
-   cli.command.run().await?;
+   cli.workflow.run().await?;
    Ok(())
 }
