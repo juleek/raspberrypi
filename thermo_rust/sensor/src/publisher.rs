@@ -132,7 +132,8 @@ async fn one_iteration(
             match confirmed {
                Ok(Some(confirmed)) => {
                   let Some(confirmed) = confirmed.confirmed else {continue};
-                  state.remove_confirmed(confirmed.into());
+                  let Ok(confirmed) = confirmed.try_into() else {continue};
+                  state.remove_confirmed(confirmed);
                },
                Ok(None) => { return Err(anyhow!("Received an empty response from the stream"));   },
                Err(e) => {   return Err(anyhow!("Got error from grpc: {e:?}"));  }
@@ -178,7 +179,6 @@ pub async fn poll_and_publish_forever(
 #[cfg(test)]
 mod tests {
    use super::*;
-   use chrono::TimeZone;
    use pretty_assertions::assert_eq;
 
    fn ts_ymd(year: i32, month: u32, day: u32) -> common::MicroSecTs {
@@ -189,7 +189,7 @@ mod tests {
 
    fn create_id(sensor_id: &common::SensorId, ticket: i64) -> common::MeasurementId {
       common::MeasurementId {
-         sensor_id,
+         sensor_id: sensor_id.clone(),
          index: ticket,
       }
    }
@@ -202,17 +202,6 @@ mod tests {
          error: "error1".to_string(),
       }
    }
-
-
-
-   fn create_state(measurements: Measurements) -> State {
-      let (_tx, rx) = tokio::sync::mpsc::channel(100);
-      State {
-         thread_rx: rx,
-         measurements,
-      }
-   }
-
 
    #[test]
    fn test_measurements_remove_removes_just_one_element_with_ts() {
@@ -259,7 +248,7 @@ mod tests {
 
       measurements.remove(&id1);
 
-      let mut expected = Measurements::default();
+      let expected = Measurements::default();
       assert_eq!(measurements, expected);
    }
 }

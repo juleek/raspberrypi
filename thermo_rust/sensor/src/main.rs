@@ -60,11 +60,11 @@ async fn main() -> Result<()> {
 
    let sensor_metas = &[
       sensor::sensor::Meta {
-         id: cli.bottom_id.try_into()?,
+         id: cli.bottom_id.clone().try_into()?,
          path: cli.bottom_path.clone(),
       },
       sensor::sensor::Meta {
-         id: cli.ambient_id.try_into()?,
+         id: cli.ambient_id.clone().try_into()?,
          path: cli.ambient_path.clone(),
       },
    ];

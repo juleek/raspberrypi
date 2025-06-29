@@ -57,7 +57,7 @@ fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
 // Polling actor / thread
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Meta {
    pub id: common::SensorId,
    pub path: std::path::PathBuf,
@@ -130,6 +130,7 @@ pub fn spawn_pollers(
    for meta in metas {
       let tx = tx.clone();
       let ct = ct.clone();
+      let meta = meta.clone();
       std::thread::spawn(move || poll_sensor_forever(tx, meta, ct, interval));
    }
    rx

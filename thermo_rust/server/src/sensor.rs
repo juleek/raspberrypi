@@ -75,7 +75,7 @@ impl Db for Sqlite {
         WHERE id = $1
         "#,
       )
-      .bind(&id.0)
+      .bind(id.clone())
       .fetch_optional(&self.pool)
       .await?;
 
@@ -87,7 +87,7 @@ impl Db for Sqlite {
          r#"DELETE FROM sensors WHERE id = $1
          "#,
       )
-      .bind(&id.0)
+      .bind(id.clone())
       .execute(&self.pool)
       .await?;
       Ok(())
@@ -99,7 +99,7 @@ impl Db for Sqlite {
         "#,
       )
       .bind(&min)
-      .bind(&id.0)
+      .bind(id.clone())
       .execute(&self.pool)
       .await?;
       Ok(())
@@ -111,7 +111,7 @@ impl Db for Sqlite {
         "#,
       )
       .bind(&name)
-      .bind(&id.0)
+      .bind(id.clone())
       .execute(&self.pool)
       .await?;
       Ok(())

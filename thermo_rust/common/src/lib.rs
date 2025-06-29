@@ -269,7 +269,7 @@ mod tests {
       let ts = chrono::Utc::now();
       let sensor_id = SensorId::new();
       let expected: Measurement = Measurement {
-         id: MeasurementId::new(sensor_id),
+         id: MeasurementId::new(&sensor_id),
          read_ts: MicroSecTs(ts),
          temperature: Some(26.8),
          error: "error1".to_string(),

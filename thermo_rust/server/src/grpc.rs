@@ -47,7 +47,7 @@ impl common::pb::agg_server::Agg for Agg {
          loop {
             match stream.message().await {
                Ok(Some(proto)) => {
-                  let response = match persist(proto, &tx, &db).await {
+                  let response = match persist(proto.clone(), &tx, &db).await {
                      Ok(response) => response,
                      Err(why) => {
                         log::warn!("Failed to persist: {proto:?}: {why:?}");
