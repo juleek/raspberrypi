@@ -7,27 +7,23 @@ service Agg {
 }
 
 
+message MeasurementId {
+  string sensor_id = 1; // sen_asdf1234
+  int64  index     = 2; // An incremental counter unique within a single client, property and sensor
+}
+
+
 message StoreMeasurementReq {
   Measurement measurement = 1;
 }
 
 message StoreMeasurementResp {
-  Id confirmed = 1;
+  MeasurementId confirmed = 1;
 }
 
-
-/// Uniquely identifies measurement
-message Id {
-  /// A short, randomly generated, id of client/property
-  string location = 1;
-  /// Name of sensor
-  string sensor = 2;
-  /// An incremental counter unique within a single client, property and sensor
-  int64 index = 3;
-}
 
 message Measurement {
-  Id                        id          = 5;
+  MeasurementId             id          = 5;
   google.protobuf.Timestamp read_ts     = 10;
   string                    error       = 30;
   optional double           temperature = 40;

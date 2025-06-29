@@ -57,7 +57,7 @@ pub struct SensorUpdateOpts {
 impl SensorUpdateOpts {
    pub async fn run(&self, sqlite: crate::sensor::Sqlite) -> Result<()> {
       use crate::sensor::Db;
-      let id: crate::sensor::Id = self.id.clone().try_into()?;
+      let id: common::SensorId = self.id.clone().try_into()?;
       if let Some(min) = self.min {
          sqlite
             .update_min(&id, min)

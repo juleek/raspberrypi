@@ -7,8 +7,8 @@ use anyhow::{anyhow, Context, Result};
 #[derive(Debug, Clone, PartialEq)]
 struct Measurements {
    age: chrono::Duration,
-   by_id: std::collections::HashMap<common::Id, common::Measurement>,
-   by_send_ts: std::collections::BTreeMap<chrono::DateTime<chrono::Utc>, Vec<common::Id>>,
+   by_id: std::collections::HashMap<common::MeasurementId, common::Measurement>,
+   by_send_ts: std::collections::BTreeMap<chrono::DateTime<chrono::Utc>, Vec<common::MeasurementId>>,
 }
 
 impl Default for Measurements {
@@ -27,7 +27,7 @@ impl Measurements {
       self.by_id.insert(id.clone(), m);
       self.by_send_ts.entry(now).or_default().push(id);
    }
-   fn remove(&mut self, id: &common::Id) {
+   fn remove(&mut self, id: &common::MeasurementId) {
       self.by_id.remove(id);
 
       let mut to_remove = Vec::new();
@@ -97,7 +97,7 @@ impl State {
          self.on_new_measurement(measurement);
       }
    }
-   fn remove_confirmed(&mut self, id: common::Id) { self.measurements.remove(&id); }
+   fn remove_confirmed(&mut self, id: common::MeasurementId) { self.measurements.remove(&id); }
 }
 
 
@@ -187,15 +187,14 @@ mod tests {
       common::MicroSecTs(ts)
    }
 
-   fn create_id(ticket: i64) -> common::Id {
-      common::Id {
-         location: "tar".to_string(),
-         sensor: "ambient".to_string(),
+   fn create_id(sensor_id: &common::SensorId, ticket: i64) -> common::MeasurementId {
+      common::MeasurementId {
+         sensor_id,
          index: ticket,
       }
    }
 
-   fn measurement(id: &common::Id) -> common::Measurement {
+   fn measurement(id: &common::MeasurementId) -> common::Measurement {
       common::Measurement {
          id: id.clone(),
          temperature: Some(26.8),
@@ -218,8 +217,9 @@ mod tests {
    #[test]
    fn test_measurements_remove_removes_just_one_element_with_ts() {
       let now = chrono::Utc::now();
-      let id1 = create_id(123);
-      let id2 = create_id(234);
+      let sensor_id = &common::SensorId::new();
+      let id1 = create_id(sensor_id, 123);
+      let id2 = create_id(sensor_id, 234);
 
       let mut measurements = Measurements::default();
       measurements.add(measurement(&id1), now);
@@ -235,8 +235,9 @@ mod tests {
    #[test]
    fn test_measurements_remove_not_remove_anything_if_element_not_found() {
       let now = chrono::Utc::now();
-      let id1 = create_id(123);
-      let id2 = create_id(234);
+      let sensor_id = &common::SensorId::new();
+      let id1 = create_id(sensor_id, 123);
+      let id2 = create_id(sensor_id, 234);
 
       let mut measurements = Measurements::default();
       measurements.add(measurement(&id1), now);
@@ -251,9 +252,11 @@ mod tests {
 
    #[test]
    fn test_measurements_remove_if_no_elements() {
+      let sensor_id = &common::SensorId::new();
+      let id1 = create_id(&sensor_id, 123);
+
       let mut measurements = Measurements::default();
 
-      let id1 = create_id(123);
       measurements.remove(&id1);
 
       let mut expected = Measurements::default();

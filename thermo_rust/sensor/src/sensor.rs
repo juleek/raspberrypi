@@ -58,8 +58,8 @@ fn parse(reader: &mut impl std::io::Read) -> Result<f64> {
 
 
 #[derive(Debug)]
-pub struct Sensor {
-   pub name: String,
+pub struct Meta {
+   pub id: common::SensorId,
    pub path: std::path::PathBuf,
 }
 
@@ -95,30 +95,19 @@ pub fn poll_sensor_iteration(path: &std::path::Path) -> Result<f64> {
 
 pub fn poll_sensor_forever(
    tx: tokio::sync::mpsc::Sender<common::Measurement>,
-   sensor: Sensor,
+   meta: Meta,
    ct: tokio_util::sync::CancellationToken,
    interval: std::time::Duration,
-   location: String,
 ) {
-   log::info!("Starting polling thread: {sensor:?}");
+   log::info!("Starting polling thread: {meta:?}");
    let mut waiter = Waiter::new(interval);
-   let mut id = common::Id::new(location, &sensor.name);
+   let mut id = common::MeasurementId::new(&meta.id);
    while !ct.is_cancelled() {
       id.next();
       let ts = chrono::Utc::now().into();
-      let measurement = match poll_sensor_iteration(&sensor.path) {
-         Ok(temperature) => common::Measurement {
-            id: id.clone(),
-            temperature: Some(temperature),
-            error: Default::default(),
-            read_ts: ts,
-         },
-         Err(why) => common::Measurement {
-            id: id.clone(),
-            temperature: None,
-            error: why.to_string(),
-            read_ts: ts,
-         },
+      let measurement = match poll_sensor_iteration(&meta.path) {
+         Ok(temperature) => common::Measurement::from_ok(&id, temperature, ts),
+         Err(why) => common::Measurement::from_err(&id, why.to_string(), ts),
       };
       let res = tx
          .try_send(measurement.clone())
@@ -128,36 +117,20 @@ pub fn poll_sensor_forever(
       }
       waiter.wait(&ct);
    }
-   log::info!("Stopped polling thread: {sensor:?}");
+   log::info!("Stopped polling thread: {meta:?}");
 }
 
 pub fn spawn_pollers(
-   location: &str,
-   bottom_path: &std::path::Path,
-   ambient_path: &std::path::Path,
+   metas: &[Meta],
    interval: std::time::Duration,
    ct: &tokio_util::sync::CancellationToken,
 ) -> tokio::sync::mpsc::Receiver<common::Measurement> {
    let (tx, rx) = tokio::sync::mpsc::channel(100);
-   {
+
+   for meta in metas {
       let tx = tx.clone();
-      let sensor = Sensor {
-         name: "ambient".to_string(),
-         path: ambient_path.to_path_buf(),
-      };
       let ct = ct.clone();
-      let location = location.to_string();
-      std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval, location));
-   }
-   {
-      let tx = tx.clone();
-      let sensor = Sensor {
-         name: "bottom".to_string(),
-         path: bottom_path.to_path_buf(),
-      };
-      let ct = ct.clone();
-      let location = location.to_string();
-      std::thread::spawn(move || poll_sensor_forever(tx, sensor, ct, interval, location));
+      std::thread::spawn(move || poll_sensor_forever(tx, meta, ct, interval));
    }
    rx
 }

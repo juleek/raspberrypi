@@ -5,11 +5,14 @@ type MeasurementTx = tokio::sync::broadcast::Sender<common::Measurement>;
 #[derive(Clone)]
 pub struct Agg {
    tx: MeasurementTx,
-   db: db::Sqlite,
+   db: crate::db::measurement::Sqlite,
 }
 
 impl Agg {
-   pub fn start(routes: tonic::service::Routes, db: db::Sqlite) -> (tonic::service::Routes, MeasurementTx) {
+   pub fn start(
+      routes: tonic::service::Routes,
+      db: crate::db::measurement::Sqlite,
+   ) -> (tonic::service::Routes, MeasurementTx) {
       let (tx, _) = tokio::sync::broadcast::channel(16);
       let agg = Agg { tx: tx.clone(), db };
       let service = common::pb::aggproto::agg_server::AggServer::new(agg);
@@ -41,31 +44,29 @@ impl common::pb::agg_server::Agg for Agg {
 
       use futures::StreamExt;
       let output = async_stream::try_stream! {
-         // TODO: Add logging in case stream.message().await returns None
          loop {
             match stream.message().await {
                Ok(Some(proto)) => {
-                  //
+                  let response = match persist(proto, &tx, &db).await {
+                     Ok(response) => response,
+                     Err(why) => {
+                        log::warn!("Failed to persist: {proto:?}: {why:?}");
+                        continue;
+                     }
+                  };
+                  yield response;
+
                }
                Ok(None) => {
-                  // ..
+                  log::warn!("Stream.message().await returned None");
+                  continue;
                }
                Err(why) => {
-                  // ..
+                  log::warn!("Stream.message().await returned: {why:?}");
+                  continue;
                }
             }
          }
-         // while let Some(proto) = stream.message().await.unwrap_or(None) {
-         //    let response = on_measurement(proto, &tx, &db);
-         //    let response = match response {
-         //       Ok(response) => response,
-         //       Err(why) => {
-         //          println!("Failed to send measurement: {why:?}");
-         //          continue;
-         //       }
-         //    };
-         //    yield response;
-         // }
       }
       .boxed();
 
@@ -74,23 +75,24 @@ impl common::pb::agg_server::Agg for Agg {
 }
 
 
-fn on_measurement(
+async fn persist(
    proto: common::pb::StoreMeasurementReq,
    tx: &MeasurementTx,
-   db: &db::Sqlite,
+   db: &crate::db::measurement::Sqlite,
 ) -> Result<common::pb::StoreMeasurementResp> {
-   println!("Server received: {:?}", proto);
+   log::info!("Received measurement: {:?}", proto);
    let measurement: common::Measurement = proto
       .measurement
       .clone()
-      .ok_or_else(|| anyhow!("Measurement is missing from {proto:?}"))?
-      .try_into()?;
-   if measurement.id.location.is_empty() || measurement.id.sensor.is_empty() {
-      return Err(anyhow!("One of Measurement fields is empty: {measurement:?}"));
-   }
-   // TODO: what if we failed to write into db?
-   db.write(&measurement);
-   let confirmed = measurement.clone().id;
+      .ok_or_else(|| anyhow!("Measurement is missing in {proto:?}"))?
+      .try_into()
+      .with_context(|| anyhow!("Failed to convert proto measurement to measurement: {proto:?}"))?;
+
+   use crate::db::measurement::Db;
+   db.write(&measurement)
+      .await
+      .with_context(|| anyhow!("Failed to db.write {measurement:?}"))?;
+   let confirmed = measurement.id.clone();
    let _ = tx.send(measurement);
 
    Ok(common::pb::StoreMeasurementResp {

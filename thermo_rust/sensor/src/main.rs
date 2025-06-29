@@ -8,9 +8,17 @@ struct Cli {
    #[arg(long)]
    server_host_port: String,
 
+   /// Bottom sensor id
+   #[arg(long)]
+   bottom_id: String,
+
    /// Path to bottom sensor file
    #[arg(long)]
    bottom_path: std::path::PathBuf,
+
+   /// Ambient sensor id
+   #[arg(long)]
+   ambient_id: String,
 
    /// Path to ambient sensor file
    #[arg(long)]
@@ -50,13 +58,18 @@ async fn main() -> Result<()> {
       ctrlc::set_handler(move || ct.cancel()).unwrap();
    }
 
-   let rx = sensor::sensor::spawn_pollers(
-      &cli.location,
-      &cli.bottom_path,
-      &cli.ambient_path,
-      cli.sensor_poll_periodicity(),
-      &ct,
-   );
+   let sensor_metas = &[
+      sensor::sensor::Meta {
+         id: cli.bottom_id.try_into()?,
+         path: cli.bottom_path.clone(),
+      },
+      sensor::sensor::Meta {
+         id: cli.ambient_id.try_into()?,
+         path: cli.ambient_path.clone(),
+      },
+   ];
+
+   let rx = sensor::sensor::spawn_pollers(sensor_metas, cli.sensor_poll_periodicity(), &ct);
 
    sensor::publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port).await?;
    Ok(())

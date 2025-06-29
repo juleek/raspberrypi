@@ -1,6 +1,6 @@
 pub mod pb;
 pub mod tls;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 
 
 pub fn generate_random_string(prefix: &str, len: usize) -> String {
@@ -15,6 +15,7 @@ pub fn generate_random_string(prefix: &str, len: usize) -> String {
 
 
 // ===========================================================================================================
+// MicroSecTs
 
 
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -57,8 +58,6 @@ impl From<chrono::DateTime<chrono::Utc>> for crate::MicroSecTs {
    fn from(ts: chrono::DateTime<chrono::Utc>) -> Self { MicroSecTs(ts) }
 }
 
-// ===========================================================================================================
-
 fn proto_timestamp_to_chrono(proto: prost_types::Timestamp) -> Result<chrono::DateTime<chrono::Utc>> {
    let chrono_ts = chrono::DateTime::from_timestamp(proto.seconds, proto.nanos as u32)
       .map_or_else(|| Err(anyhow!("Failed to convert proto: {proto} to chrono")), Ok)?;
@@ -73,21 +72,89 @@ fn chrono_timestamp_to_proto(ts: chrono::DateTime<chrono::Utc>) -> prost_types::
 }
 
 
+//
 // ===========================================================================================================
+// SensorId
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, derive_more::Display, Hash)]
+pub struct SensorId(String);
+
+impl SensorId {
+   const PREFIX: &'static str = "sen_";
+   const LEN: &'static usize = &10;
+   const NAME: &'static str = "sensor";
+
+   pub fn new() -> Self { Self(generate_random_string(SensorId::PREFIX, *SensorId::LEN)) }
+
+   pub fn validate(value: &str) -> Result<()> {
+      if value.starts_with(SensorId::PREFIX) == false {
+         return Err(anyhow!(
+            "{} id: {value} does not start with expected prefix {}",
+            SensorId::NAME,
+            SensorId::PREFIX
+         ));
+      }
+      Ok(())
+   }
+}
+
+impl TryFrom<String> for SensorId {
+   type Error = anyhow::Error;
+
+   fn try_from(value: String) -> Result<Self, Self::Error> {
+      SensorId::validate(&value)?;
+      Ok(Self(value))
+   }
+}
+
+impl TryFrom<&str> for SensorId {
+   type Error = anyhow::Error;
+
+   fn try_from(value: &str) -> Result<Self, Self::Error> {
+      SensorId::validate(value)?;
+      Ok(Self(value.to_owned()))
+   }
+}
+
+impl From<SensorId> for String {
+   fn from(sid: SensorId) -> Self { sid.0 }
+}
+
+impl sqlx::Type<sqlx::Sqlite> for SensorId {
+   fn type_info() -> sqlx::sqlite::SqliteTypeInfo { <String as sqlx::Type<sqlx::Sqlite>>::type_info() }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for SensorId {
+   fn encode_by_ref(
+      &self,
+      buf: &mut <sqlx::Sqlite as sqlx::Database>::ArgumentBuffer<'q>,
+   ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+      sqlx::Encode::<sqlx::Sqlite>::encode(&self.0, buf)
+   }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Sqlite> for SensorId {
+   fn decode(value: <sqlx::Sqlite as sqlx::Database>::ValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+      let s: String = sqlx::Decode::<sqlx::Sqlite>::decode(value)?;
+      SensorId::try_from(s).map_err(Into::into)
+   }
+}
+
+
+// ===========================================================================================================
+// MeasurementId
 
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, sqlx::FromRow)]
-pub struct Id {
-   pub location: String,
-   pub sensor: String,
+pub struct MeasurementId {
+   pub sensor_id: SensorId,
    pub index: i64,
 }
 
-impl Id {
-   pub fn new(location: impl Into<String>, sensor: impl Into<String>) -> Self {
-      Id {
-         location: location.into(),
-         sensor: sensor.into(),
+impl MeasurementId {
+   pub fn new(sensor_id: &SensorId) -> Self {
+      MeasurementId {
+         sensor_id: sensor_id.clone(),
          index: chrono::Utc::now().timestamp_nanos_opt().unwrap(),
       }
    }
@@ -95,35 +162,54 @@ impl Id {
    pub fn next(&mut self) { self.index += 1; }
 }
 
-impl From<Id> for crate::pb::Id {
-   fn from(id: Id) -> Self {
+impl From<MeasurementId> for crate::pb::MeasurementId {
+   fn from(id: MeasurementId) -> Self {
       Self {
-         location: id.location,
-         sensor: id.sensor,
+         sensor_id: id.sensor_id.into(),
          index: id.index,
       }
    }
 }
 
-impl From<crate::pb::Id> for Id {
-   fn from(id: crate::pb::Id) -> Self {
-      Self {
-         location: id.location,
-         sensor: id.sensor,
+impl TryFrom<crate::pb::MeasurementId> for MeasurementId {
+   type Error = anyhow::Error;
+   fn try_from(id: crate::pb::MeasurementId) -> Result<Self, Self::Error> {
+      Ok(Self {
+         sensor_id: id.sensor_id.try_into()?,
          index: id.index,
-      }
+      })
    }
 }
 
 // ===========================================================================================================
+// Measurement
 
 #[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
 pub struct Measurement {
    #[sqlx(flatten)]
-   pub id: Id,
+   pub id: MeasurementId,
    pub read_ts: MicroSecTs,
    pub temperature: Option<f64>,
    pub error: String,
+}
+
+impl Measurement {
+   pub fn from_ok(id: &MeasurementId, temperature: f64, read_ts: MicroSecTs) -> Self {
+      Self {
+         id: id.clone(),
+         temperature: Some(temperature),
+         error: Default::default(),
+         read_ts,
+      }
+   }
+   pub fn from_err(id: &MeasurementId, error: impl Into<String>, read_ts: MicroSecTs) -> Self {
+      Self {
+         id: id.clone(),
+         temperature: None,
+         error: error.into(),
+         read_ts,
+      }
+   }
 }
 
 pub type Rx = tokio::sync::mpsc::Receiver<Measurement>;
@@ -144,10 +230,10 @@ impl TryFrom<crate::pb::Measurement> for Measurement {
    type Error = anyhow::Error;
 
    fn try_from(proto: crate::pb::Measurement) -> Result<Self, Self::Error> {
-      let read_ts = proto.read_ts.ok_or_else(|| anyhow!("read_ts is None in {proto:?}"))?;
-      let id = proto.id.ok_or_else(|| anyhow!("error with id"))?;
+      let read_ts = proto.read_ts.ok_or_else(|| anyhow!("read_ts is None"))?;
+      let id = proto.id.clone().ok_or_else(|| anyhow!("id is None"))?;
       let res = Self {
-         id: id.into(),
+         id: id.try_into().with_context(|| anyhow!("Failed to convert proto id to id"))?,
          temperature: proto.temperature,
          error: proto.error,
          read_ts: proto_timestamp_to_chrono(read_ts)?.into(),
@@ -158,6 +244,7 @@ impl TryFrom<crate::pb::Measurement> for Measurement {
 
 
 // ===========================================================================================================
+// Logger
 
 
 pub fn init_logger(log_level: &str) {
@@ -180,8 +267,9 @@ mod tests {
    #[test]
    fn test_measurement_proto_conversion() -> Result<()> {
       let ts = chrono::Utc::now();
+      let sensor_id = SensorId::new();
       let expected: Measurement = Measurement {
-         id: Id.new(),
+         id: MeasurementId::new(sensor_id),
          read_ts: MicroSecTs(ts),
          temperature: Some(26.8),
          error: "error1".to_string(),
@@ -190,7 +278,7 @@ mod tests {
       assert_eq!(
          proto,
          crate::pb::Measurement {
-            id: expected.id,
+            id: Some(expected.id.clone().into()),
             read_ts: Some(chrono_timestamp_to_proto(ts)),
             temperature: Some(26.8),
             error: "error1".to_string(),

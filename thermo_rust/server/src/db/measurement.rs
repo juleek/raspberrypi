@@ -17,8 +17,7 @@ impl Sqlite {
    fn ddl() -> &'static [&'static str] {
       &[
          "CREATE TABLE IF NOT EXISTS measurements (read_ts INTEGER  NOT NULL) STRICT;",
-         "ALTER TABLE measurements ADD location    TEXT   ;",
-         "ALTER TABLE measurements ADD sensor      TEXT   ;",
+         "ALTER TABLE measurements ADD sensor_id   TEXT   ;",
          "ALTER TABLE measurements ADD index_n     INTEGER;",
          "ALTER TABLE measurements ADD temperature REAL   ;",
          "ALTER TABLE measurements ADD error       TEXT   ;",
@@ -49,16 +48,15 @@ pub trait Db {
 impl Db for Sqlite {
    async fn write(&self, row: &common::Measurement) -> Result<()> {
       sqlx::query(
-         r#"INSERT INTO measurements (read_ts, temperature, error, location, sensor, index_n)
-            VALUES ($1, $2, $3, $4, $5, $6)
+         r#"INSERT INTO measurements (read_ts, sensor_id, index_n, temperature, error)
+            VALUES ($1, $2, $3, $4, $5)
          "#,
       )
       .bind(row.read_ts)
+      .bind(&row.id.sensor_id)
+      .bind(&row.id.index)
       .bind(row.temperature)
       .bind(&row.error)
-      .bind(&row.id.location)
-      .bind(&row.id.sensor)
-      .bind(&row.id.index)
       .execute(&self.pool)
       .await?;
       Ok(())
@@ -71,7 +69,7 @@ impl Db for Sqlite {
    ) -> Result<Vec<common::Measurement>> {
       let measurements = sqlx::query_as(
          r#"
-         SELECT read_ts, temperature, error, location, sensor, index_n as "index"
+         SELECT read_ts, sensor_id, index_n as "index", temperature, error
          FROM measurements
          WHERE read_ts >= $1 AND read_ts < $2
          ORDER BY read_ts
@@ -123,9 +121,9 @@ mod tests {
    }
 
    fn measurement(ts: common::MicroSecTs) -> common::Measurement {
-      let id = common::Id {
-         location: "tar".to_string(),
-         sensor: "ambient".to_string(),
+      let sen_id = "sen_asdf_1".to_string().try_into().unwrap();
+      let id = common::MeasurementId {
+         sensor_id: sen_id,
          index: 123,
       };
       let mes = common::Measurement {

@@ -24,7 +24,7 @@ fn set_validity(params: &mut rcgen::CertificateParams, validity: Validity) {
 fn validity_from_days(days: i64) -> Validity {
    let start = chrono::Utc::now();
    let end = start + chrono::TimeDelta::days(days);
-   start.date().naive_utc()..end.date().naive_utc()
+   start.date_naive()..end.date_naive()
 }
 
 fn load_ca_cert_and_key(
@@ -412,7 +412,7 @@ impl ServerArgs {
 
 
 
-struct ClientConfigProvider {
+pub struct ClientConfigProvider {
    identity: tonic::transport::Identity,
    ca: tonic::transport::Certificate,
 }
