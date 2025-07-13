@@ -5,6 +5,7 @@ fn main() {
 
    tonic_build::configure()
       .out_dir(out_path)
+      .protoc_arg("--experimental_allow_proto3_optional")
       .compile_protos(&["agg.proto"], &["proto"])
       .expect("Failed to compile protos");
 }
