@@ -266,9 +266,12 @@ def install_systemd_unit(content_name: t.Tuple[str, str], restart: bool, dry_run
 # ============================================================================================================
 # common helpers
 
+def cargo_path() -> pl.Path:
+    return pl.Path("~/.cargo/bin/cargo").expanduser().resolve()
+
 def install_rust_if_needed(dry_run: bool):
     # Check if Cargo is installed
-    check_command = "cargo --version"
+    check_command = f"{cargo_path()} --version"
     check_res: ExecRes = exec(dry_run=dry_run, command=check_command)
 
     if not check_res.is_err():
@@ -293,7 +296,7 @@ def install_rust_if_needed(dry_run: bool):
 
 # executes cargo build --release -p {package} and returns the path with the result of compilation
 def build_package(package: str, src_root: pl.Path, dry_run: bool) -> pl.Path:
-    command: str = f"cargo build --manifest-path {src_root / 'Cargo.toml'} --release -p {package}"
+    command: str = f"{cargo_path()} build --manifest-path {src_root / 'Cargo.toml'} --release -p {package}"
     logger.info(f"Building: {package} via: {command}")
     res: ExecRes = exec(dry_run=dry_run, command=command, echo_output=False)
     if res.is_err():
