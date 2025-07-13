@@ -98,7 +98,7 @@ def tls_dir(user: str) -> pl.Path:
 
 
 def src_root(user: str) -> pl.Path:
-    return pl.Path("/home/") / user / "repo"
+    return pl.Path("/home/") / user / "raspberrypi"
 
 
 
