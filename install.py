@@ -98,7 +98,7 @@ def tls_dir(user: str) -> pl.Path:
 
 
 def src_root(user: str) -> pl.Path:
-    return pl.Path("/home/") / user / "raspberrypi"
+    return pl.Path("/home/") / user / "raspberrypi" / 'thermo_rust'
 
 
 
@@ -229,7 +229,9 @@ def same_content(old: pl.Path, new_content: str) -> bool:
     return old_content == new_content
 
 def systemd_unit_path(filename: str, user: str) -> pl.Path:
-    return pl.Path(f"/home/{user}/.config/systemd/user") / filename
+    dir: pl.Path = pl.Path(f"/home/{user}/.config/systemd/user")
+    dir.mkdir(parents=True, exist_ok=True)
+    return dir / filename
 
 def install_systemd_unit(content_name: t.Tuple[str, str], restart: bool, dry_run: bool, user: str):
     content, service_name = content_name
@@ -296,7 +298,7 @@ def install_rust_if_needed(dry_run: bool):
 
 # executes cargo build --release -p {package} and returns the path with the result of compilation
 def build_package(package: str, src_root: pl.Path, dry_run: bool) -> pl.Path:
-    command: str = f"{cargo_path()} build --manifest-path {src_root / 'thermo_rust' / 'Cargo.toml'} --release -p {package}"
+    command: str = f"{cargo_path()} build --manifest-path {src_root / 'Cargo.toml'} --release -p {package}"
     logger.info(f"Building: {package} via: {command}")
     res: ExecRes = exec(dry_run=dry_run, command=command, echo_output=True)
     if res.is_err():
