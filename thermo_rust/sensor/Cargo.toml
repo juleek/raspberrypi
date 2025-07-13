@@ -3,7 +3,7 @@ cargo-features = ["profile-rustflags"]
 [package]
 name = "sensor"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [profile.dev]
 panic = "abort"

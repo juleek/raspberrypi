@@ -4,6 +4,7 @@ import os
 import sys
 import logging
 import argparse
+import subprocess
 import typing as t
 import pathlib as pl
 import secret
@@ -41,9 +42,9 @@ class ExecRes:
     def is_err(self) -> bool:
         return not self.is_ok()
 
-def exec(dry_run: bool, command: str, echo_output: t.Union[bool, None] = None, root_is_required = False) -> ExecRes:
-    if echo_output == None:
-        echo_output=logger.level <= logging.DEBUG
+def exec(dry_run: bool, command: str, echo_output: t.Union[bool, None] = None, root_is_required = False, input: t.Optional[str] = None) -> ExecRes:
+    # if echo_output == None:
+    #     echo_output=logger.level <= logging.DEBUG
     if root_is_required and os.geteuid() != 0:
         command = "sudo " + command
     if echo_output:
@@ -53,23 +54,38 @@ def exec(dry_run: bool, command: str, echo_output: t.Union[bool, None] = None, r
     if dry_run:
         return ExecRes()
 
-    # Curses try #2: https://stackoverflow.com/questions/24946988/using-python-subprocess-call-to-launch-an-ncurses-process
-    child = None
-
-    # Unfortunately pexpect.spawn throws exceptions, let's fix it:
-    import pexpect
     try:
-        child = pexpect.spawn(command, logfile=None)
-    except:
-        return ExecRes(out=f'Failed to start new process: {command}: {sys.exc_info()}', ret=1)
+        process = subprocess.Popen(command,
+                                   shell=True,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT,
+                                   text=True,
+                                   stdin=subprocess.PIPE if input is not None else None)
+    except Exception as e:
+        return ExecRes(out=f'Failed to start new process: {command}: {e}', ret=1)
 
-    # child.interact()
-    child.wait()
-    output: str = child.read().decode("utf-8").rstrip()
-    if echo_output:
-        print(f'{output}')
-    child.close()
-    return ExecRes(out=output, ret=child.exitstatus)
+    output = ""
+
+    if input is not None:
+        try:
+            process.stdin.write(input)
+            process.stdin.close()
+        except Exception as e:
+            process.terminate()
+            return ExecRes(out=f'Failed to write stdin: {e}', ret=1)
+
+    for line in iter(process.stdout.readline, ''):
+        output += line
+        if echo_output:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+
+    ret = process.wait()
+    output = output.rstrip()
+    process.stdout.close()
+
+    return ExecRes(out=output, ret=ret)
+
 
 
 
@@ -212,11 +228,14 @@ def install_systemd_unit(content_name: t.Tuple[str, str], restart: bool, dry_run
     service_path: pl.Path = systemd_unit_path(service_name)
 
     if same_content(service_path, content):
-        logger.info(f"No changes in service {service_name} => skipping it")
+        logger.info(f"No changes in service {service_path} => skipping it")
         return
 
-    with service_path.open('w', encoding='utf-8') as f:
-        f.write(content)
+    logger.info(f"Installing unit: {service_name}")
+
+    res: ExecRes = exec(dry_run=False, command=f"tee {service_path}", root_is_required=True, input=content)
+    if res.is_err():
+        logger.critical(f"Failed to copy & write contents of {service_name}: {res}")
 
     res: ExecRes = exec(dry_run=dry_run, command="systemctl daemon-reload", root_is_required=True)
     if res.is_err():
@@ -265,22 +284,25 @@ def install_rust_if_needed(dry_run: bool):
 
 
 # executes cargo build --release -p {package} and returns the path with the result of compilation
-def build_package(package: str, dry_run: bool) -> pl.Path:
-    command: str = f"cargo build --manifest-path {secret.SRC_ROOT / 'Cargo.toml'} --release -p {package}"
-    res: ExecRes = exec(dry_run=dry_run, command=command)
+def build_package(package: str, src_root: pl.Path, dry_run: bool) -> pl.Path:
+    command: str = f"cargo build --manifest-path {src_root / 'Cargo.toml'} --release -p {package}"
+    logger.info(f"Building: {package} via: {command}")
+    res: ExecRes = exec(dry_run=dry_run, command=command, echo_output=False)
     if res.is_err():
         logger.critical(f"Failed to build package '{package}': {res}")
 
-    return secret.SRC_ROOT / "target" / "release" / package
+    res: pl.Path = src_root / "target" / "release" / package
+    logger.info(f"Built {package} at: {res}")
+    return res
 
 
 #
 # ============================================================================================================
 # generate TLS certificates
 
-def generate_tls(dry_run: bool, out_dir: pl.Path):
+def generate_tls(out_dir: pl.Path, src_root: pl.Path, dry_run: bool):
    install_rust_if_needed(dry_run)
-   server: pl.Path = build_package("server", dry_run)
+   server: pl.Path = build_package("server", src_root, dry_run)
 
    command: str = f"{server} tls ca --ca-cert {out_dir / 'ca.cert'} --ca-key {out_dir / 'ca.key'}"
    res: ExecRes = exec(dry_run=dry_run, command=command)
@@ -312,19 +334,19 @@ def generate_tls(dry_run: bool, out_dir: pl.Path):
 
 def install_client(dry_run: bool):
    install_rust_if_needed(dry_run)
-   sensor: pl.Path = build_package("sensor", dry_run)
+   sensor: pl.Path = build_package("sensor", secret.SRC_ROOT, dry_run)
 
-   install_systemd_unit(systemd_main_service(f"{sensor}                                               \
-                                             --server-host-port {secret.SERVER_IP}:{secret.GRPC_PORT} \
-                                             --bottom-id {secret.BOTTOM_ID}                           \
-                                             --bottom-path {secret.BOTTOM_PATH}                       \
-                                             --ambient-id {secret.AMBIENT_ID}                         \
-                                             --ambient-path {secret.AMBIENT_PATH}                     \
-                                             --tls-ca-cert {secret.TLS_DIR / 'ca.cert'}               \
-                                             --tls-client-cert {secret.TLS_DIR / 'client.cert'}       \
-                                             --tls-client-key {secret.TLS_DIR / 'client.key'}"),
-                                             restart=True,
-                                             dry_run=dry_run)
+   install_systemd_unit(systemd_main_service(" ".join([
+       f"{sensor}"                                                ,
+       f"--server-host-port {secret.SERVER_IP}:{secret.GRPC_PORT}",
+       f"--bottom-id {secret.BOTTOM_ID}"                          ,
+       f"--bottom-path {secret.BOTTOM_PATH}"                      ,
+       f"--ambient-id {secret.AMBIENT_ID}"                        ,
+       f"--ambient-path {secret.AMBIENT_PATH}"                    ,
+       f"--tls-ca-cert {secret.TLS_DIR / 'ca.cert'}"              ,
+       f"--tls-client-cert {secret.TLS_DIR / 'client.cert'}"      ,
+       f"--tls-client-key {secret.TLS_DIR / 'client.key'}"        ,
+    ])), restart=True, dry_run=dry_run)
    install_systemd_unit(systemd_update_service( "sensor"), restart=False, dry_run=dry_run)
    install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
 
@@ -335,15 +357,16 @@ def install_client(dry_run: bool):
 
 
 def install_server(dry_run: bool):
-   install_rust_if_needed()
-   server: pl.Path = build_package("server", dry_run)
-   install_systemd_unit(systemd_main_service(f"{server} serve                                   \
-                                             --host-port 0.0.0.0:{secret.GRPC_PORT}             \
-                                             --db-path {secret.DB_PATH}                         \
-                                             --tls-ca-cert {secret.TLS_DIR / 'ca.cert'}         \
-                                             --tls-server-cert {secret.TLS_DIR / 'server.cert'} \
-                                             --tls-server-key {secret.TLS_DIR / 'server.key'}"),
-                                             restart=False, dry_run=dry_run)
+   install_rust_if_needed(dry_run)
+   server: pl.Path = build_package("server", secret.SRC_ROOT, dry_run)
+   install_systemd_unit(systemd_main_service(" ".join([
+       f"{server} serve"                                    ,
+       f"--host-port 0.0.0.0:{secret.GRPC_PORT}"            ,
+       f"--db-path {secret.DB_PATH}"                        ,
+       f"--tls-ca-cert {secret.TLS_DIR / 'ca.cert'}"        ,
+       f"--tls-server-cert {secret.TLS_DIR / 'server.cert'}",
+       f"--tls-server-key {secret.TLS_DIR / 'server.key'}"  ,
+   ])), restart=False, dry_run=dry_run)
    install_systemd_unit(systemd_update_service("server"), restart=False, dry_run=dry_run)
    install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
 
@@ -370,6 +393,7 @@ def main():
 
     parser_tls = subparsers.add_parser(ARG_TLS, help=f'Generate TLS pairs')
     parser_tls.add_argument('--out-dir', required=True, type=str)
+    parser_tls.add_argument('--src-root', required=False, type=str, default="~/devel/scripts/tarasovka/thermo_rust")
 
     # --------------------------------------------------------------------------------------------------------
     # install
@@ -386,16 +410,9 @@ def main():
     log_levels = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'DISABLED': logging.CRITICAL + 1}
     logger.setLevel(level=log_levels[args.log_level])
 
-    def python_import_exists(import_name: str) -> bool:
-        from importlib import util
-        return util.find_spec(import_name) is not None
-    if not python_import_exists("pexpect"):
-        logger.critical("Python module pexpect is not installed, Install it manually: "
-                        "sudo apt install python3-pexpect. Exiting...")
-
 
     if args.subparser_name == ARG_TLS:
-        generate_tls(args.dry_run, pl.Path(args.out_dir))
+        generate_tls(pl.Path(args.out_dir), pl.Path(args.src_root).expanduser().resolve(), args.dry_run)
 
     if args.subparser_name == ARG_INSTALL:
         if not (args.server or args.sensor):

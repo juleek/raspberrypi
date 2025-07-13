@@ -51,6 +51,11 @@ fn load_ca_cert_and_key(
 fn save_in_file(path: &std::path::Path, content: &str) -> Result<()> {
    use std::io::Write;
 
+   if let Some(parent) = path.parent() && parent.as_os_str().is_empty() == false {
+         std::fs::create_dir_all(parent)
+            .with_context(|| anyhow!("Failed to create directories: {:?}", parent))?;
+   }
+
    let mut file = std::fs::File::create(path).with_context(|| anyhow!("Failed to create file: {path:?}"))?;
    file.write_all(content.as_bytes())?;
    Ok(())
