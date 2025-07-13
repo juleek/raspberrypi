@@ -93,6 +93,14 @@ def exec(dry_run: bool, command: str, echo_output: t.Union[bool, None] = None, r
 # ============================================================================================================
 # systemctl units
 
+def tls_dir(user: str) -> pl.Path:
+    return pl.Path("/home") / user / "tls"
+
+
+def src_root(user: str) -> pl.Path:
+    return pl.Path("/home/") / user / "repo"
+
+
 
 def systemd_setup_3g_4g_on_boot_timer() -> t.Tuple[str, str]:
     return (f"""
@@ -334,7 +342,7 @@ def generate_tls(out_dir: pl.Path, src_root: pl.Path, dry_run: bool):
 
 def install_client(dry_run: bool):
    install_rust_if_needed(dry_run)
-   sensor: pl.Path = build_package("sensor", secret.SRC_ROOT, dry_run)
+   sensor: pl.Path = build_package("sensor", src_root(secret.USER_ON_RPI), dry_run)
 
    install_systemd_unit(systemd_main_service(" ".join([
        f"{sensor}"                                                ,
@@ -343,9 +351,9 @@ def install_client(dry_run: bool):
        f"--bottom-path {secret.BOTTOM_PATH}"                      ,
        f"--ambient-id {secret.AMBIENT_ID}"                        ,
        f"--ambient-path {secret.AMBIENT_PATH}"                    ,
-       f"--tls-ca-cert {secret.TLS_DIR / 'ca.cert'}"              ,
-       f"--tls-client-cert {secret.TLS_DIR / 'client.cert'}"      ,
-       f"--tls-client-key {secret.TLS_DIR / 'client.key'}"        ,
+       f"--tls-ca-cert {tls_dir(secret.USER_ON_RPI) / 'ca.cert'}"              ,
+       f"--tls-client-cert {tls_dir(secret.USER_ON_RPI) / 'client.cert'}"      ,
+       f"--tls-client-key {tls_dir(secret.USER_ON_RPI) / 'client.key'}"        ,
     ])), restart=True, dry_run=dry_run)
    install_systemd_unit(systemd_update_service( "sensor"), restart=False, dry_run=dry_run)
    install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
@@ -358,14 +366,14 @@ def install_client(dry_run: bool):
 
 def install_server(dry_run: bool):
    install_rust_if_needed(dry_run)
-   server: pl.Path = build_package("server", secret.SRC_ROOT, dry_run)
+   server: pl.Path = build_package("server", src_root(secret.USER_ON_SRV), dry_run)
    install_systemd_unit(systemd_main_service(" ".join([
        f"{server} serve"                                    ,
        f"--host-port 0.0.0.0:{secret.GRPC_PORT}"            ,
        f"--db-path {secret.DB_PATH}"                        ,
-       f"--tls-ca-cert {secret.TLS_DIR / 'ca.cert'}"        ,
-       f"--tls-server-cert {secret.TLS_DIR / 'server.cert'}",
-       f"--tls-server-key {secret.TLS_DIR / 'server.key'}"  ,
+       f"--tls-ca-cert {tls_dir(secret.USER_ON_SRV) / 'ca.cert'}"        ,
+       f"--tls-server-cert {tls_dir(secret.USER_ON_SRV) / 'server.cert'}",
+       f"--tls-server-key {tls_dir(secret.USER_ON_SRV) / 'server.key'}"  ,
    ])), restart=False, dry_run=dry_run)
    install_systemd_unit(systemd_update_service("server"), restart=False, dry_run=dry_run)
    install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
