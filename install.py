@@ -298,7 +298,7 @@ def install_rust_if_needed(dry_run: bool):
 def build_package(package: str, src_root: pl.Path, dry_run: bool) -> pl.Path:
     command: str = f"{cargo_path()} build --manifest-path {src_root / 'thermo_rust' / 'Cargo.toml'} --release -p {package}"
     logger.info(f"Building: {package} via: {command}")
-    res: ExecRes = exec(dry_run=dry_run, command=command, echo_output=False)
+    res: ExecRes = exec(dry_run=dry_run, command=command, echo_output=True)
     if res.is_err():
         logger.critical(f"Failed to build package '{package}': {res}")
 
