@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package routeguide;
+
+
+service RouteGuide {
+   rpc GetFeature(CounterReq) returns (CounterResp) {};
+   rpc SendMessage(stream CounterReq) returns (stream CounterResp);
+
+
+ }
+
+
+message CounterReq {
+   int64 counter = 1;
+ }
+
+
+message CounterResp {
+   int64 counter = 2;
+ }

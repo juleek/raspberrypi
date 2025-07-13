@@ -1,0 +1,30 @@
+syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+package aggproto;
+
+service Agg {
+  rpc StoreMeasurement (stream StoreMeasurementReq) returns (stream StoreMeasurementResp);
+}
+
+
+message MeasurementId {
+  string sensor_id = 1; // sen_asdf1234
+  int64  index     = 2; // An incremental counter unique within a single client, property and sensor
+}
+
+
+message StoreMeasurementReq {
+  Measurement measurement = 1;
+}
+
+message StoreMeasurementResp {
+  MeasurementId confirmed = 1;
+}
+
+
+message Measurement {
+  MeasurementId             id          = 5;
+  google.protobuf.Timestamp read_ts     = 10;
+  string                    error       = 30;
+  optional double           temperature = 40;
+}
