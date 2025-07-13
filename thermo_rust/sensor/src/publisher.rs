@@ -104,13 +104,23 @@ impl State {
 
 async fn one_iteration(
    ct: &tokio_util::sync::CancellationToken,
-   server_host_port: &str,
+   server_host_port: &str, // localhost:1234 (without scheme)
    state: &mut State,
+   client_config_provider: &common::tls::ClientConfigProvider,
 ) -> Result<()> {
+   let url = format!("https://{server_host_port}");
+   let url = url::Url::parse(&url).with_context(|| anyhow!("Failed to parse: {url}"))?;
+   let host = url.host().ok_or_else(|| anyhow!("There is no host in {url}"))?;
    state.pull_from_rx();
-   let mut client = common::pb::agg_client::AggClient::connect(server_host_port.to_string())
+   let channel = tonic::transport::Endpoint::from_shared(url.to_string())
+      .with_context(|| anyhow!("Failed to create channel for {server_host_port}"))?
+      .tls_config(client_config_provider.create_for(&host.to_string()))
+      .with_context(|| anyhow!("Failed to set tls config for {server_host_port}"))?
+      .connect_timeout(std::time::Duration::from_secs(10))
+      .connect()
       .await
       .with_context(|| anyhow!("Failed to connect to {server_host_port}"))?;
+   let mut client = common::pb::agg_client::AggClient::new(channel);
 
    let (tx_outbound, rx_outbound) = tokio::sync::mpsc::channel(10);
    let outbound = tokio_stream::wrappers::ReceiverStream::new(rx_outbound);
@@ -158,12 +168,16 @@ pub async fn poll_and_publish_forever(
    ct: &tokio_util::sync::CancellationToken,
    thread_rx: common::Rx,
    server_host_port: &str,
+   client_config_provider: common::tls::ClientConfigProvider,
 ) -> Result<()> {
    let mut state = State::new(thread_rx);
    loop {
-      let res = one_iteration(ct, server_host_port, &mut state).await;
+      let res = one_iteration(ct, server_host_port, &mut state, &client_config_provider).await;
       if let Err(e) = res {
          log::warn!("Failed to do one iteration: {e:?}");
+      }
+      if ct.is_cancelled() {
+         return Ok(());
       }
       tokio::time::sleep(std::time::Duration::from_millis(290)).await;
    }

@@ -78,9 +78,8 @@ impl Waiter {
    }
    fn wait(&mut self, ct: &tokio_util::sync::CancellationToken) {
       let end = self.start + self.interval;
-      // TODO: implement faster exit if ct.is_cancelled. We should not sleep for 15 seconds.
       while std::time::Instant::now() < end && !ct.is_cancelled() {
-         std::thread::sleep(self.interval)
+         std::thread::sleep(std::time::Duration::from_millis(10));
       }
       self.start = std::time::Instant::now();
    }

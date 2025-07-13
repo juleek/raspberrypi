@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 
 
 #[derive(clap::Parser, Debug)]
@@ -28,9 +28,8 @@ struct Cli {
    #[arg(long, default_value_t = 20)]
    sensor_poll_periodicity: i32,
 
-   /// Id of location (short random string)
-   #[arg(long)]
-   location: String,
+   #[command(flatten)]
+   tls: common::tls::ClientArgs,
 
    // Logger's level
    #[arg(long)]
@@ -71,6 +70,14 @@ async fn main() -> Result<()> {
 
    let rx = sensor::sensor::spawn_pollers(sensor_metas, cli.sensor_poll_periodicity(), &ct);
 
-   sensor::publisher::poll_and_publish_forever(&ct, rx, &cli.server_host_port).await?;
+   sensor::publisher::poll_and_publish_forever(
+      &ct,
+      rx,
+      &cli.server_host_port,
+      cli.tls
+         .client_config_provider()
+         .with_context(|| anyhow!("Failed to create client config provider"))?,
+   )
+   .await?;
    Ok(())
 }

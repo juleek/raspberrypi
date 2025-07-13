@@ -28,7 +28,8 @@ tokio                 = { version = "1"  , features = ["full"]                  
 tokio-stream          = { version = "0.1", features = ["fs"]                                   }
 tokio-util            = { version = "0.7", features = ["io"]                                   }
 async-stream          = { version = "0.3"                                                      }
-tonic                 = { version = "*"                                                     }
+tonic                 = { version = "*"                                                        }
+url                   = { version = "2.5"                                                      }
 # futures = {version = "0.3" }
 
 

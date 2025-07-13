@@ -1,10 +1,10 @@
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 
 
 /// The main mode where we start server that listens for incoming measurements
 #[derive(clap::Parser, Debug)]
 pub struct Cli {
-   /// Port to listen on server
+   /// Host and port to listen on server
    #[arg(long)]
    host_port: String,
 
@@ -23,11 +23,12 @@ impl Cli {
       let (routes, _tx) = crate::grpc::Agg::start(routes, sqlite);
       // let sender = std::sync::Arc::new(crate::message::Telegram { chat_id: 123456789,
       //                                                              bot_id:  "wwwwwww".to_string(), });
-
+      let addr: std::net::SocketAddr =
+         self.host_port.parse().with_context(|| anyhow!("Failed to parse: {}", self.host_port))?;
       tonic::transport::Server::builder()
          .tls_config(self.tls.server_tls_config()?)?
          .add_routes(routes)
-         .serve(self.host_port.parse().unwrap())
+         .serve(addr)
          .await?;
       Ok(())
    }

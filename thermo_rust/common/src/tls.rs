@@ -51,7 +51,7 @@ fn load_ca_cert_and_key(
 fn save_in_file(path: &std::path::Path, content: &str) -> Result<()> {
    use std::io::Write;
 
-   let mut file = std::fs::File::create(path)?; //error with context
+   let mut file = std::fs::File::create(path).with_context(|| anyhow!("Failed to create file: {path:?}"))?;
    file.write_all(content.as_bytes())?;
    Ok(())
 }
@@ -59,9 +59,9 @@ fn save_in_file(path: &std::path::Path, content: &str) -> Result<()> {
 fn read_file(path: &std::path::Path) -> Result<Vec<u8>> {
    use std::io::Read;
 
-   let mut file = std::fs::File::open(path)?; //error with context
+   let mut file = std::fs::File::open(path).with_context(|| anyhow!("Failed to open: {path:?}"))?;
    let mut contents = Vec::new();
-   file.read_to_end(&mut contents)?;
+   file.read_to_end(&mut contents).with_context(|| anyhow!("Failed to read from {path:?}"))?;
    Ok(contents)
 }
 
@@ -319,8 +319,8 @@ impl GenServerOpts {
          &ca_key,
       )?;
 
-      save_in_file(&self.ca_cert, &cert.pem())?;
-      save_in_file(&self.ca_key, &key_pair.serialize_pem())?;
+      save_in_file(&self.cert, &cert.pem())?;
+      save_in_file(&self.key, &key_pair.serialize_pem())?;
       Ok(())
    }
 }
@@ -359,7 +359,6 @@ pub struct GenClientOpts {
 
 impl GenClientOpts {
    pub async fn run(&self) -> Result<()> {
-      // todo!()
       let (ca_cert, ca_key) = load_ca_cert_and_key(&self.ca_cert, &self.ca_key)?;
       let (cert, key_pair) = generate_client(
          &generate_subject("SRV-", 5, &self.subject),
@@ -368,8 +367,8 @@ impl GenClientOpts {
          &ca_key,
       )?;
 
-      save_in_file(&self.ca_cert, &cert.pem())?;
-      save_in_file(&self.ca_key, &key_pair.serialize_pem())?;
+      save_in_file(&self.cert, &cert.pem())?;
+      save_in_file(&self.key, &key_pair.serialize_pem())?;
       Ok(())
    }
 }

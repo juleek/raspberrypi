@@ -40,7 +40,14 @@ impl Location {
                .shared_cache(true)
                .filename(format!("file:{random}"))
          }
-         Location::Path(p) => sqlx::sqlite::SqliteConnectOptions::new().filename(p),
+         Location::Path(p) => {
+            if !p.exists() {
+               std::fs::OpenOptions::new().write(true).create(true).open(&p).with_context(|| {
+                  anyhow!("The db path does not exist and we failed to create it: {}", p.display())
+               })?;
+            }
+            sqlx::sqlite::SqliteConnectOptions::new().filename(p)
+         }
       };
 
       let pool = sqlx::sqlite::SqlitePool::connect_with(opts.clone())
