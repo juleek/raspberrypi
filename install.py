@@ -1,0 +1,405 @@
+#!/bin/python3
+
+import os
+import sys
+import logging
+import argparse
+import typing as t
+import pathlib as pl
+from . import secret
+import dataclasses as dc
+
+#
+# ============================================================================================================
+# logger
+
+logging.basicConfig(format='%(asctime)s %(levelname)s %(funcName)s:%(lineno)d: %(message)s')
+
+# Exit on critical log
+class ShutdownHandler(logging.Handler):
+    def emit(self, record):
+        print(record, file=sys.stderr)
+        logging.shutdown()
+        sys.exit(1)
+logger = logging.getLogger()
+logger.addHandler(ShutdownHandler(level=logging.CRITICAL))
+
+
+
+#
+# ============================================================================================================
+# shell command running
+
+
+
+@dc.dataclass
+class ExecRes:
+    out: str = ""
+    ret: int = 0
+    def is_ok(self) -> bool:
+        return self.ret == 0
+    def is_err(self) -> bool:
+        return not self.is_ok()
+
+def exec(dry_run: bool, command: str, echo_output: t.Union[bool, None] = None, root_is_required = False) -> ExecRes:
+    if echo_output == None:
+        echo_output=logger.level <= logging.DEBUG
+    if root_is_required and os.geteuid() != 0:
+        command = "sudo " + command
+    if echo_output:
+        logger.info(f'{"NOT " if dry_run else ""}executing: {command}')
+    else:
+        logger.debug(f'{"NOT " if dry_run else ""}executing: {command}')
+    if dry_run:
+        return ExecRes()
+
+    # Curses try #2: https://stackoverflow.com/questions/24946988/using-python-subprocess-call-to-launch-an-ncurses-process
+    child = None
+
+    # Unfortunately pexpect.spawn throws exceptions, let's fix it:
+    import pexpect
+    try:
+        child = pexpect.spawn(command, logfile=None)
+    except:
+        return ExecRes(out=f'Failed to start new process: {command}: {sys.exc_info()}', ret=1)
+
+    # child.interact()
+    child.wait()
+    output: str = child.read().decode("utf-8").rstrip()
+    if echo_output:
+        print(f'{output}')
+    child.close()
+    return ExecRes(out=output, ret=child.exitstatus)
+
+
+
+#
+# ============================================================================================================
+# systemctl units
+
+
+def systemd_setup_3g_4g_on_boot_timer() -> t.Tuple[str, str]:
+    return (f"""
+[Unit]
+Description=timer unit for enabling network only on boot
+
+[Timer]
+OnBootSec=60
+Unit=setup_3g_4g.service
+
+[Install]
+WantedBy=multi-user.target
+""", "setup_3g_4g_on_boot.timer")
+
+
+
+
+def systemd_setup_3g_4g_service() -> t.Tuple[str, str]:
+    return (f"""
+[Unit]
+Description=(re-)enable 3g/4g modem internet
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=-/sbin/dhclient -v usb0
+ExecStart=-/usr/bin/curl -v --header "Referer: http://192.168.0.1/index.html" http://192.168.0.1/goform/goform_set_cmd_process?goformId=CONNECT_NETWORK
+ExecStart=-/usr/bin/curl -v --header "Referer: http://192.168.0.1/index.html" http://192.168.0.1/goform/goform_set_cmd_process?goformId=SET_CONNECTION_MODE&ConnectionMode=auto_dial&roam_setting_option=on
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
+""", "setup_3g_4g.service")
+
+
+
+
+def systemd_setup_3g_4g_timer() -> t.Tuple[str, str]:
+   return (f"""
+[Unit]
+Description=timer unit for updating network periodically
+Requires=network-online.target
+After=network-online.target
+
+[Timer]
+OnCalendar=*-*-* *:00/10:00
+Unit=setup_3g_4g.service
+
+[Install]
+WantedBy=multi-user.target
+""", "setup_3g_4g.timer")
+
+
+
+
+def systemd_main_service(full_cmd_line: pl.Path) -> t.Tuple[str, str]:
+    return (f"""
+[Unit]
+Description=thermo daemon
+Requires=network-online.target
+After=network-online.target
+
+
+[Service]
+Type=simple
+User={secret.USER}
+ExecStart={full_cmd_line}
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target
+""", "thermo.service")
+
+
+
+
+def systemd_update_service(package: str) -> t.Tuple[str, str]:
+    return (f"""
+[Unit]
+Description=service for updating repo with thermo project and installing it in the system
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User={secret.USER}
+ExecStart=/home/pi/raspberrypi/install.py install --{package}
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
+""", "update_thermo.service")
+
+
+
+
+def systemd_update_timer() -> t.Tuple[str, str]:
+    return (f"""
+[Unit]
+Description=timer unit for updating repo with thermo project and installing it in the system
+Requires=network-online.target
+After=network-online.target
+
+[Timer]
+OnCalendar=*-*-* *:18:00
+# OnCalendar=*-*-* *:0/5:00
+Unit=update_thermo.service
+
+[Install]
+WantedBy=multi-user.target
+""", "update_thermo.timer")
+
+
+
+
+def same_content(old: pl.Path, new_content: str) -> bool:
+    if not old.exists():
+        return False
+    try:
+        old_content = old.read_text(encoding='utf-8')
+    except Exception as e:
+        logger.critical(f"Failed to read from {old}: {e}")
+    return old_content == new_content
+
+def systemd_unit_path(filename: str) -> pl.Path:
+    return pl.Path("/etc/systemd/system") / filename
+
+def install_systemd_unit(content_name: t.Tuple[str, str], restart: bool, dry_run: bool):
+    content, service_name = content_name
+    service_path: pl.Path = systemd_unit_path(service_name)
+
+    if same_content(service_path, content):
+        logger.info(f"No changes in service {service_name} => skipping it")
+        return
+
+    with service_path.open('w', encoding='utf-8') as f:
+        f.write(content)
+
+    res: ExecRes = exec(dry_run=dry_run, command="systemctl daemon-reload", root_is_required=True)
+    if res.is_err():
+        logger.critical(f"Failed to reload systemd daemon: {res}")
+
+    if not restart:
+        return
+
+    res: ExecRes = exec(dry_run=dry_run, command=f"systemctl enable {service_name}", root_is_required=True)
+    if res.is_err():
+        logger.critical(f"Failed to enable service: {res}")
+
+    res: ExecRes = exec(dry_run=dry_run, command=f"systemctl restart {service_name}", root_is_required=True)
+    if res.is_err():
+        logger.critical(f"Failed to restart service: {res}")
+
+
+
+#
+# ============================================================================================================
+# common helpers
+
+def install_rust_if_needed(dry_run: bool):
+    # Check if Cargo is installed
+    check_command = "cargo --version"
+    check_res: ExecRes = exec(dry_run=dry_run, command=check_command)
+
+    if not check_res.is_err():
+        logger.info("Rust is already installed.")
+        return
+
+    logger.info("Rust not found. Installing...")
+
+    command = "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+    res: ExecRes = exec(dry_run=dry_run, command=command)
+    if res.is_err():
+        logger.critical(f"Failed to install Rust: {res}")
+
+    # Verify that Rust is installed
+    verify_res: ExecRes = exec(dry_run=dry_run, command=check_command)
+    if verify_res.is_err():
+        logger.critical("Rust installation failed: Cargo not found after installation.")
+
+    logger.info("Rust installed successfully.")
+
+
+
+# executes cargo build --release -p {package} and returns the path with the result of compilation
+def build_package(package: str, dry_run: bool) -> pl.Path:
+    command: str = f"cargo build --manifest-path {secret.SRC_ROOT / 'Cargo.toml'} --release -p {package}"
+    res: ExecRes = exec(dry_run=dry_run, command=command)
+    if res.is_err():
+        logger.critical(f"Failed to build package '{package}': {res}")
+
+    return secret.SRC_ROOT / "target" / "release" / package
+
+
+#
+# ============================================================================================================
+# generate TLS certificates
+
+def generate_tls(dry_run: bool):
+   install_rust_if_needed(dry_run)
+   server: pl.Path = build_package("server", dry_run)
+
+   command: str = f"{server} tls ca --ca-cert {secret.TLS_DIR / 'ca.cert'} --ca-key {secret.TLS_DIR / 'ca.key'}"
+   res: ExecRes = exec(dry_run=dry_run, command=command)
+   if res.is_err():
+       logger.critical(f"Failed to generate ca: {command}: {res}")
+
+   command: str = f"{server} tls server --ca-cert {secret.TLS_DIR}/ca.cert  \
+                                        --ca-key {secret.TLS_DIR}/ca.key    \
+                                        --cert {secret.TLS_DIR}/server.cert \
+                                        --key {secret.TLS_DIR}/server.key   \
+                                        --san-ips {secret.SERVER_IP}"
+   res: ExecRes = exec(dry_run=dry_run, command=command)
+   if res.is_err():
+       logger.critical(f"Failed to generate server: {command}: {res}")
+
+   command: str = f"{server} tls client --ca-cert {secret.TLS_DIR}/ca.cert \
+                                        --ca-key {secret.TLS_DIR}/ca.key \
+                                        --cert {secret.TLS_DIR}/client.cert \
+                                        --key {secret.TLS_DIR}/client.key"
+   res: ExecRes = exec(dry_run=dry_run, command=command)
+   if res.is_err():
+       logger.critical(f"Failed to generate client: {command}: {res}")
+
+
+
+#
+# ============================================================================================================
+# installation & update
+
+def install_client(dry_run: bool):
+   install_rust_if_needed(dry_run)
+   sensor: pl.Path = build_package("sensor", dry_run)
+
+   install_systemd_unit(systemd_main_service(f"{sensor}                                               \
+                                             --server-host-port {secret.SERVER_IP}:{secret.GRPC_PORT} \
+                                             --bottom-id {secret.BOTTOM_ID}                           \
+                                             --bottom-path {secret.BOTTOM_PATH}                       \
+                                             --ambient-id {secret.AMBIENT_ID}                         \
+                                             --ambient-path {secret.AMBIENT_PATH}                     \
+                                             --tls-ca-cert {secret.TLS_DIR / 'ca.cert'}               \
+                                             --tls-client-cert {secret.TLS_DIR / 'client.cert'}       \
+                                             --tls-client-key {secret.TLS_DIR / 'client.key'}"),
+                                             restart=True,
+                                             dry_run=dry_run)
+   install_systemd_unit(systemd_update_service( "sensor"), restart=False, dry_run=dry_run)
+   install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
+
+   install_systemd_unit(systemd_setup_3g_4g_service(), restart=False, dry_run=dry_run)
+   install_systemd_unit(systemd_setup_3g_4g_timer(), restart=True, dry_run=dry_run)
+   install_systemd_unit(systemd_setup_3g_4g_on_boot_timer(), restart=True, dry_run=dry_run)
+
+
+
+def install_server(dry_run: bool):
+   install_rust_if_needed()
+   server: pl.Path = build_package("server", dry_run)
+   install_systemd_unit(systemd_main_service(f"{server} serve                                   \
+                                             --host-port 0.0.0.0:{secret.GRPC_PORT}             \
+                                             --db-path {secret.DB_PATH}                         \
+                                             --tls-ca-cert {secret.TLS_DIR / 'ca.cert'}         \
+                                             --tls-server-cert {secret.TLS_DIR / 'server.cert'} \
+                                             --tls-server-key {secret.TLS_DIR / 'server.key'}"),
+                                             restart=False, dry_run=dry_run)
+   install_systemd_unit(systemd_update_service("server"), restart=False, dry_run=dry_run)
+   install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
+
+
+
+
+#
+# ============================================================================================================
+# main
+
+
+def main():
+    ARG_TLS: str = "tls"
+    ARG_INSTALL: str = "install"
+
+    parser = argparse.ArgumentParser(description=f'')
+    parser.add_argument("--dry-run", action='store_true')
+    parser.add_argument("--log-level", type=str, choices=['DEBUG', 'INFO', 'ERROR', 'DISABLED'],
+                        default='INFO', help='Log level')
+    subparsers = parser.add_subparsers(dest='subparser_name')
+
+    # --------------------------------------------------------------------------------------------------------
+    # TLS
+
+    parser_tls = subparsers.add_parser(ARG_TLS, help=f'Generate TLS pairs')
+
+    # --------------------------------------------------------------------------------------------------------
+    # install
+
+    parser_install = subparsers.add_parser(ARG_INSTALL, help=f'Install server or client systemd units')
+    parser_install.add_argument('--server', action='store_true', required=False, help='Install server systemd units')
+    parser_install.add_argument('--sensor', action='store_true', required=False, help='Install sensor systemd units')
+
+
+
+    # -----------------------------------------------------------------------------------------------
+
+    args = parser.parse_args()
+    log_levels = {'DEBUG': logging.DEBUG, 'INFO': logging.INFO, 'ERROR': logging.ERROR, 'DISABLED': logging.CRITICAL + 1}
+    logger.setLevel(level=log_levels[args.log_level])
+
+    def python_import_exists(import_name: str) -> bool:
+        from importlib import util
+        return util.find_spec(import_name) is not None
+    if not python_import_exists("pexpect"):
+        logger.critical("Python module pexpect is not installed, Install it manually: "
+                        "sudo apt install python3-pexpect. Exiting...")
+
+
+    if args.subparser_name == ARG_TLS:
+        generate_tls(args.dry_run)
+
+    if args.subparser_name == ARG_INSTALL:
+        if not (args.server or args.sensor):
+            parser_install.error("At least one of --server or --sensor must be specified.")
+        if args.server:
+            install_server(args.dry_run)
+        if args.sensor:
+            install_client(args.dry_run)
