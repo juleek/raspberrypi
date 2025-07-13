@@ -6,7 +6,7 @@ import logging
 import argparse
 import typing as t
 import pathlib as pl
-from . import secret
+import secret
 import dataclasses as dc
 
 #
@@ -278,28 +278,28 @@ def build_package(package: str, dry_run: bool) -> pl.Path:
 # ============================================================================================================
 # generate TLS certificates
 
-def generate_tls(dry_run: bool):
+def generate_tls(dry_run: bool, out_dir: pl.Path):
    install_rust_if_needed(dry_run)
    server: pl.Path = build_package("server", dry_run)
 
-   command: str = f"{server} tls ca --ca-cert {secret.TLS_DIR / 'ca.cert'} --ca-key {secret.TLS_DIR / 'ca.key'}"
+   command: str = f"{server} tls ca --ca-cert {out_dir / 'ca.cert'} --ca-key {out_dir / 'ca.key'}"
    res: ExecRes = exec(dry_run=dry_run, command=command)
    if res.is_err():
        logger.critical(f"Failed to generate ca: {command}: {res}")
 
-   command: str = f"{server} tls server --ca-cert {secret.TLS_DIR}/ca.cert  \
-                                        --ca-key {secret.TLS_DIR}/ca.key    \
-                                        --cert {secret.TLS_DIR}/server.cert \
-                                        --key {secret.TLS_DIR}/server.key   \
+   command: str = f"{server} tls server --ca-cert {out_dir / 'ca.cert'}  \
+                                        --ca-key {out_dir / 'ca.key'}    \
+                                        --cert {out_dir / 'server.cert'} \
+                                        --key {out_dir / 'server.key'}   \
                                         --san-ips {secret.SERVER_IP}"
    res: ExecRes = exec(dry_run=dry_run, command=command)
    if res.is_err():
        logger.critical(f"Failed to generate server: {command}: {res}")
 
-   command: str = f"{server} tls client --ca-cert {secret.TLS_DIR}/ca.cert \
-                                        --ca-key {secret.TLS_DIR}/ca.key \
-                                        --cert {secret.TLS_DIR}/client.cert \
-                                        --key {secret.TLS_DIR}/client.key"
+   command: str = f"{server} tls client --ca-cert {out_dir / 'ca.cert'}  \
+                                        --ca-key {out_dir / 'ca.key'}    \
+                                        --cert {out_dir / 'client.cert'} \
+                                        --key {out_dir / 'client.key'}"
    res: ExecRes = exec(dry_run=dry_run, command=command)
    if res.is_err():
        logger.critical(f"Failed to generate client: {command}: {res}")
@@ -369,6 +369,7 @@ def main():
     # TLS
 
     parser_tls = subparsers.add_parser(ARG_TLS, help=f'Generate TLS pairs')
+    parser_tls.add_argument('--out-dir', required=True, type=str)
 
     # --------------------------------------------------------------------------------------------------------
     # install
@@ -394,7 +395,7 @@ def main():
 
 
     if args.subparser_name == ARG_TLS:
-        generate_tls(args.dry_run)
+        generate_tls(args.dry_run, pl.Path(args.out_dir))
 
     if args.subparser_name == ARG_INSTALL:
         if not (args.server or args.sensor):
@@ -403,3 +404,8 @@ def main():
             install_server(args.dry_run)
         if args.sensor:
             install_client(args.dry_run)
+
+
+
+if __name__ == "__main__":
+    main()
