@@ -228,12 +228,12 @@ def same_content(old: pl.Path, new_content: str) -> bool:
         logger.critical(f"Failed to read from {old}: {e}")
     return old_content == new_content
 
-def systemd_unit_path(filename: str) -> pl.Path:
-    return pl.Path("/etc/systemd/system") / filename
+def systemd_unit_path(filename: str, user: str) -> pl.Path:
+    return pl.Path(f"/home/{user}/.config/systemd/user") / filename
 
-def install_systemd_unit(content_name: t.Tuple[str, str], restart: bool, dry_run: bool):
+def install_systemd_unit(content_name: t.Tuple[str, str], restart: bool, dry_run: bool, user: str):
     content, service_name = content_name
-    service_path: pl.Path = systemd_unit_path(service_name)
+    service_path: pl.Path = systemd_unit_path(service_name, user)
 
     if same_content(service_path, content):
         logger.info(f"No changes in service {service_path} => skipping it")
@@ -241,22 +241,22 @@ def install_systemd_unit(content_name: t.Tuple[str, str], restart: bool, dry_run
 
     logger.info(f"Installing unit: {service_name}")
 
-    res: ExecRes = exec(dry_run=False, command=f"tee {service_path}", root_is_required=True, input=content)
+    res: ExecRes = exec(dry_run=dry_run, command=f"tee {service_path}", root_is_required=False, input=content)
     if res.is_err():
         logger.critical(f"Failed to copy & write contents of {service_name}: {res}")
 
-    res: ExecRes = exec(dry_run=dry_run, command="systemctl daemon-reload", root_is_required=True)
+    res: ExecRes = exec(dry_run=dry_run, command="systemctl --user daemon-reload", root_is_required=False)
     if res.is_err():
         logger.critical(f"Failed to reload systemd daemon: {res}")
 
     if not restart:
         return
 
-    res: ExecRes = exec(dry_run=dry_run, command=f"systemctl enable {service_name}", root_is_required=True)
+    res: ExecRes = exec(dry_run=dry_run, command=f"systemctl --user enable {service_name}", root_is_required=False)
     if res.is_err():
         logger.critical(f"Failed to enable service: {res}")
 
-    res: ExecRes = exec(dry_run=dry_run, command=f"systemctl restart {service_name}", root_is_required=True)
+    res: ExecRes = exec(dry_run=dry_run, command=f"systemctl --user restart {service_name}", root_is_required=False)
     if res.is_err():
         logger.critical(f"Failed to restart service: {res}")
 
@@ -342,7 +342,8 @@ def generate_tls(out_dir: pl.Path, src_root: pl.Path, dry_run: bool):
 
 def install_client(dry_run: bool):
    install_rust_if_needed(dry_run)
-   sensor: pl.Path = build_package("sensor", src_root(secret.USER_ON_RPI), dry_run)
+   user: str = secret.USER_ON_RPI
+   sensor: pl.Path = build_package("sensor", src_root(user), dry_run)
 
    install_systemd_unit(systemd_main_service(" ".join([
        f"{sensor}"                                                ,
@@ -351,32 +352,33 @@ def install_client(dry_run: bool):
        f"--bottom-path {secret.BOTTOM_PATH}"                      ,
        f"--ambient-id {secret.AMBIENT_ID}"                        ,
        f"--ambient-path {secret.AMBIENT_PATH}"                    ,
-       f"--tls-ca-cert {tls_dir(secret.USER_ON_RPI) / 'ca.cert'}"              ,
-       f"--tls-client-cert {tls_dir(secret.USER_ON_RPI) / 'client.cert'}"      ,
-       f"--tls-client-key {tls_dir(secret.USER_ON_RPI) / 'client.key'}"        ,
-    ])), restart=True, dry_run=dry_run)
-   install_systemd_unit(systemd_update_service( "sensor"), restart=False, dry_run=dry_run)
-   install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
+       f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"              ,
+       f"--tls-client-cert {tls_dir(user) / 'client.cert'}"      ,
+       f"--tls-client-key {tls_dir(user) / 'client.key'}"        ,
+    ])), restart=True, dry_run=dry_run, user=user)
+   install_systemd_unit(systemd_update_service( "sensor"), restart=False, dry_run=dry_run, user=user)
+   install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run, user=user)
 
-   install_systemd_unit(systemd_setup_3g_4g_service(), restart=False, dry_run=dry_run)
-   install_systemd_unit(systemd_setup_3g_4g_timer(), restart=True, dry_run=dry_run)
-   install_systemd_unit(systemd_setup_3g_4g_on_boot_timer(), restart=True, dry_run=dry_run)
+   install_systemd_unit(systemd_setup_3g_4g_service(), restart=False, dry_run=dry_run, user=user)
+   install_systemd_unit(systemd_setup_3g_4g_timer(), restart=True, dry_run=dry_run, user=user)
+   install_systemd_unit(systemd_setup_3g_4g_on_boot_timer(), restart=True, dry_run=dry_run, user=user)
 
 
 
 def install_server(dry_run: bool):
    install_rust_if_needed(dry_run)
-   server: pl.Path = build_package("server", src_root(secret.USER_ON_SRV), dry_run)
+   user: str = secret.USER_ON_SRV
+   server: pl.Path = build_package("server", src_root(user), dry_run)
    install_systemd_unit(systemd_main_service(" ".join([
        f"{server} serve"                                    ,
        f"--host-port 0.0.0.0:{secret.GRPC_PORT}"            ,
        f"--db-path {secret.DB_PATH}"                        ,
-       f"--tls-ca-cert {tls_dir(secret.USER_ON_SRV) / 'ca.cert'}"        ,
-       f"--tls-server-cert {tls_dir(secret.USER_ON_SRV) / 'server.cert'}",
-       f"--tls-server-key {tls_dir(secret.USER_ON_SRV) / 'server.key'}"  ,
-   ])), restart=False, dry_run=dry_run)
-   install_systemd_unit(systemd_update_service("server"), restart=False, dry_run=dry_run)
-   install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
+       f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"        ,
+       f"--tls-server-cert {tls_dir(user) / 'server.cert'}",
+       f"--tls-server-key {tls_dir(user) / 'server.key'}"  ,
+   ])), restart=False, dry_run=dry_run, user=user)
+   install_systemd_unit(systemd_update_service("server"), restart=False, dry_run=dry_run, user=user)
+   install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run, user=user)
 
 
 
