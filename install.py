@@ -158,7 +158,7 @@ WantedBy=multi-user.target
 
 
 
-def systemd_main_service(full_cmd_line: pl.Path) -> t.Tuple[str, str]:
+def systemd_main_service(full_cmd_line: pl.Path, user: str) -> t.Tuple[str, str]:
     return (f"""
 [Unit]
 Description=thermo daemon
@@ -168,7 +168,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-User={secret.USER}
+User={user}
 ExecStart={full_cmd_line}
 Restart=always
 RestartSec=60
@@ -180,7 +180,7 @@ WantedBy=multi-user.target
 
 
 
-def systemd_update_service(package: str) -> t.Tuple[str, str]:
+def systemd_update_service(package: str, user: str) -> t.Tuple[str, str]:
     return (f"""
 [Unit]
 Description=service for updating repo with thermo project and installing it in the system
@@ -189,7 +189,7 @@ After=network-online.target
 
 [Service]
 Type=simple
-User={secret.USER}
+User={user}
 ExecStart=/home/pi/raspberrypi/install.py install --{package}
 Restart=no
 
@@ -358,8 +358,8 @@ def install_client(dry_run: bool):
        f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"              ,
        f"--tls-client-cert {tls_dir(user) / 'client.cert'}"      ,
        f"--tls-client-key {tls_dir(user) / 'client.key'}"        ,
-    ])), restart=True, dry_run=dry_run, user=user)
-   install_systemd_unit(systemd_update_service( "sensor"), restart=False, dry_run=dry_run, user=user)
+    ]), user), restart=True, dry_run=dry_run, user=user)
+   install_systemd_unit(systemd_update_service("sensor", user), restart=False, dry_run=dry_run, user=user)
    install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run, user=user)
 
    install_systemd_unit(systemd_setup_3g_4g_service(), restart=False, dry_run=dry_run, user=user)
@@ -379,8 +379,8 @@ def install_server(dry_run: bool):
        f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"        ,
        f"--tls-server-cert {tls_dir(user) / 'server.cert'}",
        f"--tls-server-key {tls_dir(user) / 'server.key'}"  ,
-   ])), restart=False, dry_run=dry_run, user=user)
-   install_systemd_unit(systemd_update_service("server"), restart=False, dry_run=dry_run, user=user)
+   ]), user), restart=False, dry_run=dry_run, user=user)
+   install_systemd_unit(systemd_update_service("server", user), restart=False, dry_run=dry_run, user=user)
    install_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run, user=user)
 
 
