@@ -296,7 +296,7 @@ def install_rust_if_needed(dry_run: bool):
 
 # executes cargo build --release -p {package} and returns the path with the result of compilation
 def build_package(package: str, src_root: pl.Path, dry_run: bool) -> pl.Path:
-    command: str = f"{cargo_path()} build --manifest-path {src_root / 'Cargo.toml'} --release -p {package}"
+    command: str = f"{cargo_path()} build --manifest-path {src_root / 'thermo_rust' / 'Cargo.toml'} --release -p {package}"
     logger.info(f"Building: {package} via: {command}")
     res: ExecRes = exec(dry_run=dry_run, command=command, echo_output=False)
     if res.is_err():
