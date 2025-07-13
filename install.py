@@ -267,7 +267,7 @@ def install_systemd_unit(content_name: t.Tuple[str, str], restart: bool, dry_run
 # common helpers
 
 def cargo_path() -> pl.Path:
-    return pl.Path("~/.cargo/bin/cargo").expanduser().resolve()
+    return pl.Path("~/.cargo/bin/cargo").expanduser()
 
 def install_rust_if_needed(dry_run: bool):
     # Check if Cargo is installed
