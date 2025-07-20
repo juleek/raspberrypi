@@ -415,7 +415,7 @@ def install_client(dry_run: bool):
 def install_server(dry_run: bool):
    install_rust_if_needed(dry_run)
 
-   logger.info(f"{pl.Path(__file__).expanduser().resolve()}, {this_file().parent}")
+   logger.info(f"{pl.Path(__file__).expanduser().resolve()}, {pl.Path(__file__).expanduser().resolve().parent}")
    return
 
    src_code_dirs: t.List[pl.Path] = [src_root_rel_to_script()/"common", src_root_rel_to_script()/"sensor", src_root_rel_to_script()/"server"]
