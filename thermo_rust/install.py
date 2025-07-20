@@ -114,7 +114,7 @@ def git_pull_and_get_changed(dry_run: bool, repo_path: pl.Path, target_paths: t.
     def get_hashes(target_paths: t.List[pl.Path]) -> t.Dict[pl.Path, str]:
         hashes = {}
         for path in target_paths:
-            cmd_before = f"cd {shlex.quote(repo_path)} && git log -1 --format=%H -- {shlex.quote(path)}"
+            cmd_before = f"cd {shlex.quote(str(repo_path))} && git log -1 --format=%H -- {shlex.quote(str(path))}"
             res_before = exec(dry_run=True, command=cmd_before, echo_output=False)
             if res_before.is_err():
                 logger.critical(f"Failed to get commit before pull for {path}: {res_before.out}")
@@ -125,7 +125,7 @@ def git_pull_and_get_changed(dry_run: bool, repo_path: pl.Path, target_paths: t.
     hashes_before = get_hashes(target_paths)
 
     # Perform git pull
-    cmd_pull = f"cd {shlex.quote(repo_path)} && git pull"
+    cmd_pull = f"cd {shlex.quote(str(repo_path))} && git pull"
     res_pull = exec(dry_run=dry_run, command=cmd_pull, echo_output=False)
     if res_pull.is_err():
         logger.critical(f"Git pull failed: {res_pull.out}")
