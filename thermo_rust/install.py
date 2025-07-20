@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/python3
 
 import os
 import sys
@@ -125,6 +125,7 @@ def git_pull_and_get_changed(dry_run: bool, repo_path: pl.Path, target_paths: t.
     hashes_before = get_hashes(target_paths)
 
     # Perform git pull
+    logger.info(f"Pulling git...")
     cmd_pull = f"cd {shlex.quote(str(repo_path))} && git pull"
     res_pull = exec(dry_run=dry_run, command=cmd_pull, echo_output=False)
     if res_pull.is_err():
@@ -278,9 +279,7 @@ def install_system_systemd_unit(content_name: t.Tuple[str, str], restart: bool, 
         logger.info(f"No changes in service {service_path} => skipping it")
         return
 
-    logger.info(f"Installing unit: {service_name}")
-
-    return
+    logger.info(f"Installing unit: {service_name} in {service_path}")
 
     res: ExecRes = exec(dry_run=dry_run, command=f"tee {service_path}", root_is_required=True, input=content)
     if res.is_err():
