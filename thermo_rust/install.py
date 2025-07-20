@@ -142,8 +142,7 @@ def git_pull_and_get_changed(dry_run: bool, repo_path: pl.Path, target_paths: t.
 
 
 def systemd_setup_3g_4g_on_boot_timer() -> t.Tuple[str, str]:
-    return (f"""
-[Unit]
+    return (f"""[Unit]
 Description=timer unit for enabling network only on boot
 
 
@@ -160,8 +159,7 @@ WantedBy=multi-user.target
 
 
 def systemd_setup_3g_4g_service() -> t.Tuple[str, str]:
-    return (f"""
-[Unit]
+    return (f"""[Unit]
 Description=(re-)enable 3g/4g modem internet
 Requires=network-online.target
 After=network-online.target
@@ -184,8 +182,7 @@ WantedBy=multi-user.target
 
 
 def systemd_setup_3g_4g_timer() -> t.Tuple[str, str]:
-   return (f"""
-[Unit]
+   return (f"""[Unit]
 Description=timer unit for updating network periodically
 Requires=network-online.target
 After=network-online.target
@@ -209,8 +206,7 @@ WantedBy=multi-user.target
 
 
 def systemd_main_service(full_cmd_line: pl.Path, user: str) -> t.Tuple[str, str]:
-    return (f"""
-[Unit]
+    return (f"""[Unit]
 Description=thermo daemon
 Requires=network-online.target
 After=network-online.target
@@ -230,8 +226,7 @@ WantedBy=multi-user.target
 
 
 def systemd_update_service(package: str, user: str) -> t.Tuple[str, str]:
-    return (f"""
-[Unit]
+    return (f"""[Unit]
 Description=service for updating repo with thermo project and installing it in the system
 Requires=network-online.target
 After=network-online.target
@@ -250,8 +245,7 @@ WantedBy=multi-user.target
 
 
 def systemd_update_timer() -> t.Tuple[str, str]:
-    return (f"""
-[Unit]
+    return (f"""[Unit]
 Description=timer unit for updating repo with thermo project and installing it in the system
 Requires=network-online.target
 After=network-online.target
@@ -405,8 +399,8 @@ def install_client(dry_run: bool):
    user: str = secret.USER_ON_RPI
 
    src_code_dirs: t.List[pl.Path] = [src_root_rel_to_script()/"common", src_root_rel_to_script()/"sensor", src_root_rel_to_script()/"server"]
-   # if git_pull_and_get_changed(dry_run, src_root_rel_to_script(), src_code_dirs):
-   sensor: pl.Path = build_package("sensor", src_root_rel_to_script(), dry_run)
+   if git_pull_and_get_changed(dry_run, src_root_rel_to_script(), src_code_dirs):
+      sensor: pl.Path = build_package("sensor", src_root_rel_to_script(), dry_run)
    sensor: pl.Path = get_bin_path(src_root_rel_to_script(), "sensor")
 
    install_system_systemd_unit(systemd_main_service(" ".join([
