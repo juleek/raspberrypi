@@ -145,11 +145,9 @@ def systemd_setup_3g_4g_on_boot_timer() -> t.Tuple[str, str]:
     return (f"""[Unit]
 Description=timer unit for enabling network only on boot
 
-
 [Timer]
 OnBootSec=60
 Unit=setup_3g_4g.service
-
 
 [Install]
 WantedBy=multi-user.target
@@ -187,11 +185,9 @@ Description=timer unit for updating network periodically
 Requires=network-online.target
 After=network-online.target
 
-
 [Timer]
 OnCalendar=*-*-* *:00/10:00
 Unit=setup_3g_4g.service
-
 
 [Install]
 WantedBy=multi-user.target
