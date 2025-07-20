@@ -280,6 +280,8 @@ def install_system_systemd_unit(content_name: t.Tuple[str, str], restart: bool, 
 
     logger.info(f"Installing unit: {service_name}")
 
+    return
+
     res: ExecRes = exec(dry_run=dry_run, command=f"tee {service_path}", root_is_required=True, input=content)
     if res.is_err():
         logger.critical(f"Failed to copy & write contents of {service_name}: {res}")
@@ -288,7 +290,6 @@ def install_system_systemd_unit(content_name: t.Tuple[str, str], restart: bool, 
     if res.is_err():
         logger.critical(f"Failed to reload systemd daemon: {res}")
 
-    return
     if not restart:
         return
 
@@ -390,7 +391,10 @@ def generate_tls(out_dir: pl.Path, src_root: pl.Path, dry_run: bool):
 def install_client(dry_run: bool):
    install_rust_if_needed(dry_run)
    user: str = secret.USER_ON_RPI
-   sensor: pl.Path = build_package("sensor", src_root(user), dry_run)
+
+   src_code_dirs: t.List[pl.Path] = [src_root_rel_to_script()/"common", src_root_rel_to_script()/"sensor", src_root_rel_to_script()/"server"]
+   if git_pull_and_get_changed(dry_run, src_root_rel_to_script(), src_code_dirs):
+      sensor: pl.Path = build_package("sensor", src_root_rel_to_script(), dry_run)
 
    install_system_systemd_unit(systemd_main_service(" ".join([
        f"{sensor}"                                                ,
@@ -399,9 +403,9 @@ def install_client(dry_run: bool):
        f"--bottom-path {secret.BOTTOM_PATH}"                      ,
        f"--ambient-id {secret.AMBIENT_ID}"                        ,
        f"--ambient-path {secret.AMBIENT_PATH}"                    ,
-       f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"              ,
-       f"--tls-client-cert {tls_dir(user) / 'client.cert'}"      ,
-       f"--tls-client-key {tls_dir(user) / 'client.key'}"        ,
+       f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"               ,
+       f"--tls-client-cert {tls_dir(user) / 'client.cert'}"       ,
+       f"--tls-client-key {tls_dir(user) / 'client.key'}"         ,
     ]), user), restart=True, dry_run=dry_run)
    install_system_systemd_unit(systemd_update_service("sensor", user), restart=False, dry_run=dry_run)
    install_system_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)

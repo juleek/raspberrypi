@@ -1,7 +1,43 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
+
+
+
+
+#[derive(clap::Parser, Debug)]
+pub struct SensorGenIdOpts {
+   /// How many sensors IDs do you need?
+   #[arg(short, default_value_t = 1)]
+   n: u32,
+}
+
+
+
+impl SensorGenIdOpts {
+   pub async fn run(&self) -> Result<()> {
+      for _ in 0..self.n {
+         let res = common::SensorId::new();
+         println!("{res}");
+      }
+      Ok(())
+   }
+}
+
+
+
+// ===========================================================================================================
+
+async fn create_sqlite(path: &str) -> Result<crate::sensor::Sqlite> {
+   let path = std::path::PathBuf::from(path);
+   let pool = crate::db::Location::create_pool(&crate::db::Location::Path(path)).await?;
+   crate::sensor::Sqlite::new(&pool).await
+}
+
 
 #[derive(clap::Parser, Debug)]
 pub struct SensorAddOpts {
+   #[arg(long)]
+   db_path: String,
+
    /// id
    #[arg(long)]
    id: String,
@@ -22,7 +58,9 @@ pub struct SensorAddOpts {
 
 
 impl SensorAddOpts {
-   pub async fn run(&self, sqlite: crate::sensor::Sqlite) -> Result<()> {
+   pub async fn run(&self) -> Result<()> {
+      let sqlite = create_sqlite(&self.db_path).await?;
+
       let sensor = crate::sensor::Sensor {
          id: self.id.clone().try_into()?,
          name: self.name.clone(),
@@ -41,6 +79,9 @@ impl SensorAddOpts {
 
 #[derive(clap::Parser, Debug)]
 pub struct SensorUpdateOpts {
+   #[arg(long)]
+   db_path: String,
+
    /// id
    #[arg(long)]
    id: String,
@@ -55,7 +96,9 @@ pub struct SensorUpdateOpts {
 }
 
 impl SensorUpdateOpts {
-   pub async fn run(&self, sqlite: crate::sensor::Sqlite) -> Result<()> {
+   pub async fn run(&self) -> Result<()> {
+      let sqlite = create_sqlite(&self.db_path).await?;
+
       use crate::sensor::Db;
       let id: common::SensorId = self.id.clone().try_into()?;
       if let Some(min) = self.min {
@@ -79,8 +122,10 @@ impl SensorUpdateOpts {
 
 #[derive(clap::Subcommand, Debug)]
 pub enum Workflow {
+   SensorGenId(SensorGenIdOpts),
    SensorAdd(SensorAddOpts),
    SensorUpdate(SensorUpdateOpts),
+   // TODO: list sensors
 }
 
 
@@ -88,21 +133,17 @@ pub enum Workflow {
 /// Config management operations, such as managing sensors (names, thresholds, etc...)
 #[derive(clap::Parser, Debug)]
 pub struct Cli {
-   #[arg(long)]
-   db_path: String,
-
    #[command(subcommand)]
    workflow: Workflow,
 }
 
 impl Cli {
    pub async fn run(&self) -> Result<()> {
-      let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
-      let sqlite = crate::sensor::Sqlite::new(&pool).await?;
       // create db instance
       match &self.workflow {
-         Workflow::SensorAdd(opts) => opts.run(sqlite).await,
-         Workflow::SensorUpdate(opts) => opts.run(sqlite).await,
+         Workflow::SensorGenId(opts) => opts.run().await,
+         Workflow::SensorAdd(opts) => opts.run().await,
+         Workflow::SensorUpdate(opts) => opts.run().await,
       }
    }
 }
