@@ -334,6 +334,8 @@ def install_rust_if_needed(dry_run: bool):
     logger.info("Rust installed successfully.")
 
 
+def get_bin_path(src_root: pl.Path, package: str) -> pl.Path:
+    return src_root / "target" / "release" / package
 
 # executes cargo build --release -p {package} and returns the path with the result of compilation
 def build_package(package: str, src_root: pl.Path, dry_run: bool) -> pl.Path:
@@ -343,7 +345,7 @@ def build_package(package: str, src_root: pl.Path, dry_run: bool) -> pl.Path:
     if res.is_err():
         logger.critical(f"Failed to build package '{package}': {res}")
 
-    res: pl.Path = src_root / "target" / "release" / package
+    res: pl.Path = get_bin_path(src_root, package)
     logger.info(f"Built {package} at: {res}")
     return res
 
@@ -393,8 +395,9 @@ def install_client(dry_run: bool):
    user: str = secret.USER_ON_RPI
 
    src_code_dirs: t.List[pl.Path] = [src_root_rel_to_script()/"common", src_root_rel_to_script()/"sensor", src_root_rel_to_script()/"server"]
-   if git_pull_and_get_changed(dry_run, src_root_rel_to_script(), src_code_dirs):
-      sensor: pl.Path = build_package("sensor", src_root_rel_to_script(), dry_run)
+   # if git_pull_and_get_changed(dry_run, src_root_rel_to_script(), src_code_dirs):
+   sensor: pl.Path = build_package("sensor", src_root_rel_to_script(), dry_run)
+   sensor: pl.Path = get_bin_path(src_root_rel_to_script(), "sensor")
 
    install_system_systemd_unit(systemd_main_service(" ".join([
        f"{sensor}"                                                ,
