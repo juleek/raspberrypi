@@ -23,6 +23,7 @@ pub struct Sqlite {
    pool: sqlx::Pool<sqlx::Sqlite>,
 }
 
+
 impl Sqlite {
    pub async fn new(pool: &sqlx::Pool<sqlx::Sqlite>) -> Result<Sqlite> {
       crate::db::init_ddl(&pool, Self::ddl())
