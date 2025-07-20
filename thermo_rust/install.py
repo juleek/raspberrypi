@@ -101,6 +101,45 @@ def src_root(user: str) -> pl.Path:
     return pl.Path("/home/") / user / "raspberrypi" / 'thermo_rust'
 
 
+def this_file() -> pl.Path:
+    pl.Path(__file__).expanduser().resolve()
+
+
+def src_root_rel_to_script() -> pl.Path:
+    this_file().parent
+
+
+def git_pull_and_get_changed(dry_run: bool, repo_path: pl.Path, target_paths: t.List[pl.Path]) -> bool:
+    import shlex
+    def get_hashes(target_paths: t.List[pl.Path]) -> t.Dict[pl.Path, str]:
+        hashes = {}
+        for path in target_paths:
+            cmd_before = f"cd {shlex.quote(repo_path)} && git log -1 --format=%H -- {shlex.quote(path)}"
+            res_before = exec(dry_run=True, command=cmd_before, echo_output=False)
+            if res_before.is_err():
+                logger.critical(f"Failed to get commit before pull for {path}: {res_before.out}")
+            hashes[path] = res_before.out.strip()
+        return hashes
+
+
+    hashes_before = get_hashes(target_paths)
+
+    # Perform git pull
+    cmd_pull = f"cd {shlex.quote(repo_path)} && git pull"
+    res_pull = exec(dry_run=dry_run, command=cmd_pull, echo_output=False)
+    if res_pull.is_err():
+        logger.critical(f"Git pull failed: {res_pull.out}")
+
+
+    hashes_after = get_hashes(target_paths)
+    res = hashes_before != hashes_after
+    if res == True:
+        logger.info(f"Changes in one of target dirs are detected: before: {hashes_before}, after: {hashes_after}")
+    else:
+        logger.info(f"No changes in one of target dirs are detected: before and after: {hashes_before}")
+    return res
+
+
 
 def systemd_setup_3g_4g_on_boot_timer() -> t.Tuple[str, str]:
     return (f"""
@@ -190,7 +229,7 @@ After=network-online.target
 [Service]
 Type=simple
 User={user}
-ExecStart=/home/pi/raspberrypi/install.py install --{package}
+ExecStart={this_file()} install --{package}
 Restart=no
 
 [Install]
@@ -249,6 +288,7 @@ def install_system_systemd_unit(content_name: t.Tuple[str, str], restart: bool, 
     if res.is_err():
         logger.critical(f"Failed to reload systemd daemon: {res}")
 
+    return
     if not restart:
         return
 
@@ -320,19 +360,23 @@ def generate_tls(out_dir: pl.Path, src_root: pl.Path, dry_run: bool):
    if res.is_err():
        logger.critical(f"Failed to generate ca: {command}: {res}")
 
-   command: str = f"{server} tls server --ca-cert {out_dir / 'ca.cert'}  \
-                                        --ca-key {out_dir / 'ca.key'}    \
-                                        --cert {out_dir / 'server.cert'} \
-                                        --key {out_dir / 'server.key'}   \
-                                        --san-ips {secret.SERVER_IP}"
+   command: str = " ".join([
+       f"{server}"                                  ,
+       f"tls server --ca-cert {out_dir / 'ca.cert'}",
+       f"--ca-key {out_dir / 'ca.key'}"             ,
+       f"--cert {out_dir / 'server.cert'}"          ,
+       f"--key {out_dir / 'server.key'}"            ,
+       f"--san-ips {secret.SERVER_IP}"])
    res: ExecRes = exec(dry_run=dry_run, command=command)
    if res.is_err():
        logger.critical(f"Failed to generate server: {command}: {res}")
 
-   command: str = f"{server} tls client --ca-cert {out_dir / 'ca.cert'}  \
-                                        --ca-key {out_dir / 'ca.key'}    \
-                                        --cert {out_dir / 'client.cert'} \
-                                        --key {out_dir / 'client.key'}"
+   command: str = " ".join([
+       f"{server}"                                  ,
+       f"tls client --ca-cert {out_dir / 'ca.cert'}",
+       f"--ca-key {out_dir / 'ca.key'}"             ,
+       f"--cert {out_dir / 'client.cert'}"          ,
+       f"--key {out_dir / 'client.key'}"])
    res: ExecRes = exec(dry_run=dry_run, command=command)
    if res.is_err():
        logger.critical(f"Failed to generate client: {command}: {res}")
@@ -370,17 +414,28 @@ def install_client(dry_run: bool):
 
 def install_server(dry_run: bool):
    install_rust_if_needed(dry_run)
+
+   src_code_dirs: t.List[pl.Path] = [src_root_rel_to_script()/"common", src_root_rel_to_script()/"sensor", src_root_rel_to_script()/"server"]
+   if git_pull_and_get_changed(src_root_rel_to_script(), src_code_dirs):
+      server: pl.Path = build_package("server", src_root_rel_to_script(), dry_run)
+      res: ExecRes = exec(dry_run=dry_run, command=f"cp {server} {secret.SERVER_PATH}", root_is_required=True)
+      if res.is_err():
+          logger.critical(f"Failed to build server: {res}")
+      res: ExecRes = exec(dry_run=dry_run, command=f"systemctl restart thermo.service", root_is_required=True)
+      if res.is_err():
+          logger.critical(f"Failed to restart service: {res}")
+
+
    user: str = secret.USER_ON_SRV
-   server: pl.Path = build_package("server", src_root(user), dry_run)
    install_system_systemd_unit(systemd_main_service(" ".join([
-       f"{server} serve"                                    ,
-       f"--host-port 0.0.0.0:{secret.GRPC_PORT}"            ,
-       f"--db-path {secret.DB_PATH}"                        ,
+       f"{server} serve"                                   ,
+       f"--host-port 0.0.0.0:{secret.GRPC_PORT}"           ,
+       f"--db-path {secret.DB_PATH}"                       ,
        f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"        ,
        f"--tls-server-cert {tls_dir(user) / 'server.cert'}",
        f"--tls-server-key {tls_dir(user) / 'server.key'}"  ,
-   ]), user), restart=False, dry_run=dry_run)
-   install_system_systemd_unit(systemd_update_service("server", user), restart=False, dry_run=dry_run)
+   ]), user), restart=True, dry_run=dry_run)
+   install_system_systemd_unit(systemd_update_service("server", secret.SUDO_USER_ON_SRV), restart=False, dry_run=dry_run)
    install_system_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)
 
 
