@@ -115,7 +115,7 @@ def git_pull_and_get_changed(dry_run: bool, repo_path: pl.Path, target_paths: t.
         hashes = {}
         for path in target_paths:
             cmd_before = f"cd {shlex.quote(str(repo_path))} && git log -1 --format=%H -- {shlex.quote(str(path))}"
-            res_before = exec(dry_run=True, command=cmd_before, echo_output=False)
+            res_before = exec(dry_run=False, command=cmd_before, echo_output=False)
             if res_before.is_err():
                 logger.critical(f"Failed to get commit before pull for {path}: {res_before.out}")
             hashes[path] = res_before.out.strip()
@@ -428,7 +428,7 @@ def install_server(dry_run: bool):
 
    user: str = secret.USER_ON_SRV
    install_system_systemd_unit(systemd_main_service(" ".join([
-       f"{server} serve"                                   ,
+       f"{secret.SERVER_PATH} serve"                       ,
        f"--host-port 0.0.0.0:{secret.GRPC_PORT}"           ,
        f"--db-path {secret.DB_PATH}"                       ,
        f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"        ,
