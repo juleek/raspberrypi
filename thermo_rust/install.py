@@ -146,9 +146,11 @@ def systemd_setup_3g_4g_on_boot_timer() -> t.Tuple[str, str]:
 [Unit]
 Description=timer unit for enabling network only on boot
 
+
 [Timer]
 OnBootSec=60
 Unit=setup_3g_4g.service
+
 
 [Install]
 WantedBy=multi-user.target
@@ -164,6 +166,7 @@ Description=(re-)enable 3g/4g modem internet
 Requires=network-online.target
 After=network-online.target
 
+
 [Service]
 Type=oneshot
 User=root
@@ -171,6 +174,7 @@ ExecStart=-/sbin/dhclient -v usb0
 ExecStart=-/usr/bin/curl -v --header "Referer: http://192.168.0.1/index.html" http://192.168.0.1/goform/goform_set_cmd_process?goformId=CONNECT_NETWORK
 ExecStart=-/usr/bin/curl -v --header "Referer: http://192.168.0.1/index.html" http://192.168.0.1/goform/goform_set_cmd_process?goformId=SET_CONNECTION_MODE&ConnectionMode=auto_dial&roam_setting_option=on
 Restart=no
+
 
 [Install]
 WantedBy=multi-user.target
@@ -186,13 +190,20 @@ Description=timer unit for updating network periodically
 Requires=network-online.target
 After=network-online.target
 
+
 [Timer]
 OnCalendar=*-*-* *:00/10:00
 Unit=setup_3g_4g.service
 
+
 [Install]
 WantedBy=multi-user.target
 """, "setup_3g_4g.timer")
+
+
+
+
+
 
 
 
@@ -203,7 +214,6 @@ def systemd_main_service(full_cmd_line: pl.Path, user: str) -> t.Tuple[str, str]
 Description=thermo daemon
 Requires=network-online.target
 After=network-online.target
-
 
 [Service]
 Type=simple
