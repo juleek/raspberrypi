@@ -106,7 +106,7 @@ def this_file() -> pl.Path:
 
 
 def src_root_rel_to_script() -> pl.Path:
-    this_file().parent
+    return this_file().parent
 
 
 def git_pull_and_get_changed(dry_run: bool, repo_path: pl.Path, target_paths: t.List[pl.Path]) -> bool:
