@@ -415,6 +415,9 @@ def install_client(dry_run: bool):
 def install_server(dry_run: bool):
    install_rust_if_needed(dry_run)
 
+   logger.info(f"{pl.Path(__file__).expanduser().resolve()}")
+   return
+
    src_code_dirs: t.List[pl.Path] = [src_root_rel_to_script()/"common", src_root_rel_to_script()/"sensor", src_root_rel_to_script()/"server"]
    if git_pull_and_get_changed(src_root_rel_to_script(), src_code_dirs):
       server: pl.Path = build_package("server", src_root_rel_to_script(), dry_run)
