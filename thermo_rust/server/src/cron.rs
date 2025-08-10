@@ -40,6 +40,7 @@ pub fn start(
             let now = chrono::Utc::now();
             let next_run = calculate_next_run_time(now);
             let to_sleep = (next_run - now).to_std().unwrap_or(std::time::Duration::ZERO);
+            log::info!("Sleeping {} until {next_run}", human_duration::human_duration(&to_sleep));
             tokio::time::sleep(to_sleep).await;
             let res = on_cron(&sender, &sensor_db, &measurements_db).await;
             if let Err(why) = res {
