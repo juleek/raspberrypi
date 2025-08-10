@@ -200,7 +200,7 @@ WantedBy=multi-user.target
 
 
 
-
+THERMO_SERVICE_NAME = "thermo.service"
 
 def systemd_main_service(full_cmd_line: pl.Path, user: str) -> t.Tuple[str, str]:
     return (f"""[Unit]
@@ -217,7 +217,7 @@ RestartSec=60
 
 [Install]
 WantedBy=multi-user.target
-""", "thermo.service")
+""", THERMO_SERVICE_NAME)
 
 
 
@@ -396,6 +396,10 @@ def install_client(dry_run: bool):
    src_code_dirs: t.List[pl.Path] = [src_root_rel_to_script()/"common", src_root_rel_to_script()/"sensor", src_root_rel_to_script()/"server"]
    if git_pull_and_get_changed(dry_run, src_root_rel_to_script(), src_code_dirs):
       sensor: pl.Path = build_package("sensor", src_root_rel_to_script(), dry_run)
+      res: ExecRes = exec(dry_run=dry_run, command=f"systemctl restart {THERMO_SERVICE_NAME}", root_is_required=True)
+      if res.is_err():
+         logger.warning(f"Failed to restart thermo.service: {res}")
+
    sensor: pl.Path = get_bin_path(src_root_rel_to_script(), "sensor")
 
    install_system_systemd_unit(systemd_main_service(" ".join([
@@ -424,7 +428,6 @@ def install_server(dry_run: bool):
    src_code_dirs: t.List[pl.Path] = [src_root_rel_to_script()/"common", src_root_rel_to_script()/"sensor", src_root_rel_to_script()/"server"]
    if git_pull_and_get_changed(dry_run, src_root_rel_to_script(), src_code_dirs):
       server: pl.Path = build_package("server", src_root_rel_to_script(), dry_run)
-
       res: ExecRes = exec(dry_run=dry_run, command=f"rm {secret.SERVER_PATH}", root_is_required=True)
       if res.is_err():
           logger.critical(f"Failed to remove old server: {res}")
@@ -432,9 +435,9 @@ def install_server(dry_run: bool):
       res: ExecRes = exec(dry_run=dry_run, command=f"cp {server} {secret.SERVER_PATH}", root_is_required=True)
       if res.is_err():
           logger.critical(f"Failed to build server: {res}")
-      res: ExecRes = exec(dry_run=dry_run, command=f"systemctl restart thermo.service", root_is_required=True)
+      res: ExecRes = exec(dry_run=dry_run, command=f"systemctl restart {THERMO_SERVICE_NAME}", root_is_required=True)
       if res.is_err():
-          logger.critical(f"Failed to restart service: {res}")
+         logger.warning(f"Failed to restart thermo.service: {res}")
 
 
    user: str = secret.USER_ON_SRV
