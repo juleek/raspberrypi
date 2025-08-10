@@ -7,7 +7,7 @@ fn generate_candidates(date: chrono::NaiveDate) -> Vec<chrono::DateTime<chrono::
       chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
       chrono::NaiveTime::from_hms_opt(18, 0, 0).unwrap(),
       chrono::NaiveTime::from_hms_opt(21, 0, 0).unwrap(),
-      chrono::NaiveTime::from_hms_opt(22, 51, 0).unwrap(),
+      chrono::NaiveTime::from_hms_opt(22, 52, 0).unwrap(),
    ];
 
    times

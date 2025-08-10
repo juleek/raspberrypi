@@ -38,6 +38,7 @@ serde_with            = { version = "3.4", features = ["base64"]                
 url                   = { version = "2.5", features = ["serde"]                                }
 plotters              = { version = "0.3" }
 serde_json            = { version = "1.0", default-features = false, features = ["alloc"] }
+human-duration        = { version = "*" }
 async-stream          = "*"
 futures               = "*"
 image                 = "0.24"
