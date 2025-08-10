@@ -1,6 +1,6 @@
 pub mod pb;
 pub mod tls;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 
 pub fn generate_random_string(prefix: &str, len: usize) -> String {
@@ -20,6 +20,10 @@ pub fn generate_random_string(prefix: &str, len: usize) -> String {
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub struct MicroSecTs(pub chrono::DateTime<chrono::Utc>);
+
+impl std::fmt::Display for MicroSecTs {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { self.0.fmt(f) }
+}
 
 impl std::ops::Deref for MicroSecTs {
    type Target = chrono::DateTime<chrono::Utc>;
@@ -181,6 +185,12 @@ impl TryFrom<crate::pb::MeasurementId> for MeasurementId {
    }
 }
 
+impl std::fmt::Display for MeasurementId {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      write!(f, "{}/{}", self.sensor_id, self.index)
+   }
+}
+
 // ===========================================================================================================
 // Measurement
 
@@ -239,6 +249,21 @@ impl TryFrom<crate::pb::Measurement> for Measurement {
          read_ts: proto_timestamp_to_chrono(read_ts)?.into(),
       };
       Ok(res)
+   }
+}
+
+impl std::fmt::Display for Measurement {
+   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      let temperature = match self.temperature {
+         Some(temp) => temp.to_string(),
+         None => "-".to_string(),
+      };
+      write!(f, "Measurement {{{}, read_ts: {}, temperature: {}", self.id, self.read_ts, temperature)?;
+      if self.error.is_empty() == false {
+         write!(f, ", error: {}", self.error)?;
+      }
+      write!(f, "}}")?;
+      Ok(())
    }
 }
 

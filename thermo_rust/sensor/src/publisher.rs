@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 //
 // ===========================================================================================================
@@ -14,7 +14,7 @@ struct Measurements {
 impl Default for Measurements {
    fn default() -> Self {
       Self {
-         age: chrono::Duration::minutes(2),
+         age: chrono::Duration::minutes(1),
          by_id: Default::default(),
          by_send_ts: Default::default(),
       }
@@ -82,15 +82,12 @@ impl State {
    }
 
 
-   fn on_new_measurement(&mut self, measurement: common::Measurement) -> common::pb::StoreMeasurementReq {
-      let req = common::pb::StoreMeasurementReq {
-         measurement: Some(measurement.clone().into()),
-      };
-      self.measurements.add(measurement, chrono::Utc::now());
-      if self.measurements.by_id.len() > 100 {
+   fn on_new_measurement(&mut self, measurement: common::Measurement) -> common::Measurement {
+      self.measurements.add(measurement.clone(), chrono::Utc::now());
+      if self.measurements.by_id.len() > 1000 {
          log::warn!("Measurements size: {}", self.measurements.by_id.len());
       }
-      req
+      measurement
    }
    fn pull_from_rx(&mut self) {
       while let Ok(measurement) = self.thread_rx.try_recv() {
@@ -134,8 +131,9 @@ async fn one_iteration(
             return Ok(());
          },
          Some(measurement) = state.thread_rx.recv() => {
-            let req = state.on_new_measurement(measurement);
-            log::info!("Sending: {req:?} to {server_host_port}");
+            let measurement = state.on_new_measurement(measurement);
+            log::info!("Sending: {measurement} to {server_host_port}");
+            let req = common::pb::StoreMeasurementReq {measurement: Some(measurement.into())};
             tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
          },
          confirmed = inbound_stream.message() => {
@@ -150,11 +148,12 @@ async fn one_iteration(
             }
          },
          _ = interval.tick() => {
-            let Some(to_retry) = state.measurements.get_next_to_retry(chrono::Utc::now()) else {
+            let Some(measurement) = state.measurements.get_next_to_retry(chrono::Utc::now()) else {
                continue
             };
+            log::info!("Resending: {measurement} to {server_host_port}");
             let req = common::pb::StoreMeasurementReq {
-               measurement: Some(to_retry.into()),
+               measurement: Some(measurement.into()),
             };
             tx_outbound.send(req.clone()).await.with_context(|| anyhow!("Failed to send measurement {req:?}"))?;
          }

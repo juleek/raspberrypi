@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 
 /// The main mode where we start server that listens for incoming measurements
@@ -13,16 +13,23 @@ pub struct Cli {
 
    #[command(flatten)]
    tls: common::tls::ServerArgs,
+
+   #[command(flatten)]
+   telegram: crate::message::TelegramArgs,
 }
 
 impl Cli {
    pub async fn run(&self) -> Result<()> {
       let routes = tonic::service::Routes::default();
       let pool = crate::db::Location::Path(self.db_path.clone()).create_pool().await?;
-      let sqlite = crate::db::measurement::Sqlite::new(&pool).await?;
-      let (routes, _tx) = crate::grpc::Agg::start(routes, sqlite);
-      // let sender = std::sync::Arc::new(crate::message::Telegram { chat_id: 123456789,
-      //                                                              bot_id:  "wwwwwww".to_string(), });
+      let measuruments_db = crate::db::measurement::Sqlite::new(&pool).await?;
+      let sensor_db = crate::sensor::Sqlite::new(&pool).await?;
+
+      let (routes, _tx) = crate::grpc::Agg::start(routes, measuruments_db.clone());
+      let sender = crate::message::Telegram::from_args(self.telegram.clone());
+      crate::cron::start(&measuruments_db, &sensor_db, sender)
+         .with_context(|| anyhow!("Failed to start cron"))?;
+
       let addr: std::net::SocketAddr =
          self.host_port.parse().with_context(|| anyhow!("Failed to parse: {}", self.host_port))?;
       tonic::transport::Server::builder()

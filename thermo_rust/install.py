@@ -231,7 +231,7 @@ After=network-online.target
 [Service]
 Type=simple
 User={user}
-ExecStart={this_file()} install --{package}
+ExecStart={this_file()} --log-level DEBUG install --{package}
 Restart=no
 
 [Install]
@@ -440,6 +440,8 @@ def install_server(dry_run: bool):
        f"--tls-ca-cert {tls_dir(user) / 'ca.cert'}"        ,
        f"--tls-server-cert {tls_dir(user) / 'server.cert'}",
        f"--tls-server-key {tls_dir(user) / 'server.key'}"  ,
+       f"--tg-bot-id {secret.BOT_ID}"                      ,
+       f"--tg-chat-id='{secret.CHAT_ID}'"                  ,
    ]), user), restart=True, dry_run=dry_run)
    install_system_systemd_unit(systemd_update_service("server", secret.SUDO_USER_ON_SRV), restart=False, dry_run=dry_run)
    install_system_systemd_unit(systemd_update_timer(), restart=True, dry_run=dry_run)

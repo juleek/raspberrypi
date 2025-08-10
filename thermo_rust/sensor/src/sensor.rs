@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 
 //
@@ -106,7 +106,7 @@ pub fn poll_sensor_forever(
       let ts = chrono::Utc::now().into();
       let measurement = match poll_sensor_iteration(&meta.path) {
          Ok(temperature) => common::Measurement::from_ok(&id, temperature, ts),
-         Err(why) => common::Measurement::from_err(&id, why.to_string(), ts),
+         Err(why) => common::Measurement::from_err(&id, format!("{why:?}"), ts),
       };
       let res = tx
          .try_send(measurement.clone())

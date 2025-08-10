@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 
 //
@@ -49,6 +49,7 @@ pub trait Db {
    async fn delete(&self, id: &common::SensorId) -> Result<()>;
    async fn update_min(&self, id: &common::SensorId, min: f64) -> Result<()>;
    async fn update_name(&self, id: &common::SensorId, name: &str) -> Result<()>;
+   async fn get_all(&self) -> Result<Vec<Sensor>>;
 }
 
 
@@ -116,6 +117,19 @@ impl Db for Sqlite {
       .execute(&self.pool)
       .await?;
       Ok(())
+   }
+
+   async fn get_all(&self) -> Result<Vec<Sensor>> {
+      let sensors = sqlx::query_as(
+         r#"
+         SELECT id, name, location, min
+         FROM sensors
+         "#,
+      )
+      .fetch_all(&self.pool)
+      .await?;
+
+      Ok(sensors)
    }
 }
 
@@ -236,6 +250,20 @@ mod tests {
       sqlite.delete(&id2).await?;
       let res = sqlite.get_by_id(&id).await?;
       let expected = Some(s_id(&id));
+      assert_eq!(res, expected);
+      Ok(())
+   }
+
+   #[tokio::test]
+   async fn test_get_all_sensors() -> Result<()> {
+      let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
+      let sqlite = Sqlite::new(&pool).await?;
+      let id = common::SensorId::new();
+      sqlite.add(&s_id(&id)).await?;
+      let id2 = common::SensorId::new();
+      sqlite.add(&s_id(&id2)).await?;
+      let res = sqlite.get_all().await?;
+      let expected: Vec<Sensor> = vec![s_id(&id), s_id(&id2)];
       assert_eq!(res, expected);
       Ok(())
    }

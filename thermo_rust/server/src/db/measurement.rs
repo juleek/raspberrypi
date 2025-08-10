@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 
 #[derive(Clone)]
@@ -39,6 +39,7 @@ pub trait Db {
       &self,
       start: common::MicroSecTs,
       end: common::MicroSecTs,
+      sensor_id: &common::SensorId,
    ) -> Result<Vec<common::Measurement>>;
    async fn delete(&self, up_to: common::MicroSecTs) -> Result<()>;
 }
@@ -66,17 +67,19 @@ impl Db for Sqlite {
       &self,
       start: common::MicroSecTs,
       end: common::MicroSecTs,
+      sensor_id: &common::SensorId,
    ) -> Result<Vec<common::Measurement>> {
       let measurements = sqlx::query_as(
          r#"
          SELECT read_ts, sensor_id, index_n as "index", temperature, error
          FROM measurements
-         WHERE read_ts >= $1 AND read_ts < $2
+         WHERE read_ts >= $1 AND read_ts < $2 AND sensor_id = $3
          ORDER BY read_ts
          "#,
       )
       .bind(start)
       .bind(end)
+      .bind(&sensor_id)
       .fetch_all(&self.pool)
       .await?;
 
@@ -120,10 +123,11 @@ mod tests {
       common::MicroSecTs(ts)
    }
 
+   fn get_sen_id() -> common::SensorId { "sen_asdf_1".to_string().try_into().unwrap() }
+
    fn measurement(ts: common::MicroSecTs) -> common::Measurement {
-      let sen_id = "sen_asdf_1".to_string().try_into().unwrap();
       let id = common::MeasurementId {
-         sensor_id: sen_id,
+         sensor_id: get_sen_id(),
          index: 123,
       };
       let mes = common::Measurement {
@@ -141,7 +145,7 @@ mod tests {
       let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
       let sqlite = Sqlite::new(&pool).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y - 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y - 1, m, d), &get_sen_id()).await?;
 
       let expected = Vec::new();
       assert_eq!(res, expected);
@@ -154,7 +158,7 @@ mod tests {
       let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
       let sqlite = Sqlite::new(&pool).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-      let res = sqlite.read(ts_ymd(y, m, d), ts_ymd(y + 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y, m, d), ts_ymd(y + 1, m, d), &get_sen_id()).await?;
       let expected: Vec<common::Measurement> = vec![measurement(ts_ymd(y, m, d))];
       assert_eq!(res, expected);
       Ok(())
@@ -167,7 +171,7 @@ mod tests {
       let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
       let sqlite = Sqlite::new(&pool).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 2, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 2, m, d), &get_sen_id()).await?;
       let expected = vec![measurement(ts_ymd(y, m, d))];
       assert_eq!(res, expected);
       Ok(())
@@ -179,7 +183,7 @@ mod tests {
       let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
       let sqlite = Sqlite::new(&pool).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y, m, d), &get_sen_id()).await?;
       let expected: Vec<common::Measurement> = Vec::new();
       assert_eq!(res, expected);
       Ok(())
@@ -191,7 +195,7 @@ mod tests {
       let pool = crate::db::Location::create_pool(&crate::db::Location::Memory).await?;
       let sqlite = Sqlite::new(&pool).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
-      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y - 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y - 1, m, d), &get_sen_id()).await?;
       let expected = Vec::new();
       assert_eq!(res, expected);
       Ok(())
@@ -210,7 +214,7 @@ mod tests {
       sqlite.write(&measurement(common::MicroSecTs(ts1))).await?;
       sqlite.write(&measurement(common::MicroSecTs(ts2))).await?;
       sqlite.write(&measurement(ts3)).await?;
-      let res = sqlite.read(ts_ymd(y, m, 19), ts3).await?;
+      let res = sqlite.read(ts_ymd(y, m, 19), ts3, &get_sen_id()).await?;
       let expected: Vec<common::Measurement> =
          vec![measurement(common::MicroSecTs(ts1)), measurement(common::MicroSecTs(ts2))];
       assert_eq!(res, expected);
@@ -225,7 +229,7 @@ mod tests {
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d + 1))).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d + 2))).await?;
-      let res = sqlite.read(ts_ymd(y - 1, m, d - 1), ts_ymd(y + 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d - 1), ts_ymd(y + 1, m, d), &get_sen_id()).await?;
       let expected: Vec<common::Measurement> = vec![
          measurement(ts_ymd(y, m, d)),
          measurement(ts_ymd(y, m, d + 1)),
@@ -242,7 +246,7 @@ mod tests {
       let sqlite = Sqlite::new(&pool).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
       sqlite.delete(ts_ymd(y + 1, m, d)).await?;
-      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d), &get_sen_id()).await?;
       let expected = Vec::new();
       assert_eq!(res, expected);
       Ok(())
@@ -256,7 +260,7 @@ mod tests {
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d + 1))).await?;
       sqlite.delete(ts_ymd(y, m, d + 1)).await?;
-      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d), &get_sen_id()).await?;
       let expected: Vec<common::Measurement> = vec![measurement(ts_ymd(y, m, d + 1))];
       assert_eq!(res, expected);
       Ok(())
@@ -269,7 +273,7 @@ mod tests {
       let sqlite = Sqlite::new(&pool).await?;
       sqlite.write(&measurement(ts_ymd(y, m, d))).await?;
       sqlite.delete(ts_ymd(y - 1, m, d)).await?;
-      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d)).await?;
+      let res = sqlite.read(ts_ymd(y - 1, m, d), ts_ymd(y + 1, m, d), &get_sen_id()).await?;
       let expected: Vec<common::Measurement> = vec![measurement(ts_ymd(y, m, d))];
       assert_eq!(res, expected);
       Ok(())

@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 
 type XY = (chrono::DateTime<chrono::Utc>, f64);
 
@@ -5,120 +6,145 @@ type Rgb = (u8, u8, u8);
 
 
 pub struct Sensor {
-   name: String,
-   min: f64,
-   curve: Vec<XY>,
-   colour: Rgb,
+   pub name: String,
+   pub min: f64,
+   pub curve: Vec<XY>,
+   pub colour: Rgb,
 }
 
 
 fn format_date(x: &chrono::DateTime<chrono::Utc>) -> String { x.format("%m-%d %H").to_string() }
 
-pub fn create_plot(sensors: &mut Vec<Sensor>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn create_plot(sensors: &mut Vec<Sensor>) -> Result<Vec<u8>> {
    use plotters::drawing::IntoDrawingArea;
-   let drawing_area = plotters::prelude::BitMapBackend::new("plot.png", (700, 700)).into_drawing_area();
-   drawing_area.fill(&plotters::prelude::WHITE)?;
-
    for sensor in &mut *sensors {
       sensor.curve.sort_by_key(|elem| elem.0);
    }
    sensors.retain(|s| s.curve.is_empty() == false);
-
    if sensors.is_empty() {
-      return Ok(());
+      return Ok(Vec::new());
    }
 
-   let min_x = sensors.iter().map(|s| s.curve.first().unwrap().0).min().unwrap();
-   let max_x = sensors.iter().map(|s| s.curve.last().unwrap().0).max().unwrap();
-   println!("!!! min_x: {}, max_x: {}", min_x, max_x);
+   let width: u32 = 700;
+   let height: u32 = 700;
+   let mut buffer = vec![0u8; width as usize * height as usize * 3]; // RGB buffer
 
-   let (min_y, max_y) = sensors
-      .iter()
-      .flat_map(|s| s.curve.iter().map(|p| p.1))
-      .chain(sensors.iter().map(|s| s.min))
-      .filter(|y| y.is_nan() == false)
-      .fold((None, None), |(min, max), y| {
-         let min = Some(min.unwrap_or(y).min(y));
-         let max = Some(max.unwrap_or(y).max(y));
-         (min, max)
-      });
-   let (min_y, max_y) = (min_y.unwrap(), max_y.unwrap());
+   {
+      // Set up in-memory buffer for plotting
+      let backend = plotters::prelude::BitMapBackend::with_buffer(&mut buffer, (width, height));
+      let drawing_area = backend.into_drawing_area();
+      drawing_area.fill(&&plotters::prelude::WHITE)?;
 
-   let current_time = chrono::Utc::now()
-      .with_timezone(&chrono_tz::Europe::Moscow)
-      .format("%d.%m  %H:%M")
-      .to_string();
-   let title = format!("Temp in Tarasovka on {}", current_time);
+      // let drawing_area = plotters::prelude::BitMapBackend::new("plot.png", (700, 700)).into_drawing_area();
+      // drawing_area.fill(&plotters::prelude::WHITE)?;
 
+      let min_x = sensors.iter().map(|s| s.curve.first().unwrap().0).min().unwrap();
+      let max_x = sensors.iter().map(|s| s.curve.last().unwrap().0).max().unwrap();
 
-   let mut chart_builder = plotters::prelude::ChartBuilder::on(&drawing_area);
-   chart_builder
-      .margin(20)
-      .x_label_area_size(40)
-      .y_label_area_size(40)
-      .caption(title, ("sans-serif", 40, &plotters::prelude::BLACK));
-   let mut chart_context = chart_builder.build_cartesian_2d(min_x..max_x, min_y - 2.0..max_y + 2.0).unwrap();
-   chart_context
-      .configure_mesh()
-      .x_label_formatter(&|x| {
-        if x == &min_x {  // Check if this is the starting point
-            String::new()  // Hide the label
-        } else {
-            format_date(&*x)  // Display the date for other points
-        }
-    })
-      .light_line_style(&plotters::prelude::WHITE)
-      .x_labels(10)
-      .y_labels(5)
-      .x_label_style(("sans-serif", 20))
-      .y_label_style(("sans-serif", 30))
-      .draw()
-      .unwrap();
-
-   for s in sensors {
-      chart_context
-         .draw_series(
-            plotters::prelude::LineSeries::new(
-               s.curve.clone(),
-               plotters::prelude::ShapeStyle {
-            color: plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2).into(),
-            filled: false,
-            stroke_width: 2,
-         },
-            )
-            .point_size(2),
-         )
-         .unwrap()
-         .label(s.name.clone())
-         .legend(|(x, y)| {
-            plotters::prelude::PathElement::new(
-               vec![(x, y), (x + 20, y)],
-               plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2),
-            )
+      let (min_y, max_y) = sensors
+         .iter()
+         .flat_map(|s| s.curve.iter().map(|p| p.1))
+         .chain(sensors.iter().map(|s| s.min))
+         .filter(|y| y.is_nan() == false)
+         .fold((None, None), |(min, max), y| {
+            let min = Some(min.unwrap_or(y).min(y));
+            let max = Some(max.unwrap_or(y).max(y));
+            (min, max)
          });
-      chart_context.draw_series(std::iter::once(plotters::element::DashedPathElement::new(
-         vec![(min_x, s.min), (max_x, s.min)].into_iter(),
-         15, // Dash size
-         7,  // Gap size
-         plotters::prelude::ShapeStyle {
-            color: plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2).into(),
-            filled: false,
-            stroke_width: 1,
-         },
-      )))?;
+      let (min_y, max_y) = (min_y.unwrap(), max_y.unwrap());
+
+      let current_time = chrono::Utc::now()
+         .with_timezone(&chrono_tz::Europe::Moscow)
+         .format("%d.%m  %H:%M")
+         .to_string();
+      let title = format!("Temp in Tarasovka on {}", current_time);
+
+
+      let mut chart_builder = plotters::prelude::ChartBuilder::on(&drawing_area);
+      chart_builder
+         .margin(20)
+         .x_label_area_size(40)
+         .y_label_area_size(40)
+         .caption(title, ("sans-serif", 40, &plotters::prelude::BLACK));
+      let mut chart_context =
+         chart_builder.build_cartesian_2d(min_x..max_x, min_y - 2.0..max_y + 2.0).unwrap();
+      chart_context
+         .configure_mesh()
+         .x_label_formatter(&|x| {
+            if x == &min_x {
+               // Check if this is the starting point
+               String::new() // Hide the label
+            } else {
+               format_date(&*x) // Display the date for other points
+            }
+         })
+         .light_line_style(&plotters::prelude::WHITE)
+         .x_labels(10)
+         .y_labels(5)
+         .x_label_style(("sans-serif", 20))
+         .y_label_style(("sans-serif", 30))
+         .draw()
+         .unwrap();
+
+      for s in sensors {
+         chart_context
+            .draw_series(
+               plotters::prelude::LineSeries::new(
+                  s.curve.clone(),
+                  plotters::prelude::ShapeStyle {
+                     color: plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2).into(),
+                     filled: false,
+                     stroke_width: 2,
+                  },
+               )
+               .point_size(2),
+            )
+            .unwrap()
+            .label(s.name.clone())
+            .legend(|(x, y)| {
+               plotters::prelude::PathElement::new(
+                  vec![(x, y), (x + 20, y)],
+                  plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2),
+               )
+            });
+         chart_context.draw_series(std::iter::once(plotters::element::DashedPathElement::new(
+            vec![(min_x, s.min), (max_x, s.min)].into_iter(),
+            15, // Dash size
+            7,  // Gap size
+            plotters::prelude::ShapeStyle {
+               color: plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2).into(),
+               filled: false,
+               stroke_width: 1,
+            },
+         )))?;
+      }
+
+      chart_context
+         .configure_series_labels()
+         .background_style(&plotters::style::Color::mix(&plotters::style::colors::WHITE, 0.7)) // Translucent white background
+         .border_style(&plotters::prelude::RGBColor(211, 211, 211)) // No border
+         .label_font(("sans-serif", 20)) // Larger font for labels
+         .position(plotters::prelude::SeriesLabelPosition::LowerLeft)
+         .draw()?;
+
+      // Finalize drawing
+      drawing_area.present()?;
+   };
+
+
+   let mut png_output = Vec::new();
+   {
+      let mut encoder = png::Encoder::new(std::io::Cursor::new(&mut png_output), width, height);
+      encoder.set_color(png::ColorType::Rgb);
+      encoder.set_depth(png::BitDepth::Eight);
+      let mut writer = encoder
+         .write_header()
+         .with_context(|| format!("Failed to write PNG header for {}x{}", width, height))?;
+      writer
+         .write_image_data(&buffer)
+         .with_context(|| format!("Failed to write PNG image data (buffer size: {})", buffer.len()))?;
    }
-
-   chart_context
-      .configure_series_labels()
-      .background_style(&plotters::style::Color::mix(&plotters::style::colors::WHITE, 0.7)) // Translucent white background
-      .border_style(&plotters::prelude::RGBColor(211, 211, 211)) // No border
-      .label_font(("sans-serif", 20)) // Larger font for labels
-      .position(plotters::prelude::SeriesLabelPosition::LowerLeft)
-      .draw()?;
-
-
-
-   Ok(())
+   Ok(png_output)
 }
 
 

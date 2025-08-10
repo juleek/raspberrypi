@@ -2958,6 +2958,7 @@ dependencies = [
  "log",
  "once_cell",
  "plotters",
+ "png",
  "pretty_assertions",
  "rand 0.9.1",
  "reqwest",

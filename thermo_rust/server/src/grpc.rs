@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 type MeasurementTx = tokio::sync::broadcast::Sender<common::Measurement>;
 
@@ -80,13 +80,13 @@ async fn persist(
    tx: &MeasurementTx,
    db: &crate::db::measurement::Sqlite,
 ) -> Result<common::pb::StoreMeasurementResp> {
-   log::info!("Received measurement: {:?}", proto);
    let measurement: common::Measurement = proto
       .measurement
       .clone()
       .ok_or_else(|| anyhow!("Measurement is missing in {proto:?}"))?
       .try_into()
       .with_context(|| anyhow!("Failed to convert proto measurement to measurement: {proto:?}"))?;
+   log::info!("Received {measurement}");
 
    use crate::db::measurement::Db;
    db.write(&measurement)

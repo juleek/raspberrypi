@@ -46,6 +46,7 @@ chrono-tz             = "0.6"
 sqlx                  = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono"]     }
 derive_more           = { version = "2.0", features = ["full"]                                  }
 rand                  = { version = "0.9"                                                      }
+png = "0.17"
 
 [dev-dependencies]
 pretty_assertions     = { version = "1"                                                        }
