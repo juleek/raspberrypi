@@ -7,7 +7,7 @@ fn generate_candidates(date: chrono::NaiveDate) -> Vec<chrono::DateTime<chrono::
       chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
       chrono::NaiveTime::from_hms_opt(18, 0, 0).unwrap(),
       chrono::NaiveTime::from_hms_opt(21, 0, 0).unwrap(),
-      chrono::NaiveTime::from_hms_opt(22, 52, 0).unwrap(),
+      chrono::NaiveTime::from_hms_opt(22, 54, 0).unwrap(),
    ];
 
    times
@@ -40,7 +40,7 @@ pub fn start(
             let now = chrono::Utc::now();
             let next_run = calculate_next_run_time(now);
             let to_sleep = (next_run - now).to_std().unwrap_or(std::time::Duration::ZERO);
-            log::info!("Sleeping {} until {next_run}", human_duration::human_duration(&to_sleep));
+            log::info!("now: {now} => sleeping {} until {next_run}", human_duration::human_duration(&to_sleep));
             tokio::time::sleep(to_sleep).await;
             let res = on_cron(&sender, &sensor_db, &measurements_db).await;
             if let Err(why) = res {
