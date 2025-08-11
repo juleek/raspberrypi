@@ -35,9 +35,6 @@ pub fn create_plot(sensors: &mut Vec<Sensor>) -> Result<Vec<u8>> {
       let drawing_area = backend.into_drawing_area();
       drawing_area.fill(&&plotters::prelude::WHITE)?;
 
-      // let drawing_area = plotters::prelude::BitMapBackend::new("plot.png", (700, 700)).into_drawing_area();
-      // drawing_area.fill(&plotters::prelude::WHITE)?;
-
       let min_x = sensors.iter().map(|s| s.curve.first().unwrap().0).min().unwrap();
       let max_x = sensors.iter().map(|s| s.curve.last().unwrap().0).max().unwrap();
 
@@ -100,10 +97,10 @@ pub fn create_plot(sensors: &mut Vec<Sensor>) -> Result<Vec<u8>> {
                .point_size(2),
             )
             .unwrap()
-            .label(s.name.clone())
+            .label(format!("   {}", s.name.clone()))
             .legend(|(x, y)| {
                plotters::prelude::PathElement::new(
-                  vec![(x, y), (x + 20, y)],
+                  vec![(x, y), (x + 40, y)],
                   plotters::prelude::RGBColor(s.colour.0, s.colour.1, s.colour.2),
                )
             });
@@ -123,7 +120,7 @@ pub fn create_plot(sensors: &mut Vec<Sensor>) -> Result<Vec<u8>> {
          .configure_series_labels()
          .background_style(&plotters::style::Color::mix(&plotters::style::colors::WHITE, 0.7)) // Translucent white background
          .border_style(&plotters::prelude::RGBColor(211, 211, 211)) // No border
-         .label_font(("sans-serif", 20)) // Larger font for labels
+         .label_font(("sans-serif", 30)) // Larger font for labels
          .position(plotters::prelude::SeriesLabelPosition::LowerLeft)
          .draw()?;
 

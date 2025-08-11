@@ -4,8 +4,7 @@ fn generate_candidates(date: chrono::NaiveDate) -> Vec<chrono::DateTime<chrono::
    use chrono::TimeZone;
    let tz = chrono_tz::Europe::Moscow;
    let times = [
-      chrono::NaiveTime::from_hms_opt(1, 55, 0).unwrap(),
-      chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap(),
+      chrono::NaiveTime::from_hms_opt(9, 0, 0).unwrap(),
       chrono::NaiveTime::from_hms_opt(18, 0, 0).unwrap(),
       chrono::NaiveTime::from_hms_opt(21, 0, 0).unwrap(),
    ];
@@ -32,8 +31,6 @@ pub fn start(
    sensor_db: &crate::sensor::Sqlite,
    sender: crate::message::Telegram,
 ) -> Result<()> {
-   // return Ok(());
-
    tokio::task::spawn({
       let measurements_db = measurements_db.clone();
       let sensor_db = sensor_db.clone();
@@ -42,12 +39,15 @@ pub fn start(
             let now = chrono::Utc::now();
             let next_run = calculate_next_run_time(now);
             let to_sleep = (next_run - now).to_std().unwrap_or(std::time::Duration::ZERO);
-            log::info!("now: {now} => sleeping {} until {next_run}", human_duration::human_duration(&to_sleep));
+            log::info!(
+               "now: {now} => sleeping {} until {next_run}",
+               human_duration::human_duration(&to_sleep)
+            );
             tokio::time::sleep(to_sleep).await;
             let res = on_cron(&sender, &sensor_db, &measurements_db).await;
             if let Err(why) = res {
                log::warn!("on_cron() failed: {why:?}");
-               break
+               break;
             }
          }
       }
@@ -89,13 +89,16 @@ async fn on_cron(
          .map(|s| s.error.as_str())
          .collect();
       let curve_errors = curve_errors.join(", ");
+      let sensor_name = sensor_meta.clone().name;
       plot_sensors.push(crate::plot::Sensor {
-         name: sensor_meta.clone().name,
+         name: sensor_name.clone(),
          min: sensor_meta.min,
          curve,
          colour: colours[i % colours.len()],
       });
-      errors.push(format!("sensor: {curve_errors}"));
+      if !curve_errors.is_empty() {
+         errors.push(format!("{sensor_name}: {curve_errors}"));
+      }
    }
    let errors = errors.join("\n");
    let plot = crate::plot::create_plot(&mut plot_sensors)?;
