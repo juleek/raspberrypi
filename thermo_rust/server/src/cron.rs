@@ -32,26 +32,27 @@ pub fn start(
    sensor_db: &crate::sensor::Sqlite,
    sender: crate::message::Telegram,
 ) -> Result<()> {
-   return Ok(());
+   // return Ok(());
 
-   // tokio::task::spawn({
-   //    let measurements_db = measurements_db.clone();
-   //    let sensor_db = sensor_db.clone();
-   //    async move {
-   //       loop {
-   //          let now = chrono::Utc::now();
-   //          let next_run = calculate_next_run_time(now);
-   //          let to_sleep = (next_run - now).to_std().unwrap_or(std::time::Duration::ZERO);
-   //          log::info!("now: {now} => sleeping {} until {next_run}", human_duration::human_duration(&to_sleep));
-   //          tokio::time::sleep(to_sleep).await;
-   //          let res = on_cron(&sender, &sensor_db, &measurements_db).await;
-   //          if let Err(why) = res {
-   //             log::warn!("on_cron() failed: {why:?}")
-   //          }
-   //       }
-   //    }
-   // });
-   // Ok(())
+   tokio::task::spawn({
+      let measurements_db = measurements_db.clone();
+      let sensor_db = sensor_db.clone();
+      async move {
+         loop {
+            let now = chrono::Utc::now();
+            let next_run = calculate_next_run_time(now);
+            let to_sleep = (next_run - now).to_std().unwrap_or(std::time::Duration::ZERO);
+            log::info!("now: {now} => sleeping {} until {next_run}", human_duration::human_duration(&to_sleep));
+            // tokio::time::sleep(to_sleep).await;
+            let res = on_cron(&sender, &sensor_db, &measurements_db).await;
+            if let Err(why) = res {
+               log::warn!("on_cron() failed: {why:?}");
+               break
+            }
+         }
+      }
+   });
+   Ok(())
 }
 
 
