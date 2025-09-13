@@ -47,7 +47,6 @@ pub fn start(
             let res = on_cron(&sender, &sensor_db, &measurements_db).await;
             if let Err(why) = res {
                log::warn!("on_cron() failed: {why:?}");
-               break;
             }
          }
       }

@@ -57,6 +57,7 @@ impl Telegram {
                   ", Attempt: {i}, failed to send request of size: {len}, request headers: {:?}: {why:?}",
                   request_headers
                ));
+               tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                continue;
             }
             Ok(resp) => match handle_response(resp.text().await) {
@@ -64,6 +65,7 @@ impl Telegram {
                   descriptions.push(format!(
                      "Attempt: {i}, failed to handle response of request of size: {len}, request headers: {:?}: {why:?}",
                      request_headers));
+                  tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                   continue;
                }
                Ok(_) => {
@@ -97,7 +99,7 @@ impl Telegram {
          let request = reqwest::Client::new()
             .post(&url)
             .multipart(form)
-            .timeout(std::time::Duration::from_secs(10))
+            .timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap();
          request
