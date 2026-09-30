@@ -14,6 +14,5 @@ RestartSec=30
 [Install]
 WantedBy=multi-user.target
 
-
 # Connect from impedance to rpi:
 # ssh -tt iot-gateway.europe-west2-a.tarasovka-monitoring ssh -ttp 32003 pi@127.0.0.1
