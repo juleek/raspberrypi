@@ -156,6 +156,28 @@ WantedBy=multi-user.target
 
 
 
+def systemd_reverse_ssh() -> t.Tuple[str, str]:
+    return (f"""[Unit]
+Description=reverse ssh tunnel swiss
+Requires=network-online.target
+After=network-online.target
+
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/usr/bin/ssh -v -N -R localhost:32003:localhost:22 device_tarpi@81.26.183.149 -o ExitOnForwardFailure=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=2 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+
+# Connect from impedance to rpi:
+# ssh -tt iot-gateway.europe-west2-a.tarasovka-monitoring ssh -ttp 32003 pi@127.0.0.1
+""", "reversessh-swiss.service")
+
+
 
 def systemd_setup_3g_4g_service() -> t.Tuple[str, str]:
     return (f"""[Unit]
@@ -419,6 +441,7 @@ def install_client(dry_run: bool):
    install_system_systemd_unit(systemd_setup_3g_4g_service(), restart=False, dry_run=dry_run)
    install_system_systemd_unit(systemd_setup_3g_4g_timer(), restart=True, dry_run=dry_run)
    install_system_systemd_unit(systemd_setup_3g_4g_on_boot_timer(), restart=True, dry_run=dry_run)
+   install_system_systemd_unit(systemd_reverse_ssh(), restart=True, dry_run=dry_run)
 
 
 
