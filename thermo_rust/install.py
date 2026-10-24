@@ -185,7 +185,6 @@ Description=(re-)enable 3g/4g modem internet
 Requires=network-online.target
 After=network-online.target
 
-
 [Service]
 Type=oneshot
 User=root
@@ -193,7 +192,6 @@ ExecStart=-/sbin/dhclient -v usb0
 ExecStart=-/usr/bin/curl -v --header "Referer: http://192.168.0.1/index.html" http://192.168.0.1/goform/goform_set_cmd_process?goformId=CONNECT_NETWORK
 ExecStart=-/usr/bin/curl -v --header "Referer: http://192.168.0.1/index.html" http://192.168.0.1/goform/goform_set_cmd_process?goformId=SET_CONNECTION_MODE&ConnectionMode=auto_dial&roam_setting_option=on
 Restart=no
-
 
 [Install]
 WantedBy=multi-user.target
