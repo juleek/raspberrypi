@@ -269,7 +269,7 @@ After=network-online.target
 
 [Timer]
 # OnCalendar=*-*-* *:18:00
-OnCalendar=*-*-* *:0/5:00
+OnCalendar=*-*-* *:0/19:00
 Unit=update_thermo.service
 
 [Install]
