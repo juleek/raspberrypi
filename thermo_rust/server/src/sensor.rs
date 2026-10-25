@@ -43,7 +43,7 @@ impl Sqlite {
 }
 
 #[async_trait::async_trait]
-pub trait Db {
+pub trait Db: Send + Sync {
    async fn add(&self, sensor: &Sensor) -> Result<()>;
    async fn get_by_id(&self, id: &common::SensorId) -> Result<Option<Sensor>>;
    async fn delete(&self, id: &common::SensorId) -> Result<()>;

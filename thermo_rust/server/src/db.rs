@@ -1,7 +1,6 @@
 pub mod measurement;
 
-use anyhow::{anyhow, Context, Result};
-
+use anyhow::{Context, Result, anyhow};
 
 fn ignore_duplicate_column_name(err_sqlx: sqlx::Error) -> Result<(), sqlx::Error> {
    // let Some(err) = err else { return false };
@@ -15,11 +14,7 @@ fn ignore_duplicate_column_name(err_sqlx: sqlx::Error) -> Result<(), sqlx::Error
    let Some(code) = err.code() else {
       return Err(err_sqlx);
    };
-   if code == "1" {
-      Ok(())
-   } else {
-      Err(err_sqlx)
-   }
+   if code == "1" { Ok(()) } else { Err(err_sqlx) }
 }
 
 pub enum Location {
@@ -40,13 +35,18 @@ impl Location {
                .shared_cache(true)
                .filename(format!("file:{random}"))
          }
-         Location::Path(p) => {
-            if !p.exists() {
-               std::fs::OpenOptions::new().write(true).create(true).open(&p).with_context(|| {
-                  anyhow!("The db path does not exist and we failed to create it: {}", p.display())
+         Location::Path(path) => {
+            let path = crate::resolve_home(path);
+            if !path.exists() {
+               if let Some(parent) = path.parent() {
+                  std::fs::create_dir_all(parent)
+                     .with_context(|| anyhow!("Failed to create parent dir: {parent:?}"))?;
+               };
+               std::fs::OpenOptions::new().write(true).create(true).open(&path).with_context(|| {
+                  anyhow!("The db path does not exist and we failed to create it: {}", path.display())
                })?;
             }
-            sqlx::sqlite::SqliteConnectOptions::new().filename(p)
+            sqlx::sqlite::SqliteConnectOptions::new().filename(path)
          }
       };
 

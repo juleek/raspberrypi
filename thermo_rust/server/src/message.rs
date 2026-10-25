@@ -25,6 +25,15 @@ pub struct TelegramArgs {
    tg_chat_id: String,
 }
 
+#[derive(clap::Parser, Debug, Clone)]
+pub struct TelegramAlertArgs {
+   #[arg(long)]
+   tg_bot_id: String,
+
+   #[arg(long)]
+   tg_chat_id: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Telegram {
    pub chat_id: String,
@@ -34,6 +43,13 @@ pub struct Telegram {
 
 impl Telegram {
    pub fn from_args(args: TelegramArgs) -> Self {
+      Self {
+         bot_id: args.tg_bot_id,
+         chat_id: args.tg_chat_id,
+      }
+   }
+
+   pub fn from_alert_args(args: TelegramAlertArgs) -> Self {
       Self {
          bot_id: args.tg_bot_id,
          chat_id: args.tg_chat_id,
